@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="images/888.png">
+    <title>Login</title>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .error-msg {
+            color: #c0392b;
+            font-size: 13px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+        .warn-msg {
+            color: #e67e22;
+            font-size: 13px;
+            margin-top: 10px;
+            text-align: center;
+            padding: 8px;
+            background: #fef9f0;
+            border: 1px solid #f0c070;
+            border-radius: 6px;
+            display: none;
+        }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #dceef8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-card {
+            background-color: #ffffff;
+            padding: 40px 48px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2);
+            width: 100%;
+            max-width: 380px;
+        }
+        .login-card h2 {
+            text-align: center;
+            color: #2a7aad;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #4a90b8;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #b0d4ec;
+            border-radius: 6px;
+            font-size: 15px;
+            color: #2c3e50;
+            background-color: #f4f9fd;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            border-color: #2a7aad;
+            background-color: #ffffff;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 11px;
+            background-color: #2a7aad;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background-color 0.2s;
+        }
+        .login-btn:hover { background-color: #1e5f8a; }
+        .error-msg {
+            color: #c0392b;
+            font-size: 13px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+<body>
+
+<div class="login-card">
+    <h2>Kirish</h2>
+    <div class="form-group">
+        <label for="login">Foydalanuvchi nomi</label>
+        <input type="text" id="login" name="username" placeholder="Username" required />
+    </div>
+    <div class="form-group">
+        <label for="password">Parol</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required />
+    </div>
+    <button class="login-btn" id="submitbtn">Kirish</button>
+    <p class="warn-msg" id="warnMsg"></p>
+    <p class="error-msg" id="errorMsg">Xato username yoki parol!</p>
+</div>
+
+<script src="/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hodimlar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: #dceef8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #2c3e50;
+        }
+
+        .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: #ffffff; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
+        }
+        .card-header h1 { color: #2a7aad; font-size: 20px; }
+        .add-btn {
+            padding: 9px 18px; background-color: #2a7aad; color: #fff; border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .add-btn:hover { background-color: #1e5f8a; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e3eef6; }
+        th {
+            color: #4a90b8; font-size: 12px; text-transform: uppercase;
+            background-color: #f4f9fd;
+        }
+        tr:hover td { background-color: #f9fcfe; }
+        .role-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 600;
+            background-color: #e3f1fa; color: #1a6fa8;
+        }
+        .del-btn {
+            padding: 6px 12px; background-color: #fdecea; color: #c0392b; border: 1px solid #f0b6b0;
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .del-btn:hover { background-color: #f9d3cf; }
+        .empty-row td { text-align: center; color: #8aa8ba; padding: 24px; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(30, 60, 80, 0.45);
+            display: none; align-items: center; justify-content: center; z-index: 100;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff; border-radius: 10px; padding: 28px 32px;
+            width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(30, 60, 80, 0.25);
+        }
+        .modal h2 { color: #2a7aad; font-size: 18px; margin-bottom: 18px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #4a90b8;
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 9px 12px; border: 1.5px solid #b0d4ec; border-radius: 6px;
+            font-size: 14px; color: #2c3e50; background-color: #f4f9fd; outline: none;
+            transition: border-color 0.2s; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #2a7aad; background-color: #fff;
+        }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .modal-actions .save-btn {
+            flex: 1; padding: 10px; background-color: #2a7aad; color: #fff; border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-actions .save-btn:hover { background-color: #1e5f8a; }
+        .modal-actions .cancel-btn {
+            padding: 10px 18px; background-color: #eef4f8; color: #4a90b8; border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-error {
+            color: #c0392b; font-size: 13px; margin-top: 10px; text-align: center; display: none;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+            border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
+            box-shadow: 0 4px 16px rgba(30, 60, 80, 0.25);
+            opacity: 0; transform: translateY(10px);
+            transition: opacity 0.25s, transform 0.25s; pointer-events: none; z-index: 200;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.ok { background-color: #2a9d5c; }
+        .toast.err { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Hodimlar</h1>
+            <button class="add-btn" id="openModalBtn">+ Yangi hodim</button>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>F.I.Sh</th>
+                <th>Telefon</th>
+                <th>Manzil</th>
+                <th>Username</th>
+                <th>Rol</th>
+                <th>Izoh</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody id="usersTbody">
+            <tr class="empty-row"><td colspan="8">Yuklanmoqda...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Yangi hodim modali -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2>Yangi hodim qo'shish</h2>
+        <div class="form-group">
+            <label for="u_fish">F.I.Sh</label>
+            <input type="text" id="u_fish" placeholder="Familiya Ism Sharif">
+        </div>
+        <div class="form-group">
+            <label for="u_tel">Telefon</label>
+            <input type="text" id="u_tel" placeholder="+998 90 123 45 67">
+        </div>
+        <div class="form-group">
+            <label for="u_address">Manzil</label>
+            <input type="text" id="u_address" placeholder="Manzil">
+        </div>
+        <div class="form-group">
+            <label for="u_username">Username *</label>
+            <input type="text" id="u_username" placeholder="Username" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="u_password">Parol *</label>
+            <input type="password" id="u_password" placeholder="Parol" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+            <label for="u_role">Rol *</label>
+            <select id="u_role">
+                <option value="hodim">Hodim</option>
+                <option value="owner">Owner</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="u_izoh">Izoh</label>
+            <textarea id="u_izoh" rows="2" placeholder="Izoh (ixtiyoriy)"></textarea>
+        </div>
+        <p class="modal-error" id="modalError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="saveUserBtn">Saqlash</button>
+            <button class="cancel-btn" id="cancelBtn">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const tbody = document.getElementById('usersTbody');
+    const overlay = document.getElementById('modalOverlay');
+    const modalError = document.getElementById('modalError');
+    const toast = document.getElementById('toast');
+    let toastTimer = null;
+
+    function toastKorsat(matn, ok) {
+        toast.textContent = matn;
+        toast.className = 'toast show ' + (ok ? 'ok' : 'err');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    async function loadUsers() {
+        try {
+            const res = await fetch('/admin/get-users');
+            if (!res.ok) throw new Error();
+            const users = await res.json();
+
+            if (!users.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Hodimlar yo\u2018q</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map((u, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${esc(u.fish)}</td>
+                    <td>${esc(u.tel)}</td>
+                    <td>${esc(u.address)}</td>
+                    <td>${esc(u.username)}</td>
+                    <td><span class="role-badge">${esc(u.role)}</span></td>
+                    <td>${esc(u.izoh)}</td>
+                    <td><button class="del-btn" data-id="${u.id}" data-name="${esc(u.username)}">O'chirish</button></td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    // ===== Modal =====
+    function modalOchish() {
+        modalError.style.display = 'none';
+        overlay.classList.add('open');
+        document.getElementById('u_fish').focus();
+    }
+    function modalYopish() {
+        overlay.classList.remove('open');
+        ['u_fish', 'u_tel', 'u_address', 'u_username', 'u_password', 'u_izoh']
+            .forEach(id => document.getElementById(id).value = '');
+        document.getElementById('u_role').value = 'hodim';
+    }
+
+    document.getElementById('openModalBtn').addEventListener('click', modalOchish);
+    document.getElementById('cancelBtn').addEventListener('click', modalYopish);
+    overlay.addEventListener('click', e => { if (e.target === overlay) modalYopish(); });
+
+    // ===== Saqlash =====
+    document.getElementById('saveUserBtn').addEventListener('click', async () => {
+        modalError.style.display = 'none';
+
+        const body = {
+            fish: document.getElementById('u_fish').value.trim(),
+            tel: document.getElementById('u_tel').value.trim(),
+            address: document.getElementById('u_address').value.trim(),
+            izoh: document.getElementById('u_izoh').value.trim(),
+            username: document.getElementById('u_username').value.trim(),
+            password: document.getElementById('u_password').value,
+            role: document.getElementById('u_role').value
+        };
+
+        if (!body.username || !body.password) {
+            modalError.textContent = 'Username va parol kiritilishi shart';
+            modalError.style.display = 'block';
+            return;
+        }
+
+        try {
+            const res = await fetch('/admin/add-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                modalYopish();
+                toastKorsat(data.message, true);
+                loadUsers();
+            } else {
+                modalError.textContent = data.message || 'Xatolik yuz berdi';
+                modalError.style.display = 'block';
+            }
+        } catch (e) {
+            modalError.textContent = 'Server bilan aloqa yo\u2018q';
+            modalError.style.display = 'block';
+        }
+    });
+
+    // ===== O'chirish =====
+    tbody.addEventListener('click', async e => {
+        const btn = e.target.closest('.del-btn');
+        if (!btn) return;
+
+        if (!confirm(`"${btn.dataset.name}" hodimini o'chirishni tasdiqlaysizmi?`)) return;
+
+        try {
+            const res = await fetch('/admin/delete-user/' + btn.dataset.id, { method: 'DELETE' });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) loadUsers();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo\u2018q', false);
+        }
+    });
+
+    loadUsers();
+</script>
+
+</body>
+</html>

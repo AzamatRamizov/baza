@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kategoriyalar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: #dceef8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #2c3e50;
+        }
+        .container { max-width: 700px; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: #ffffff; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
+        }
+        .card-header h1 { color: #2a7aad; font-size: 20px; }
+        .add-btn {
+            padding: 9px 18px; background-color: #2a7aad; color: #fff; border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .add-btn:hover { background-color: #1e5f8a; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e3eef6; }
+        th {
+            color: #4a90b8; font-size: 12px; text-transform: uppercase;
+            background-color: #f4f9fd;
+        }
+        tr:hover td { background-color: #f9fcfe; }
+        .edit-btn {
+            padding: 6px 12px; background-color: #e3f1fa; color: #1a6fa8; border: 1px solid #b0d4ec;
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px;
+            transition: background-color 0.2s;
+        }
+        .edit-btn:hover { background-color: #cfe6f5; }
+        .del-btn {
+            padding: 6px 12px; background-color: #fdecea; color: #c0392b; border: 1px solid #f0b6b0;
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .del-btn:hover { background-color: #f9d3cf; }
+        .empty-row td { text-align: center; color: #8aa8ba; padding: 24px; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(30, 60, 80, 0.45);
+            display: none; align-items: center; justify-content: center; z-index: 100;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff; border-radius: 10px; padding: 28px 32px;
+            width: 100%; max-width: 400px;
+            box-shadow: 0 8px 32px rgba(30, 60, 80, 0.25);
+        }
+        .modal h2 { color: #2a7aad; font-size: 18px; margin-bottom: 18px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #4a90b8;
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+        }
+        .form-group input {
+            width: 100%; padding: 9px 12px; border: 1.5px solid #b0d4ec; border-radius: 6px;
+            font-size: 14px; color: #2c3e50; background-color: #f4f9fd; outline: none;
+            transition: border-color 0.2s; font-family: inherit;
+        }
+        .form-group input:focus { border-color: #2a7aad; background-color: #fff; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .modal-actions .save-btn {
+            flex: 1; padding: 10px; background-color: #2a7aad; color: #fff; border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-actions .save-btn:hover { background-color: #1e5f8a; }
+        .modal-actions .cancel-btn {
+            padding: 10px 18px; background-color: #eef4f8; color: #4a90b8; border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-error {
+            color: #c0392b; font-size: 13px; margin-top: 10px; text-align: center; display: none;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+            border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
+            box-shadow: 0 4px 16px rgba(30, 60, 80, 0.25);
+            opacity: 0; transform: translateY(10px);
+            transition: opacity 0.25s, transform 0.25s; pointer-events: none; z-index: 200;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.ok { background-color: #2a9d5c; }
+        .toast.err { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Kategoriyalar</h1>
+            <button class="add-btn" id="openModalBtn">+ Yangi kategoriya</button>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th style="width:60px">#</th>
+                <th>Nomi</th>
+                <th style="width:180px"></th>
+            </tr>
+            </thead>
+            <tbody id="kategoriyaTbody">
+            <tr class="empty-row"><td colspan="3">Yuklanmoqda...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Kategoriya qo'shish/tahrirlash modali -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2 id="modalTitle">Yangi kategoriya</h2>
+        <div class="form-group">
+            <label for="k_nomi">Kategoriya nomi *</label>
+            <input type="text" id="k_nomi" placeholder="Masalan: Gilamlar" autocomplete="off">
+        </div>
+        <p class="modal-error" id="modalError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="saveBtn">Saqlash</button>
+            <button class="cancel-btn" id="cancelBtn">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const tbody = document.getElementById('kategoriyaTbody');
+    const overlay = document.getElementById('modalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalError = document.getElementById('modalError');
+    const toast = document.getElementById('toast');
+
+    let kategoriyalar = [];
+    let editingId = null;
+    let toastTimer = null;
+
+    function toastKorsat(matn, ok) {
+        toast.textContent = matn;
+        toast.className = 'toast show ' + (ok ? 'ok' : 'err');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    async function loadKategoriyalar() {
+        try {
+            const res = await fetch('/admin/get-kategoriyalar');
+            if (!res.ok) throw new Error();
+            kategoriyalar = await res.json();
+
+            if (!kategoriyalar.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Kategoriyalar yo\u2018q</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = kategoriyalar.map((k, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><b>${esc(k.nomi)}</b></td>
+                    <td>
+                        <button class="edit-btn" data-id="${k.id}">Tahrirlash</button>
+                        <button class="del-btn" data-id="${k.id}" data-name="${esc(k.nomi)}">O'chirish</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    // ===== Modal =====
+    function modalOchish(kategoriya) {
+        modalError.style.display = 'none';
+        editingId = kategoriya ? kategoriya.id : null;
+        modalTitle.textContent = kategoriya ? 'Kategoriyani tahrirlash' : 'Yangi kategoriya';
+        document.getElementById('k_nomi').value = kategoriya ? kategoriya.nomi : '';
+        overlay.classList.add('open');
+        document.getElementById('k_nomi').focus();
+    }
+
+    function modalYopish() {
+        overlay.classList.remove('open');
+        editingId = null;
+    }
+
+    document.getElementById('openModalBtn').addEventListener('click', () => modalOchish(null));
+    document.getElementById('cancelBtn').addEventListener('click', modalYopish);
+    overlay.addEventListener('click', e => { if (e.target === overlay) modalYopish(); });
+    document.getElementById('k_nomi').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('saveBtn').click();
+    });
+
+    // ===== Saqlash =====
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+        modalError.style.display = 'none';
+
+        const nomi = document.getElementById('k_nomi').value.trim();
+        if (!nomi) {
+            modalError.textContent = 'Kategoriya nomini kiriting';
+            modalError.style.display = 'block';
+            return;
+        }
+
+        const url = editingId ? '/admin/update-kategoriya/' + editingId : '/admin/add-kategoriya';
+        const method = editingId ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nomi: nomi })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                modalYopish();
+                toastKorsat(data.message, true);
+                loadKategoriyalar();
+            } else {
+                modalError.textContent = data.message || 'Xatolik yuz berdi';
+                modalError.style.display = 'block';
+            }
+        } catch (e) {
+            modalError.textContent = 'Server bilan aloqa yo\u2018q';
+            modalError.style.display = 'block';
+        }
+    });
+
+    // ===== Tahrirlash / O'chirish =====
+    tbody.addEventListener('click', async e => {
+        const editBtn = e.target.closest('.edit-btn');
+        if (editBtn) {
+            const kategoriya = kategoriyalar.find(k => k.id === Number(editBtn.dataset.id));
+            if (kategoriya) modalOchish(kategoriya);
+            return;
+        }
+
+        const delBtn = e.target.closest('.del-btn');
+        if (delBtn) {
+            if (!confirm(`"${delBtn.dataset.name}" kategoriyasini o'chirishni tasdiqlaysizmi?`)) return;
+            try {
+                const res = await fetch('/admin/delete-kategoriya/' + delBtn.dataset.id, { method: 'DELETE' });
+                const data = await res.json();
+                toastKorsat(data.message, data.holat);
+                if (data.holat) loadKategoriyalar();
+            } catch (e) {
+                toastKorsat('Server bilan aloqa yo\u2018q', false);
+            }
+        }
+    });
+
+    loadKategoriyalar();
+</script>
+
+</body>
+</html>

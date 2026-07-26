@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: #dceef8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #2c3e50;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 32px auto;
+            padding: 0 20px;
+        }
+        .welcome-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2);
+            padding: 32px;
+        }
+        .welcome-card h1 {
+            color: #2a7aad;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        .welcome-card p {
+            color: #5b7a8c;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+
+<div class="container">
+    <div class="welcome-card">
+        <h1>Xush kelibsiz, <span th:text="${username}">user</span>!</h1>
+        <p>Siz tizimga muvaffaqiyatli kirdingiz. Dashboard sahifasi shu yerda kengaytiriladi.</p>
+    </div>
+</div>
+
+</body>
+</html>

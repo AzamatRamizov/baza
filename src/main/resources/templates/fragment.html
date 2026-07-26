@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Fragmentlar</title>
+</head>
+<body>
+
+<!-- =====================================================
+     NAVBAR FRAGMENTI
+     Chaqirish:  <nav th:replace="~{fragment :: navbar}"></nav>
+     Controller'dan kutadi: username (majburiy), page (ixtiyoriy:
+     'dashboard' | 'users' — aktiv havolani belgilash uchun)
+     ===================================================== -->
+<nav class="navbar" th:fragment="navbar">
+    <style>
+        .navbar {
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(100, 160, 200, 0.15);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+        }
+        .navbar .brand {
+            color: #1a6fa8; font-size: 20px; font-weight: 700; text-decoration: none;
+        }
+        .navbar .nav-links { display: flex; gap: 18px; align-items: center; }
+        .navbar .nav-links a {
+            color: #4a90b8; text-decoration: none; font-size: 14px; font-weight: 600;
+        }
+        .navbar .nav-links a.active {
+            color: #1a6fa8; border-bottom: 2px solid #1a6fa8; padding-bottom: 2px;
+        }
+
+        /* User dropdown — o'ngga yopishgan */
+        .navbar .user-menu { margin-left: auto; position: relative; }
+        .navbar .user-btn {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px;
+            background-color: #f4f9fd;
+            border: 1.5px solid #b0d4ec;
+            border-radius: 6px;
+            color: #2a7aad; font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .navbar .user-btn:hover { background-color: #e3f1fa; border-color: #2a7aad; }
+        .navbar .user-btn .chevron {
+            font-size: 10px; transition: transform 0.2s;
+        }
+        .navbar .user-menu.open .user-btn .chevron { transform: rotate(180deg); }
+
+        .navbar .user-dropdown {
+            position: absolute; top: calc(100% + 8px); right: 0;
+            min-width: 170px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(30, 60, 80, 0.18);
+            border: 1px solid #e3eef6;
+            padding: 6px 0;
+            display: none;
+            z-index: 150;
+        }
+        .navbar .user-menu.open .user-dropdown { display: block; }
+        .navbar .user-dropdown a {
+            display: block;
+            padding: 9px 16px;
+            color: #2c3e50; font-size: 14px; font-weight: 500;
+            text-decoration: none;
+            transition: background-color 0.15s;
+        }
+        .navbar .user-dropdown a:hover { background-color: #f4f9fd; }
+        .navbar .user-dropdown .divider {
+            height: 1px; background-color: #e3eef6; margin: 5px 0;
+        }
+        .navbar .user-dropdown a.chiqish { color: #c0392b; }
+        .navbar .user-dropdown a.chiqish:hover { background-color: #fdecea; }
+    </style>
+
+    <a class="brand" href="/admin/dashboard">Baza</a>
+
+    <div class="nav-links">
+        <a href="/admin/dashboard" th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
+        <a href="/admin/users" th:classappend="${page == 'users'} ? 'active'">Hodimlar</a>
+        <a href="/admin/magazinlar" th:classappend="${page == 'magazinlar'} ? 'active'">Magazinlar</a>
+        <a href="/admin/mahsulotlar" th:classappend="${page == 'mahsulotlar'} ? 'active'">Mahsulotlar</a>
+        <a href="/admin/kategoriyalar" th:classappend="${page == 'kategoriyalar'} ? 'active'">Kategoriyalar</a>
+    </div>
+
+    <div class="user-menu" id="userMenu">
+        <button class="user-btn" id="userMenuBtn" type="button">
+            <span th:text="${username}">user</span>
+            <span class="chevron">&#9660;</span>
+        </button>
+        <div class="user-dropdown">
+            <a href="/admin/profil">Profil</a>
+            <div class="divider"></div>
+            <a href="/admin/logout" class="chiqish">Chiqish</a>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const menu = document.getElementById('userMenu');
+            const btn = document.getElementById('userMenuBtn');
+
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                menu.classList.toggle('open');
+            });
+
+            // Tashqariga bosilsa yopiladi
+            document.addEventListener('click', function () {
+                menu.classList.remove('open');
+            });
+
+            // Escape bosilsa yopiladi
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') menu.classList.remove('open');
+            });
+        })();
+    </script>
+</nav>
+
+</body>
+</html>
