@@ -17,6 +17,9 @@ public class Mahsulot extends AbstractLongEntity {
 
     private String nomi;
 
+    /** Mahsulot kodi (artikul) — takrorlanmas */
+    private String kod;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "kategoriya_id")
     private Kategoriya kategoriya;

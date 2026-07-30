@@ -2,6 +2,7 @@ package com.example.baza.Dto;
 
 public record MahsulotDto(Long id,
                           String nomi,
+                          String kod,
                           Long kategoriyaId,
                           String kategoriyaNomi,
                           String birlik,

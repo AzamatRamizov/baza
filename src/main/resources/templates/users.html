@@ -4,106 +4,121 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hodimlar</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
-            background-color: #dceef8;
+            background-color: var(--fon);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #2c3e50;
+            color: var(--matn);
         }
 
         .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
         .card {
-            background-color: #ffffff; border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2); padding: 24px 28px;
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
         }
         .card-header {
             display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
         }
-        .card-header h1 { color: #2a7aad; font-size: 20px; }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
         .add-btn {
-            padding: 9px 18px; background-color: #2a7aad; color: #fff; border: none;
+            padding: 9px 18px; background-color: var(--kok); color: var(--karta); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
             transition: background-color 0.2s;
         }
-        .add-btn:hover { background-color: #1e5f8a; }
+        .add-btn:hover { background-color: var(--kok-hover); }
 
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e3eef6; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); }
         th {
-            color: #4a90b8; font-size: 12px; text-transform: uppercase;
-            background-color: #f4f9fd;
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2);
         }
-        tr:hover td { background-color: #f9fcfe; }
-        .role-badge {
-            display: inline-block; padding: 3px 10px; border-radius: 12px;
-            font-size: 12px; font-weight: 600;
-            background-color: #e3f1fa; color: #1a6fa8;
+        tr:hover td { background-color: var(--fon4); }
+        .rol-cell { position: relative; display: inline-block; }
+        .rol-btn {
+            padding: 6px 10px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 13px; font-weight: 600; color: var(--kok-toq);
+            background-color: var(--fon2); cursor: pointer; font-family: inherit;
+            white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
         }
+        .rol-btn:hover { border-color: var(--kok); background-color: var(--fon3); }
+        .rol-panel {
+            position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+            min-width: 180px; background: var(--karta); border: 1px solid var(--chegara);
+            border-radius: 8px; box-shadow: 0 6px 24px var(--soya4);
+            padding: 6px 0; display: none;
+        }
+        .rol-cell.open .rol-panel { display: block; }
+        .rol-panel label {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 14px; font-size: 13px; cursor: pointer;
+        }
+        .rol-panel label:hover { background-color: var(--fon2); }
+        .rol-panel input { accent-color: var(--kok); cursor: pointer; }
+        .menejer-select {
+            padding: 6px 10px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 13px; font-weight: 600; color: var(--kok-toq);
+            background-color: var(--fon2); outline: none; cursor: pointer;
+            font-family: inherit; max-width: 200px;
+        }
+        .menejer-select:focus { border-color: var(--kok); background-color: var(--karta); }
         .del-btn {
-            padding: 6px 12px; background-color: #fdecea; color: #c0392b; border: 1px solid #f0b6b0;
+            padding: 6px 12px; background-color: var(--qizil-fon); color: var(--qizil); border: 1px solid var(--qizil-3);
             border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
             transition: background-color 0.2s;
         }
-        .del-btn:hover { background-color: #f9d3cf; }
-        .empty-row td { text-align: center; color: #8aa8ba; padding: 24px; }
+        .del-btn:hover { background-color: var(--qizil-2); }
+        .empty-row td { text-align: center; color: var(--matn4); padding: 24px; }
 
         /* Modal */
         .modal-overlay {
-            position: fixed; inset: 0; background: rgba(30, 60, 80, 0.45);
+            position: fixed; inset: 0; background: var(--parda);
             display: none; align-items: center; justify-content: center; z-index: 100;
         }
         .modal-overlay.open { display: flex; }
         .modal {
-            background: #fff; border-radius: 10px; padding: 28px 32px;
+            background: var(--karta); border-radius: 10px; padding: 28px 32px;
             width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(30, 60, 80, 0.25);
+            box-shadow: 0 8px 32px var(--soya3);
         }
-        .modal h2 { color: #2a7aad; font-size: 18px; margin-bottom: 18px; }
+        .modal h2 { color: var(--kok); font-size: 18px; margin-bottom: 18px; }
         .form-group { margin-bottom: 14px; }
         .form-group label {
-            display: block; margin-bottom: 5px; color: #4a90b8;
+            display: block; margin-bottom: 5px; color: var(--kok-och);
             font-size: 12px; font-weight: 600; text-transform: uppercase;
         }
         .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 9px 12px; border: 1.5px solid #b0d4ec; border-radius: 6px;
-            font-size: 14px; color: #2c3e50; background-color: #f4f9fd; outline: none;
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
             transition: border-color 0.2s; font-family: inherit;
         }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            border-color: #2a7aad; background-color: #fff;
+            border-color: var(--kok); background-color: var(--karta);
         }
         .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions .save-btn {
-            flex: 1; padding: 10px; background-color: #2a7aad; color: #fff; border: none;
+            flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
         }
-        .modal-actions .save-btn:hover { background-color: #1e5f8a; }
+        .modal-actions .save-btn:hover { background-color: var(--kok-hover); }
         .modal-actions .cancel-btn {
-            padding: 10px 18px; background-color: #eef4f8; color: #4a90b8; border: none;
+            padding: 10px 18px; background-color: var(--fon5); color: var(--kok-och); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
         }
         .modal-error {
-            color: #c0392b; font-size: 13px; margin-top: 10px; text-align: center; display: none;
+            color: var(--qizil); font-size: 13px; margin-top: 10px; text-align: center; display: none;
         }
-
-        /* Toast */
-        .toast {
-            position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
-            border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
-            box-shadow: 0 4px 16px rgba(30, 60, 80, 0.25);
-            opacity: 0; transform: translateY(10px);
-            transition: opacity 0.25s, transform 0.25s; pointer-events: none; z-index: 200;
-        }
-        .toast.show { opacity: 1; transform: translateY(0); }
-        .toast.ok { background-color: #2a9d5c; }
-        .toast.err { background-color: #c0392b; }
     </style>
 </head>
 <body>
 
 <nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
 
 <div class="container">
     <div class="card">
@@ -120,12 +135,13 @@
                 <th>Manzil</th>
                 <th>Username</th>
                 <th>Rol</th>
+                <th>Menejer</th>
                 <th>Izoh</th>
                 <th></th>
             </tr>
             </thead>
             <tbody id="usersTbody">
-            <tr class="empty-row"><td colspan="8">Yuklanmoqda...</td></tr>
+            <tr class="empty-row"><td colspan="9">Yuklanmoqda...</td></tr>
             </tbody>
         </table>
     </div>
@@ -156,10 +172,16 @@
             <input type="password" id="u_password" placeholder="Parol" autocomplete="new-password">
         </div>
         <div class="form-group">
-            <label for="u_role">Rol *</label>
-            <select id="u_role">
-                <option value="hodim">Hodim</option>
-                <option value="owner">Owner</option>
+            <label>Rollar * <span style="text-transform:none; font-weight:400">(bir nechtasini tanlash mumkin)</span></label>
+            <div class="rol-panel" id="u_rollar"
+                 style="display:block; position:static; box-shadow:none; border:1.5px solid var(--chegara-kok); max-height:160px; overflow-y:auto;">
+                <label style="color:var(--matn4)">Yuklanmoqda...</label>
+            </div>
+        </div>
+        <div class="form-group" id="menejerGroup" style="display:none;">
+            <label for="u_menejer">Menejer</label>
+            <select id="u_menejer">
+                <option value="">— Menejersiz —</option>
             </select>
         </div>
         <div class="form-group">
@@ -174,20 +196,17 @@
     </div>
 </div>
 
-<div class="toast" id="toast"></div>
 
 <script>
     const tbody = document.getElementById('usersTbody');
     const overlay = document.getElementById('modalOverlay');
     const modalError = document.getElementById('modalError');
-    const toast = document.getElementById('toast');
-    let toastTimer = null;
+    let rollar = [];
+    let oxirgiUsers = [];
 
+    // Xabar fragment.html :: xabar dan keladi (global notification)
     function toastKorsat(matn, ok) {
-        toast.textContent = matn;
-        toast.className = 'toast show ' + (ok ? 'ok' : 'err');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+        xabar(matn, ok ? 'ok' : 'err');
     }
 
     function esc(s) {
@@ -196,14 +215,67 @@
             .replaceAll('"', '&quot;');
     }
 
+    async function loadRollar() {
+        try {
+            const res = await fetch('/admin/get-rollar');
+            if (!res.ok) throw new Error();
+            rollar = await res.json();
+        } catch (e) {
+            rollar = [];
+        }
+        // Modal checkbox ro'yxatini to'ldirish
+        const modalRollar = document.getElementById('u_rollar');
+        modalRollar.innerHTML = rollar.length
+            ? rollar.map(r =>
+                `<label><input type="checkbox" value="${r.id}"> ${esc(r.nomi)}</label>`).join('')
+            : '<label style="color:var(--matn4)">Rollar yo‘q — avval Rollar sahifasidan qo‘shing</label>';
+    }
+
+    // Userning biror rolida "menejer biriktiriladi" belgisi bormi
+    function menejerKerakmi(user) {
+        return user.rollar.some(ur => {
+            const rol = rollar.find(r => r.id === ur.id);
+            return rol && rol.menejerKerak;
+        });
+    }
+
+    function menejerHujayraHtml(user, users) {
+        if (!menejerKerakmi(user)) {
+            return '<span style="color:var(--matn4)">—</span>';
+        }
+        const options = ['<option value="">— Menejersiz —</option>']
+            .concat(users
+                .filter(u => u.id !== user.id)
+                .map(u => {
+                    const nom = esc(u.fish || u.username);
+                    return `<option value="${u.id}" ${user.menejerId === u.id ? 'selected' : ''}>${nom}</option>`;
+                }));
+        return `<select class="menejer-select" data-id="${user.id}">${options.join('')}</select>`;
+    }
+
+    function rolHujayraHtml(user) {
+        const nomlar = user.rollar.length
+            ? user.rollar.map(r => esc(r.nomi)).join(', ')
+            : '— Rolsiz —';
+        const checkboxlar = rollar.map(r => {
+            const checked = user.rollar.some(x => x.id === r.id) ? 'checked' : '';
+            return `<label><input type="checkbox" value="${r.id}" ${checked}> ${esc(r.nomi)}</label>`;
+        }).join('');
+        return `<div class="rol-cell" data-id="${user.id}">
+            <button class="rol-btn" type="button">${nomlar} ▾</button>
+            <div class="rol-panel">${checkboxlar}</div>
+        </div>`;
+    }
+
     async function loadUsers() {
         try {
             const res = await fetch('/admin/get-users');
             if (!res.ok) throw new Error();
             const users = await res.json();
+            oxirgiUsers = users;
 
             if (!users.length) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Hodimlar yo\u2018q</td></tr>';
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Hodimlar yo\u2018q</td></tr>';
                 return;
             }
 
@@ -214,19 +286,25 @@
                     <td>${esc(u.tel)}</td>
                     <td>${esc(u.address)}</td>
                     <td>${esc(u.username)}</td>
-                    <td><span class="role-badge">${esc(u.role)}</span></td>
+                    <td>${rolHujayraHtml(u)}</td>
+                    <td>${menejerHujayraHtml(u, users)}</td>
                     <td>${esc(u.izoh)}</td>
                     <td><button class="del-btn" data-id="${u.id}" data-name="${esc(u.username)}">O'chirish</button></td>
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Yuklashda xatolik</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Yuklashda xatolik</td></tr>';
         }
     }
 
     // ===== Modal =====
     function modalOchish() {
         modalError.style.display = 'none';
+        document.getElementById('menejerGroup').style.display = 'none';
+        // Menejer selectini joriy hodimlardan to'ldiramiz
+        const menejerSelect = document.getElementById('u_menejer');
+        menejerSelect.innerHTML = '<option value="">— Menejersiz —</option>' +
+            oxirgiUsers.map(u => `<option value="${u.id}">${esc(u.fish || u.username)}</option>`).join('');
         overlay.classList.add('open');
         document.getElementById('u_fish').focus();
     }
@@ -234,12 +312,88 @@
         overlay.classList.remove('open');
         ['u_fish', 'u_tel', 'u_address', 'u_username', 'u_password', 'u_izoh']
             .forEach(id => document.getElementById(id).value = '');
-        document.getElementById('u_role').value = 'hodim';
+        document.querySelectorAll('#u_rollar input').forEach(cb => cb.checked = false);
     }
+
+    // Modal rollar checkboxi o'zgarganda — menejer maydonini ko'rsatish/yashirish
+    document.getElementById('u_rollar').addEventListener('change', () => {
+        const tanlanganIds = [...document.querySelectorAll('#u_rollar input:checked')]
+            .map(cb => Number(cb.value));
+        const kerak = rollar.some(r => tanlanganIds.includes(r.id) && r.menejerKerak);
+        document.getElementById('menejerGroup').style.display = kerak ? 'block' : 'none';
+    });
 
     document.getElementById('openModalBtn').addEventListener('click', modalOchish);
     document.getElementById('cancelBtn').addEventListener('click', modalYopish);
     overlay.addEventListener('click', e => { if (e.target === overlay) modalYopish(); });
+
+    // ===== Qatordagi rol paneli — ochish/yopish =====
+    tbody.addEventListener('click', e => {
+        const btn = e.target.closest('.rol-btn');
+        if (!btn) return;
+        const cell = btn.closest('.rol-cell');
+        // Boshqa ochiq panellarni yopamiz
+        tbody.querySelectorAll('.rol-cell.open').forEach(c => {
+            if (c !== cell) c.classList.remove('open');
+        });
+        cell.classList.toggle('open');
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.rol-cell')) {
+            tbody.querySelectorAll('.rol-cell.open').forEach(c => c.classList.remove('open'));
+        }
+    });
+
+    // ===== Menejer select — o'zgarganda darhol saqlanadi =====
+    tbody.addEventListener('change', async e => {
+        const select = e.target.closest('.menejer-select');
+        if (!select) return;
+
+        const userId = select.dataset.id;
+        const menejerId = select.value;
+
+        try {
+            const res = await fetch('/admin/update-user-menejer/' + userId +
+                    (menejerId ? '?menejerId=' + menejerId : ''), { method: 'PUT' });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (!data.holat) loadUsers();
+        } catch (err) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+            loadUsers();
+        }
+    });
+
+    // ===== Checkbox o'zgarganda — tanlangan rollar to'liq yuboriladi =====
+    tbody.addEventListener('change', async e => {
+        const cell = e.target.closest('.rol-cell');
+        if (!cell) return;
+
+        const userId = cell.dataset.id;
+        const rolIds = [...cell.querySelectorAll('input:checked')].map(cb => Number(cb.value));
+
+        try {
+            const res = await fetch('/admin/update-user-rollar/' + userId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rolIds)
+            });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) {
+                // Tugma yozuvini yangilaymiz (panel ochiq qoladi)
+                const nomlar = rollar.filter(r => rolIds.includes(r.id)).map(r => esc(r.nomi));
+                cell.querySelector('.rol-btn').innerHTML =
+                    (nomlar.length ? nomlar.join(', ') : '— Rolsiz —') + ' ▾';
+            } else {
+                loadUsers();
+            }
+        } catch (err) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+            loadUsers();
+        }
+    });
 
     // ===== Saqlash =====
     document.getElementById('saveUserBtn').addEventListener('click', async () => {
@@ -252,11 +406,18 @@
             izoh: document.getElementById('u_izoh').value.trim(),
             username: document.getElementById('u_username').value.trim(),
             password: document.getElementById('u_password').value,
-            role: document.getElementById('u_role').value
+            rolIds: [...document.querySelectorAll('#u_rollar input:checked')].map(cb => Number(cb.value)),
+            menejerId: document.getElementById('u_menejer').value
+                ? Number(document.getElementById('u_menejer').value) : null
         };
 
         if (!body.username || !body.password) {
             modalError.textContent = 'Username va parol kiritilishi shart';
+            modalError.style.display = 'block';
+            return;
+        }
+        if (!body.rolIds.length) {
+            modalError.textContent = 'Kamida bitta rol tanlang';
             modalError.style.display = 'block';
             return;
         }
@@ -300,7 +461,7 @@
         }
     });
 
-    loadUsers();
+    loadRollar().then(loadUsers);
 </script>
 
 </body>

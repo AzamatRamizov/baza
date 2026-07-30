@@ -42,7 +42,8 @@
 
             if (res.ok && data && data.holat) {
                 // Auth cookie server tomonidan o'rnatildi — dashboardga o'tamiz
-                window.location.href = '/admin/dashboard';
+                window.location.href = '/admin/dashboard?xabar='
+                    + encodeURIComponent('Tizimga muvaffaqiyatli kirdingiz') + '&tur=ok';
             } else {
                 xatoKorsat(data && data.message);
             }
@@ -53,6 +54,21 @@
             submitBtn.textContent = 'Kirish';
         }
     }
+
+    // Server yuborgan xabar (masalan: sessiya tugadi) — ?xabar=...&tur=...
+    (function () {
+        const q = new URLSearchParams(window.location.search);
+        const matn = q.get('xabar');
+        if (!matn) return;
+
+        const el = q.get('tur') === 'err' ? errorMsg : warnMsg;
+        el.textContent = matn;
+        el.style.display = 'block';
+
+        q.delete('xabar'); q.delete('tur');
+        const qs = q.toString();
+        history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+    })();
 
     submitBtn.addEventListener('click', loginQil);
 

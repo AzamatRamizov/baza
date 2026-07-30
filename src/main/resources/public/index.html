@@ -5,24 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="images/888.png">
     <title>Login</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         .error-msg {
-            color: #c0392b;
+            color: var(--qizil);
             font-size: 13px;
             margin-top: 10px;
             text-align: center;
             display: none;
         }
         .warn-msg {
-            color: #e67e22;
+            color: var(--sariq);
             font-size: 13px;
             margin-top: 10px;
             text-align: center;
             padding: 8px;
-            background: #fef9f0;
-            border: 1px solid #f0c070;
+            background: var(--sariq-fon2);
+            border: 1px solid var(--sariq-chegara);
             border-radius: 6px;
             display: none;
         }
@@ -31,20 +34,20 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #dceef8;
+            background-color: var(--fon);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .login-card {
-            background-color: #ffffff;
+            background-color: var(--karta);
             padding: 40px 48px;
             border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2);
+            box-shadow: 0 4px 20px var(--soya);
             width: 100%;
             max-width: 380px;
         }
         .login-card h2 {
             text-align: center;
-            color: #2a7aad;
+            color: var(--kok);
             margin-bottom: 30px;
             font-size: 24px;
             font-weight: 600;
@@ -53,7 +56,7 @@
         .form-group label {
             display: block;
             margin-bottom: 6px;
-            color: #4a90b8;
+            color: var(--kok-och);
             font-size: 13px;
             font-weight: 500;
             text-transform: uppercase;
@@ -61,22 +64,22 @@
         .form-group input {
             width: 100%;
             padding: 10px 14px;
-            border: 1.5px solid #b0d4ec;
+            border: 1.5px solid var(--chegara-kok);
             border-radius: 6px;
             font-size: 15px;
-            color: #2c3e50;
-            background-color: #f4f9fd;
+            color: var(--matn);
+            background-color: var(--fon2);
             outline: none;
             transition: border-color 0.2s;
         }
         .form-group input:focus {
-            border-color: #2a7aad;
-            background-color: #ffffff;
+            border-color: var(--kok);
+            background-color: var(--karta);
         }
         .login-btn {
             width: 100%;
             padding: 11px;
-            background-color: #2a7aad;
+            background-color: var(--kok);
             color: white;
             border: none;
             border-radius: 6px;
@@ -86,9 +89,9 @@
             margin-top: 8px;
             transition: background-color 0.2s;
         }
-        .login-btn:hover { background-color: #1e5f8a; }
+        .login-btn:hover { background-color: var(--kok-hover); }
         .error-msg {
-            color: #c0392b;
+            color: var(--qizil);
             font-size: 13px;
             margin-top: 10px;
             text-align: center;
@@ -98,6 +101,14 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 </head>
 <body>
+
+<!-- Kun/tun tugmasi (o‘ng yuqorida) -->
+<button class="tema-btn" type="button" onclick="temaAlmash()"
+        style="position: fixed; top: 20px; right: 20px;"
+        title="Kun / tun rejimi" aria-label="Kun / tun rejimi">
+    <span class="tun-ikon">&#127769;</span>
+    <span class="kun-ikon">&#9728;</span>
+</button>
 
 <div class="login-card">
     <h2>Kirish</h2>

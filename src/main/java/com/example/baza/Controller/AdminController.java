@@ -12,11 +12,17 @@ import com.example.baza.Dto.MahsulotDto;
 import com.example.baza.Dto.MahsulotSaveDto;
 import com.example.baza.Dto.ParolUpdateDto;
 import com.example.baza.Dto.ProfilUpdateDto;
+import com.example.baza.Dto.RolDto;
+import com.example.baza.Dto.RolSaveDto;
+import com.example.baza.Dto.RuxsatDto;
+import com.example.baza.Dto.UsdKursDto;
 import com.example.baza.Dto.UserAddDto;
 import com.example.baza.Dto.UserDto;
 import com.example.baza.Service.KategoriyaService;
 import com.example.baza.Service.MagazinService;
 import com.example.baza.Service.MahsulotService;
+import com.example.baza.Service.RolService;
+import com.example.baza.Service.ValyutaService;
 import com.example.baza.Service.UserService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,6 +38,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Controller
@@ -46,19 +54,25 @@ public class AdminController {
     private final MagazinService magazinService;
     private final MahsulotService mahsulotService;
     private final KategoriyaService kategoriyaService;
+    private final ValyutaService valyutaService;
+    private final RolService rolService;
 
     public AdminController(AuthenticationManager authenticationManager,
                            TokenGenerator tokenGenerator,
                            UserService userService,
                            MagazinService magazinService,
                            MahsulotService mahsulotService,
-                           KategoriyaService kategoriyaService) {
+                           KategoriyaService kategoriyaService,
+                           ValyutaService valyutaService,
+                           RolService rolService) {
         this.authenticationManager = authenticationManager;
         this.tokenGenerator = tokenGenerator;
         this.userService = userService;
         this.magazinService = magazinService;
         this.mahsulotService = mahsulotService;
         this.kategoriyaService = kategoriyaService;
+        this.valyutaService = valyutaService;
+        this.rolService = rolService;
     }
 
     // ================= LOGIN =================
@@ -97,7 +111,7 @@ public class AdminController {
 
     // ================= HODIMLAR (USERS) =================
     @GetMapping("/users")
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('HODIM_BOSHQARISH')")
     public String usersPage(Authentication authentication, Model model) {
         model.addAttribute("username", authentication.getName());
         model.addAttribute("page", "users");
@@ -106,14 +120,14 @@ public class AdminController {
 
     @GetMapping("/get-users")
     @ResponseBody
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAnyAuthority('HODIM_BOSHQARISH', 'MAGAZIN_BOSHQARISH')")
     public ResponseEntity<List<UserDto>> getUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @PostMapping("/add-user")
     @ResponseBody
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('HODIM_BOSHQARISH')")
     public ResponseEntity<ApiResponse> addUser(@RequestBody UserAddDto dto) {
         ApiResponse res = userService.addUser(dto);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
@@ -121,7 +135,7 @@ public class AdminController {
 
     @DeleteMapping("/delete-user/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('HODIM_BOSHQARISH')")
     public ResponseEntity<ApiResponse> deleteUser(@PathVariable Long id) {
         ApiResponse res = userService.deleteUser(id);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
@@ -159,7 +173,7 @@ public class AdminController {
 
     // ================= MAGAZINLAR =================
     @GetMapping("/magazinlar")
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('MAGAZIN_BOSHQARISH')")
     public String magazinlarPage(Authentication authentication, Model model) {
         model.addAttribute("username", authentication.getName());
         model.addAttribute("page", "magazinlar");
@@ -168,14 +182,14 @@ public class AdminController {
 
     @GetMapping("/get-magazinlar")
     @ResponseBody
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('MAGAZIN_BOSHQARISH')")
     public ResponseEntity<List<MagazinDto>> getMagazinlar() {
         return ResponseEntity.ok(magazinService.getAllMagazinlar());
     }
 
     @PostMapping("/add-magazin")
     @ResponseBody
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('MAGAZIN_BOSHQARISH')")
     public ResponseEntity<ApiResponse> addMagazin(@RequestBody MagazinSaveDto dto) {
         ApiResponse res = magazinService.addMagazin(dto);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
@@ -183,7 +197,7 @@ public class AdminController {
 
     @PutMapping("/update-magazin/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('MAGAZIN_BOSHQARISH')")
     public ResponseEntity<ApiResponse> updateMagazin(@PathVariable Long id,
                                                      @RequestBody MagazinSaveDto dto) {
         ApiResponse res = magazinService.updateMagazin(id, dto);
@@ -192,7 +206,7 @@ public class AdminController {
 
     @DeleteMapping("/delete-magazin/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('owner')")
+    @PreAuthorize("hasAuthority('MAGAZIN_BOSHQARISH')")
     public ResponseEntity<ApiResponse> deleteMagazin(@PathVariable Long id) {
         ApiResponse res = magazinService.deleteMagazin(id);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
@@ -220,6 +234,7 @@ public class AdminController {
 
     @PostMapping("/add-mahsulot")
     @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
     public ResponseEntity<ApiResponse> addMahsulot(@RequestBody MahsulotSaveDto dto) {
         ApiResponse res = mahsulotService.addMahsulot(dto);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
@@ -227,6 +242,7 @@ public class AdminController {
 
     @PutMapping("/update-mahsulot/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
     public ResponseEntity<ApiResponse> updateMahsulot(@PathVariable Long id,
                                                       @RequestBody MahsulotSaveDto dto) {
         ApiResponse res = mahsulotService.updateMahsulot(id, dto);
@@ -235,6 +251,7 @@ public class AdminController {
 
     @DeleteMapping("/delete-mahsulot/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_OCHIRISH')")
     public ResponseEntity<ApiResponse> deleteMahsulot(@PathVariable Long id) {
         ApiResponse res = mahsulotService.deleteMahsulot(id);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
@@ -256,6 +273,7 @@ public class AdminController {
 
     @PostMapping("/add-kategoriya")
     @ResponseBody
+    @PreAuthorize("hasAuthority('KATEGORIYA_BOSHQARISH')")
     public ResponseEntity<ApiResponse> addKategoriya(@RequestBody KategoriyaSaveDto dto) {
         ApiResponse res = kategoriyaService.addKategoriya(dto);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
@@ -263,6 +281,7 @@ public class AdminController {
 
     @PutMapping("/update-kategoriya/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('KATEGORIYA_BOSHQARISH')")
     public ResponseEntity<ApiResponse> updateKategoriya(@PathVariable Long id,
                                                         @RequestBody KategoriyaSaveDto dto) {
         ApiResponse res = kategoriyaService.updateKategoriya(id, dto);
@@ -271,9 +290,101 @@ public class AdminController {
 
     @DeleteMapping("/delete-kategoriya/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('KATEGORIYA_BOSHQARISH')")
     public ResponseEntity<ApiResponse> deleteKategoriya(@PathVariable Long id) {
         ApiResponse res = kategoriyaService.deleteKategoriya(id);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PutMapping("/update-user-rollar/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('HODIM_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> updateUserRollar(@PathVariable Long id,
+                                                        @RequestBody List<Long> rolIds) {
+        ApiResponse res = userService.updateUserRollar(id, rolIds);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PutMapping("/update-user-menejer/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('HODIM_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> updateUserMenejer(@PathVariable Long id,
+                                                         @RequestParam(required = false) Long menejerId) {
+        ApiResponse res = userService.updateUserMenejer(id, menejerId);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= ROLLAR =================
+    @GetMapping("/rollar")
+    @PreAuthorize("hasAuthority('ROL_BOSHQARISH')")
+    public String rollarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "rollar");
+        return "rollar";
+    }
+
+    @GetMapping("/get-rollar")
+    @ResponseBody
+    @PreAuthorize("hasAnyAuthority('ROL_BOSHQARISH', 'HODIM_BOSHQARISH')")
+    public ResponseEntity<List<RolDto>> getRollar() {
+        return ResponseEntity.ok(rolService.getAllRollar());
+    }
+
+    @PostMapping("/add-rol")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ROL_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> addRol(@RequestBody RolSaveDto dto) {
+        ApiResponse res = rolService.addRol(dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PutMapping("/update-rol/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ROL_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> updateRol(@PathVariable Long id,
+                                                 @RequestBody RolSaveDto dto) {
+        ApiResponse res = rolService.updateRol(id, dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @DeleteMapping("/delete-rol/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ROL_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> deleteRol(@PathVariable Long id) {
+        ApiResponse res = rolService.deleteRol(id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= RUXSATLAR =================
+    @GetMapping("/ruxsatlar")
+    @PreAuthorize("hasAuthority('ROL_BOSHQARISH')")
+    public String ruxsatlarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "ruxsatlar");
+        return "ruxsatlar";
+    }
+
+    @GetMapping("/get-ruxsat-turlari")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ROL_BOSHQARISH')")
+    public ResponseEntity<List<RuxsatDto>> getRuxsatTurlari() {
+        return ResponseEntity.ok(rolService.getRuxsatTurlari());
+    }
+
+    @PutMapping("/update-rol-ruxsatlar/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ROL_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> updateRolRuxsatlar(@PathVariable Long id,
+                                                          @RequestBody List<String> kodlar) {
+        ApiResponse res = rolService.updateRuxsatlar(id, kodlar);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= VALYUTA KURSI =================
+    @GetMapping("/get-usd-kurs")
+    @ResponseBody
+    public ResponseEntity<UsdKursDto> getUsdKurs() {
+        return ResponseEntity.ok(valyutaService.getUsdKurs());
     }
 
     // ================= LOGOUT =================
@@ -284,6 +395,8 @@ public class AdminController {
         cookie.setPath("/");
         cookie.setMaxAge(0); // cookie o'chiriladi
         response.addCookie(cookie);
-        response.sendRedirect("/");
+        response.sendRedirect("/?xabar="
+                + URLEncoder.encode("Tizimdan chiqdingiz", StandardCharsets.UTF_8)
+                + "&tur=info");
     }
 }

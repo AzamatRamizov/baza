@@ -23,7 +23,8 @@ public class Config {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   CustomAuthEntryPoint authEntryPoint) throws Exception {
+                                                   CustomAuthEntryPoint authEntryPoint,
+                                                   CustomAccessDeniedHandler accessDeniedHandler) throws Exception {
 
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -34,8 +35,7 @@ public class Config {
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authEntryPoint)
-                        .accessDeniedHandler((req, res, exc) ->
-                                res.sendRedirect("/admin/dashboard?error=access_denied"))
+                        .accessDeniedHandler(accessDeniedHandler)
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

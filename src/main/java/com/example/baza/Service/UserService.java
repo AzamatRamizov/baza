@@ -5,7 +5,9 @@ import com.example.baza.Dto.ParolUpdateDto;
 import com.example.baza.Dto.ProfilUpdateDto;
 import com.example.baza.Dto.UserAddDto;
 import com.example.baza.Dto.UserDto;
+import com.example.baza.Entity.Rol;
 import com.example.baza.Entity.Users;
+import com.example.baza.Repository.RolRepository;
 import com.example.baza.Repository.UsersRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,37 +17,51 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+
+import com.example.baza.Dto.RolQisqaDto;
 
 @Service
 public class UserService implements UserDetailsService {
     private final UsersRepository usersRepository;
+    private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UsersRepository usersRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UsersRepository usersRepository,
+                       RolRepository rolRepository,
+                       PasswordEncoder passwordEncoder) {
         this.usersRepository = usersRepository;
+        this.rolRepository = rolRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Users user = usersRepository.findByUsername(username)
+        // Users entity'ning o'zi UserDetails — authorities rolning ruxsatlaridan keladi
+        return usersRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User yo'q"));
-
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .roles(user.getRole())
-                .build();
     }
 
     // ================= USER BOSHQARUVI =================
 
+    @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
         return usersRepository.findAll().stream()
-                .map(u -> new UserDto(u.getId(), u.getFish(), u.getTel(),
-                        u.getAddress(), u.getIzoh(), u.getUsername(), u.getRole()))
+                .map(this::toDto)
                 .toList();
+    }
+
+    private UserDto toDto(Users u) {
+        return new UserDto(u.getId(), u.getFish(), u.getTel(),
+                u.getAddress(), u.getIzoh(), u.getUsername(),
+                u.getRollar().stream()
+                        .map(r -> new RolQisqaDto(r.getId(), r.getNomi()))
+                        .toList(),
+                u.getMenejer() == null ? null : u.getMenejer().getId(),
+                u.getMenejer() == null ? null
+                        : (u.getMenejer().getFish() != null && !u.getMenejer().getFish().isBlank()
+                            ? u.getMenejer().getFish() : u.getMenejer().getUsername()));
     }
 
     @Transactional
@@ -56,8 +72,12 @@ public class UserService implements UserDetailsService {
         if (dto.password() == null || dto.password().isBlank()) {
             return new ApiResponse("Parol kiritilishi shart", false);
         }
-        if (dto.role() == null || dto.role().isBlank()) {
-            return new ApiResponse("Rol tanlanishi shart", false);
+        if (dto.rolIds() == null || dto.rolIds().isEmpty()) {
+            return new ApiResponse("Kamida bitta rol tanlanishi shart", false);
+        }
+        List<Rol> tanlanganRollar = rolRepository.findAllById(dto.rolIds());
+        if (tanlanganRollar.isEmpty()) {
+            return new ApiResponse("Tanlangan rollar topilmadi", false);
         }
         if (usersRepository.findByUsername(dto.username().trim()).isPresent()) {
             return new ApiResponse("Bunday username allaqachon mavjud", false);
@@ -70,19 +90,68 @@ public class UserService implements UserDetailsService {
         user.setIzoh(dto.izoh());
         user.setUsername(dto.username().trim());
         user.setPassword(passwordEncoder.encode(dto.password()));
-        user.setRole(dto.role());
+        user.setRollar(new LinkedHashSet<>(tanlanganRollar));
+        if (dto.menejerId() != null) {
+            user.setMenejer(usersRepository.findById(dto.menejerId()).orElse(null));
+        }
         usersRepository.save(user);
 
         return new ApiResponse("Hodim qo'shildi", true);
     }
 
+    /**
+     * Userning rollarini to'liq almashtirish (userlar sahifasidagi
+     * checkbox panelidan) — qo'shish/olib tashlash shu bitta amalda.
+     */
+    @Transactional
+    public ApiResponse updateUserRollar(Long userId, List<Long> rolIds) {
+        Users user = usersRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return new ApiResponse("Hodim topilmadi", false);
+        }
+
+        if (rolIds == null || rolIds.isEmpty()) {
+            user.setRollar(new LinkedHashSet<>());
+        } else {
+            user.setRollar(new LinkedHashSet<>(rolRepository.findAllById(rolIds)));
+        }
+        usersRepository.save(user);
+
+        return new ApiResponse("Rollar yangilandi", true);
+    }
+
+    /** Hodimga menejer biriktirish (userlar sahifasidagi select'dan) */
+    @Transactional
+    public ApiResponse updateUserMenejer(Long userId, Long menejerId) {
+        Users user = usersRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return new ApiResponse("Hodim topilmadi", false);
+        }
+
+        if (menejerId == null) {
+            user.setMenejer(null);
+        } else {
+            if (menejerId.equals(userId)) {
+                return new ApiResponse("Hodim o'ziga o'zi menejer bo'la olmaydi", false);
+            }
+            Users menejer = usersRepository.findById(menejerId).orElse(null);
+            if (menejer == null) {
+                return new ApiResponse("Menejer topilmadi", false);
+            }
+            user.setMenejer(menejer);
+        }
+        usersRepository.save(user);
+
+        return new ApiResponse("Menejer biriktirildi", true);
+    }
+
     // ================= PROFIL =================
 
+    @Transactional(readOnly = true)
     public UserDto getProfil(String username) {
         Users u = usersRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User yo'q"));
-        return new UserDto(u.getId(), u.getFish(), u.getTel(),
-                u.getAddress(), u.getIzoh(), u.getUsername(), u.getRole());
+        return toDto(u);
     }
 
     @Transactional

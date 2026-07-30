@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profil</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
-            background-color: #dceef8;
+            background-color: var(--fon);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #2c3e50;
+            color: var(--matn);
         }
 
         .container {
@@ -20,72 +23,61 @@
         @media (max-width: 760px) { .container { grid-template-columns: 1fr; } }
 
         .card {
-            background-color: #ffffff; border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2); padding: 26px 30px;
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 26px 30px;
         }
-        .card h2 { color: #2a7aad; font-size: 18px; margin-bottom: 18px; }
+        .card h2 { color: var(--kok); font-size: 18px; margin-bottom: 18px; }
 
         .profil-header {
             display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
         }
         .avatar {
             width: 52px; height: 52px; border-radius: 50%;
-            background-color: #e3f1fa; color: #1a6fa8;
+            background-color: var(--fon3); color: var(--kok-toq);
             display: flex; align-items: center; justify-content: center;
             font-size: 22px; font-weight: 700; text-transform: uppercase;
         }
-        .profil-header .uname { font-size: 16px; font-weight: 700; color: #2c3e50; }
+        .profil-header .uname { font-size: 16px; font-weight: 700; color: var(--matn); }
         .role-badge {
             display: inline-block; padding: 3px 10px; border-radius: 12px;
             font-size: 12px; font-weight: 600; margin-top: 3px;
-            background-color: #e3f1fa; color: #1a6fa8;
+            background-color: var(--fon3); color: var(--kok-toq);
         }
 
         .form-group { margin-bottom: 14px; }
         .form-group label {
-            display: block; margin-bottom: 5px; color: #4a90b8;
+            display: block; margin-bottom: 5px; color: var(--kok-och);
             font-size: 12px; font-weight: 600; text-transform: uppercase;
         }
         .form-group input, .form-group textarea {
-            width: 100%; padding: 9px 12px; border: 1.5px solid #b0d4ec; border-radius: 6px;
-            font-size: 14px; color: #2c3e50; background-color: #f4f9fd; outline: none;
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
             transition: border-color 0.2s; font-family: inherit;
         }
         .form-group input:focus, .form-group textarea:focus {
-            border-color: #2a7aad; background-color: #fff;
+            border-color: var(--kok); background-color: var(--karta);
         }
         .form-group input[disabled] {
-            background-color: #eef2f5; color: #7a95a6; cursor: not-allowed;
+            background-color: var(--fon6); color: var(--matn3); cursor: not-allowed;
         }
 
         .save-btn {
-            width: 100%; padding: 10px; background-color: #2a7aad; color: #fff; border: none;
+            width: 100%; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
             margin-top: 6px; transition: background-color 0.2s;
         }
-        .save-btn:hover { background-color: #1e5f8a; }
-        .save-btn:disabled { background-color: #9cc3da; cursor: not-allowed; }
+        .save-btn:hover { background-color: var(--kok-hover); }
+        .save-btn:disabled { background-color: var(--chegara2); cursor: not-allowed; }
 
         .msg { font-size: 13px; margin-top: 10px; text-align: center; display: none; }
-        .msg.err { color: #c0392b; }
-        .msg.ok { color: #2a9d5c; }
-
-        /* Toast */
-        .toast {
-            position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
-            border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
-            box-shadow: 0 4px 16px rgba(30, 60, 80, 0.25);
-            opacity: 0; transform: translateY(10px);
-            transition: opacity 0.25s, transform 0.25s; pointer-events: none; z-index: 200;
-        }
-        .toast.show { opacity: 1; transform: translateY(0); }
-        .toast.ok { background-color: #2a9d5c; }
-        .toast.err { background-color: #c0392b; }
+        .msg.err { color: var(--qizil); }
+        .msg.ok { color: var(--yashil); }
     </style>
 </head>
 <body>
 
 <nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
 
 <div class="container">
 
@@ -144,17 +136,12 @@
 
 </div>
 
-<div class="toast" id="toast"></div>
 
 <script>
-    const toast = document.getElementById('toast');
-    let toastTimer = null;
 
+    // Xabar fragment.html :: xabar dan keladi (global notification)
     function toastKorsat(matn, ok) {
-        toast.textContent = matn;
-        toast.className = 'toast show ' + (ok ? 'ok' : 'err');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+        xabar(matn, ok ? 'ok' : 'err');
     }
 
     function msgKorsat(el, matn, ok) {
@@ -177,7 +164,8 @@
             document.getElementById('p_izoh').value = u.izoh || '';
 
             document.getElementById('unameLabel').textContent = u.username || '';
-            document.getElementById('roleLabel').textContent = u.role || '';
+            document.getElementById('roleLabel').textContent =
+                (u.rollar && u.rollar.length) ? u.rollar.map(r => r.nomi).join(', ') : 'Rolsiz';
             document.getElementById('avatar').textContent =
                 (u.fish || u.username || '?').trim().charAt(0);
         } catch (e) {

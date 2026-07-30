@@ -4,138 +4,130 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mahsulotlar</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
-            background-color: #dceef8;
+            background-color: var(--fon);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #2c3e50;
+            color: var(--matn);
         }
         .container { max-width: 1200px; margin: 32px auto; padding: 0 20px; }
         .card {
-            background-color: #ffffff; border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2); padding: 24px 28px;
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
         }
         .card-header {
             display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap;
         }
-        .card-header h1 { color: #2a7aad; font-size: 20px; }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
         .search-input {
             flex: 1; min-width: 200px; max-width: 340px;
-            padding: 9px 12px; border: 1.5px solid #b0d4ec; border-radius: 6px;
-            font-size: 14px; background-color: #f4f9fd; outline: none; font-family: inherit;
+            padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; background-color: var(--fon2); outline: none; font-family: inherit;
         }
-        .search-input:focus { border-color: #2a7aad; background-color: #fff; }
+        .search-input:focus { border-color: var(--kok); background-color: var(--karta); }
         .add-btn {
             margin-left: auto;
-            padding: 9px 18px; background-color: #2a7aad; color: #fff; border: none;
+            padding: 9px 18px; background-color: var(--kok); color: var(--karta); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
             transition: background-color 0.2s;
         }
-        .add-btn:hover { background-color: #1e5f8a; }
+        .add-btn:hover { background-color: var(--kok-hover); }
 
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e3eef6; white-space: nowrap; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); white-space: nowrap; }
         th {
-            color: #4a90b8; font-size: 12px; text-transform: uppercase;
-            background-color: #f4f9fd;
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2);
         }
-        tr:hover td { background-color: #f9fcfe; }
+        tr:hover td { background-color: var(--fon4); }
         .turi-badge {
             display: inline-block; padding: 3px 10px; border-radius: 12px;
             font-size: 12px; font-weight: 600;
         }
-        .turi-gatoviy { background-color: #e3f6ec; color: #1f7a4d; }
-        .turi-metraj { background-color: #fdf3e3; color: #b07a1e; }
+        .turi-gatoviy { background-color: var(--yashil-fon); color: var(--yashil-toq); }
+        .turi-metraj { background-color: var(--sariq-fon); color: var(--sariq-toq2); }
         .kategoriya-badge {
             display: inline-block; padding: 3px 10px; border-radius: 12px;
             font-size: 12px; font-weight: 600;
-            background-color: #e3f1fa; color: #1a6fa8;
+            background-color: var(--fon3); color: var(--kok-toq);
         }
-        .muted { color: #8aa8ba; }
+        .muted { color: var(--matn4); }
         .edit-btn {
-            padding: 6px 12px; background-color: #e3f1fa; color: #1a6fa8; border: 1px solid #b0d4ec;
+            padding: 6px 12px; background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok);
             border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px;
             transition: background-color 0.2s;
         }
-        .edit-btn:hover { background-color: #cfe6f5; }
+        .edit-btn:hover { background-color: var(--chegara3); }
         .del-btn {
-            padding: 6px 12px; background-color: #fdecea; color: #c0392b; border: 1px solid #f0b6b0;
+            padding: 6px 12px; background-color: var(--qizil-fon); color: var(--qizil); border: 1px solid var(--qizil-3);
             border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
             transition: background-color 0.2s;
         }
-        .del-btn:hover { background-color: #f9d3cf; }
-        .empty-row td { text-align: center; color: #8aa8ba; padding: 24px; white-space: normal; }
+        .del-btn:hover { background-color: var(--qizil-2); }
+        .empty-row td { text-align: center; color: var(--matn4); padding: 24px; white-space: normal; }
 
         /* Modal */
         .modal-overlay {
-            position: fixed; inset: 0; background: rgba(30, 60, 80, 0.45);
+            position: fixed; inset: 0; background: var(--parda);
             display: none; align-items: center; justify-content: center; z-index: 100;
         }
         .modal-overlay.open { display: flex; }
         .modal {
-            background: #fff; border-radius: 10px; padding: 28px 32px;
+            background: var(--karta); border-radius: 10px; padding: 28px 32px;
             width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(30, 60, 80, 0.25);
+            box-shadow: 0 8px 32px var(--soya3);
         }
-        .modal h2 { color: #2a7aad; font-size: 18px; margin-bottom: 18px; }
+        .modal h2 { color: var(--kok); font-size: 18px; margin-bottom: 18px; }
         .form-group { margin-bottom: 14px; }
         .form-row { display: flex; gap: 12px; }
         .form-row .form-group { flex: 1; }
         .form-group label {
-            display: block; margin-bottom: 5px; color: #4a90b8;
+            display: block; margin-bottom: 5px; color: var(--kok-och);
             font-size: 12px; font-weight: 600; text-transform: uppercase;
         }
         .form-group input, .form-group select {
-            width: 100%; padding: 9px 12px; border: 1.5px solid #b0d4ec; border-radius: 6px;
-            font-size: 14px; color: #2c3e50; background-color: #f4f9fd; outline: none;
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
             transition: border-color 0.2s; font-family: inherit;
         }
         .form-group input:focus, .form-group select:focus {
-            border-color: #2a7aad; background-color: #fff;
+            border-color: var(--kok); background-color: var(--karta);
         }
         .form-group input[readonly] {
-            background-color: #eef2f5; color: #4a90b8; font-weight: 600; cursor: default;
+            background-color: var(--fon6); color: var(--kok-och); font-weight: 600; cursor: default;
         }
         .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions .save-btn {
-            flex: 1; padding: 10px; background-color: #2a7aad; color: #fff; border: none;
+            flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
         }
-        .modal-actions .save-btn:hover { background-color: #1e5f8a; }
+        .modal-actions .save-btn:hover { background-color: var(--kok-hover); }
         .modal-actions .cancel-btn {
-            padding: 10px 18px; background-color: #eef4f8; color: #4a90b8; border: none;
+            padding: 10px 18px; background-color: var(--fon5); color: var(--kok-och); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
         }
         .modal-error {
-            color: #c0392b; font-size: 13px; margin-top: 10px; text-align: center; display: none;
+            color: var(--qizil); font-size: 13px; margin-top: 10px; text-align: center; display: none;
         }
-
-        /* Toast */
-        .toast {
-            position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
-            border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
-            box-shadow: 0 4px 16px rgba(30, 60, 80, 0.25);
-            opacity: 0; transform: translateY(10px);
-            transition: opacity 0.25s, transform 0.25s; pointer-events: none; z-index: 200;
-        }
-        .toast.show { opacity: 1; transform: translateY(0); }
-        .toast.ok { background-color: #2a9d5c; }
-        .toast.err { background-color: #c0392b; }
     </style>
 </head>
 <body>
 
 <nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
 
 <div class="container">
     <div class="card">
         <div class="card-header">
             <h1>Mahsulotlar</h1>
             <input type="text" class="search-input" id="searchInput"
-                   placeholder="Qidirish: nomi, kategoriya, magazin...">
+                   placeholder="Qidirish: nomi, kodi, kategoriya, magazin...">
             <button class="add-btn" id="openModalBtn">+ Yangi mahsulot</button>
         </div>
         <div class="table-wrap">
@@ -143,6 +135,7 @@
                 <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Kodi</th>
                     <th>Nomi</th>
                     <th>Kategoriya</th>
                     <th>Turi</th>
@@ -150,14 +143,14 @@
                     <th>Bo'yi</th>
                     <th>Eni</th>
                     <th>Kv</th>
-                    <th>Zavod narxi</th>
+                    <th>Zavod narxi (umumiy)</th>
                     <th>Magazin</th>
                     <th>Yaratgan</th>
                     <th></th>
                 </tr>
                 </thead>
                 <tbody id="mahsulotTbody">
-                <tr class="empty-row"><td colspan="12">Yuklanmoqda...</td></tr>
+                <tr class="empty-row"><td colspan="13">Yuklanmoqda...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -169,9 +162,15 @@
     <div class="modal">
         <h2 id="modalTitle">Yangi mahsulot</h2>
 
-        <div class="form-group">
-            <label for="mh_nomi">Nomi *</label>
-            <input type="text" id="mh_nomi" placeholder="Mahsulot nomi" autocomplete="off">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="mh_nomi">Nomi *</label>
+                <input type="text" id="mh_nomi" placeholder="Mahsulot nomi" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="mh_kod">Kodi *</label>
+                <input type="text" id="mh_kod" placeholder="Masalan: GL-1024" autocomplete="off">
+            </div>
         </div>
 
         <div class="form-row">
@@ -200,8 +199,15 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="mh_zavod">Zavod narxi (so'm)</label>
-                <input type="number" id="mh_zavod" min="0" placeholder="0">
+                <label for="mh_zavod">Zavod narxi (1 kv uchun)</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="number" id="mh_zavod" min="0" step="0.01" placeholder="0" style="flex:1">
+                    <select id="mh_valyuta" style="width:90px">
+                        <option value="USD" selected>$</option>
+                        <option value="UZS">so'm</option>
+                    </select>
+                </div>
+                <div id="kursHint" style="font-size:12px; color:var(--kok-och); margin-top:5px; display:none;"></div>
             </div>
         </div>
 
@@ -235,7 +241,6 @@
     </div>
 </div>
 
-<div class="toast" id="toast"></div>
 
 <script>
     const tbody = document.getElementById('mahsulotTbody');
@@ -243,17 +248,13 @@
     const modalTitle = document.getElementById('modalTitle');
     const modalError = document.getElementById('modalError');
     const searchInput = document.getElementById('searchInput');
-    const toast = document.getElementById('toast');
 
     let mahsulotlar = [];
     let editingId = null;
-    let toastTimer = null;
 
+    // Xabar fragment.html :: xabar dan keladi (global notification)
     function toastKorsat(matn, ok) {
-        toast.textContent = matn;
-        toast.className = 'toast show ' + (ok ? 'ok' : 'err');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+        xabar(matn, ok ? 'ok' : 'err');
     }
 
     function esc(s) {
@@ -271,12 +272,13 @@
         const q = searchInput.value.trim().toLowerCase();
         const list = !q ? mahsulotlar : mahsulotlar.filter(m =>
             (m.nomi || '').toLowerCase().includes(q) ||
+            (m.kod || '').toLowerCase().includes(q) ||
             (m.kategoriyaNomi || '').toLowerCase().includes(q) ||
             (m.magazinNomi || '').toLowerCase().includes(q)
         );
 
         if (!list.length) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="12">' +
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">' +
                 (q ? 'Qidiruv bo\u2018yicha hech narsa topilmadi' : 'Mahsulotlar yo\u2018q') +
                 '</td></tr>';
             return;
@@ -285,6 +287,7 @@
         tbody.innerHTML = list.map(m => `
             <tr>
                 <td class="muted">${m.id}</td>
+                <td>${esc(m.kod) || '<span class="muted">—</span>'}</td>
                 <td><b>${esc(m.nomi)}</b></td>
                 <td>${m.kategoriyaNomi ? `<span class="kategoriya-badge">${esc(m.kategoriyaNomi)}</span>` : '<span class="muted">—</span>'}</td>
                 <td><span class="turi-badge ${m.turi === 'gatoviy' ? 'turi-gatoviy' : 'turi-metraj'}">${esc(m.turi)}</span></td>
@@ -312,7 +315,7 @@
             mahsulotlar = await res.json();
             jadvalniChiz();
         } catch (e) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="12">Yuklashda xatolik</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">Yuklashda xatolik</td></tr>';
         }
     }
 
@@ -345,6 +348,49 @@
         }
     }
 
+    // ===== Valyuta / kurs =====
+    function joriyKv() {
+        const boyi = parseFloat(document.getElementById('mh_boyi').value);
+        const eni = parseFloat(document.getElementById('mh_eni').value);
+        if (isNaN(boyi) || isNaN(eni)) return null;
+        return Math.round(boyi * eni * 100) / 100;
+    }
+
+    function kursHintYangila() {
+        const hint = document.getElementById('kursHint');
+        const valyuta = document.getElementById('mh_valyuta').value;
+        const narx = parseFloat(document.getElementById('mh_zavod').value);
+
+        if (isNaN(narx) || narx <= 0) {
+            hint.style.display = 'none';
+            return;
+        }
+
+        const kv = joriyKv();
+        const umumiy = (kv != null && kv > 0) ? narx * kv : narx;
+        const kvMatn = (kv != null && kv > 0)
+            ? kv + ' kv × ' + narx + (valyuta === 'USD' ? '$' : ' so‘m') + ' = '
+            : '';
+
+        if (valyuta === 'USD') {
+            if (window._usdKurs) {
+                hint.textContent = kvMatn +
+                    (Math.round(umumiy * 100) / 100) + '$ ≈ ' +
+                    Math.round(umumiy * window._usdKurs).toLocaleString('ru-RU') +
+                    ' so‘m (1 USD = ' + Math.round(window._usdKurs).toLocaleString('ru-RU') + ' UZS)';
+            } else {
+                hint.textContent = kvMatn + (Math.round(umumiy * 100) / 100) +
+                    '$ — kurs yuklanmadi, so‘mga aylantirish serverda bajariladi';
+            }
+        } else {
+            hint.textContent = kvMatn +
+                Math.round(umumiy).toLocaleString('ru-RU') + ' so‘m (umumiy)';
+        }
+        hint.style.display = 'block';
+    }
+    document.getElementById('mh_zavod').addEventListener('input', kursHintYangila);
+    document.getElementById('mh_valyuta').addEventListener('change', kursHintYangila);
+
     // ===== Kv avtomatik hisoblash =====
     function kvYangila() {
         const boyi = parseFloat(document.getElementById('mh_boyi').value);
@@ -354,8 +400,8 @@
             ? (Math.round(boyi * eni * 100) / 100).toString()
             : '—';
     }
-    document.getElementById('mh_boyi').addEventListener('input', kvYangila);
-    document.getElementById('mh_eni').addEventListener('input', kvYangila);
+    document.getElementById('mh_boyi').addEventListener('input', () => { kvYangila(); kursHintYangila(); });
+    document.getElementById('mh_eni').addEventListener('input', () => { kvYangila(); kursHintYangila(); });
 
     // ===== Modal ochish/yopish =====
     async function modalOchish(mahsulot) {
@@ -364,9 +410,22 @@
         modalTitle.textContent = mahsulot ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot';
 
         document.getElementById('mh_nomi').value = mahsulot ? (mahsulot.nomi || '') : '';
+        document.getElementById('mh_kod').value = mahsulot ? (mahsulot.kod || '') : '';
         document.getElementById('mh_turi').value = mahsulot ? (mahsulot.turi || 'gatoviy') : 'gatoviy';
         document.getElementById('mh_birlik').value = mahsulot ? (mahsulot.birlik || 'dona') : 'dona';
-        document.getElementById('mh_zavod').value = mahsulot && mahsulot.zavodNarxi != null ? mahsulot.zavodNarxi : '';
+        // Bazada UMUMIY narx so'mda saqlanadi; formaga esa 1 kv narxi kiritiladi —
+        // shuning uchun tahrirlashda umumiyni kv'ga bo'lib 1 kv narxini ko'rsatamiz
+        let narxKv = '';
+        if (mahsulot && mahsulot.zavodNarxi != null) {
+            narxKv = (mahsulot.kv != null && mahsulot.kv > 0)
+                ? Math.round(mahsulot.zavodNarxi / mahsulot.kv * 100) / 100
+                : mahsulot.zavodNarxi;
+        }
+        document.getElementById('mh_zavod').value = narxKv;
+        // Tahrirlashda narx bazada so'mda saqlangan — valyuta so'm qilib ko'rsatiladi,
+        // yangi mahsulotda esa default $ turadi
+        document.getElementById('mh_valyuta').value = mahsulot ? 'UZS' : 'USD';
+        kursHintYangila();
         document.getElementById('mh_boyi').value = mahsulot && mahsulot.boyi != null ? mahsulot.boyi : '';
         document.getElementById('mh_eni').value = mahsulot && mahsulot.eni != null ? mahsulot.eni : '';
         kvYangila();
@@ -392,8 +451,9 @@
         modalError.style.display = 'none';
 
         const nomi = document.getElementById('mh_nomi').value.trim();
-        if (!nomi) {
-            modalError.textContent = 'Mahsulot nomini kiriting';
+        const kod = document.getElementById('mh_kod').value.trim();
+        if (!nomi || !kod) {
+            modalError.textContent = 'Mahsulot nomi va kodini kiriting';
             modalError.style.display = 'block';
             return;
         }
@@ -407,10 +467,12 @@
 
         const body = {
             nomi: nomi,
+            kod: kod,
             kategoriyaId: kategoriyaVal === '' ? null : Number(kategoriyaVal),
             turi: document.getElementById('mh_turi').value,
             birlik: document.getElementById('mh_birlik').value,
             zavodNarxi: zavod === '' ? null : Number(zavod),
+            valyuta: document.getElementById('mh_valyuta').value,
             boyi: boyi === '' ? null : Number(boyi),
             eni: eni === '' ? null : Number(eni),
             magazinId: magazinVal === '' ? null : Number(magazinVal)

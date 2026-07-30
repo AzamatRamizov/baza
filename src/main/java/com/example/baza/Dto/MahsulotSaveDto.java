@@ -1,9 +1,11 @@
 package com.example.baza.Dto;
 
 public record MahsulotSaveDto(String nomi,
+                              String kod,
                               Long kategoriyaId,
                               String birlik,
-                              Long zavodNarxi,
+                              Double zavodNarxi,
+                              String valyuta,
                               Double boyi,
                               Double eni,
                               String turi,

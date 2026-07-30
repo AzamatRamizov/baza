@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruxsatlar</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 1000px; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 6px; flex-wrap: wrap; gap: 10px;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .card-header .subtitle { color: var(--matn3); font-size: 13px; width: 100%; }
+        .save-btn {
+            padding: 9px 18px; background-color: var(--kok); color: var(--karta); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .save-btn:hover { background-color: var(--kok-hover); }
+        .save-btn:disabled { background-color: var(--chegara2); cursor: not-allowed; }
+
+        .table-wrap { overflow-x: auto; margin-top: 14px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid var(--chegara); }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2); text-align: center; white-space: nowrap;
+        }
+        th.ruxsat-col { text-align: left; }
+        td.ruxsat-nomi { color: var(--matn); }
+        td.checkbox-cell { text-align: center; }
+        td.checkbox-cell input {
+            width: 17px; height: 17px; accent-color: var(--kok); cursor: pointer;
+        }
+        td.checkbox-cell input:disabled { cursor: not-allowed; opacity: 0.6; }
+        tr:hover td { background-color: var(--fon4); }
+        tr.bolim-row td {
+            background-color: var(--fon3); color: var(--kok-toq);
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            padding: 7px 12px;
+        }
+        .empty { text-align: center; color: var(--matn4); padding: 24px; }
+        .ozgargan-belgi {
+            display: none; margin-left: 8px; color: var(--sariq-toq);
+            font-size: 12px; font-weight: 600;
+        }
+        .ozgargan-belgi.show { display: inline; }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Ruxsatlar
+                <span class="ozgargan-belgi" id="ozgarganBelgi">saqlanmagan o'zgarishlar bor</span>
+            </h1>
+            <button class="save-btn" id="saveBtn">Saqlash</button>
+            <div class="subtitle">
+                Har bir rol qaysi amallarni bajara olishini belgilang.
+                Owner tizim roli doim barcha ruxsatlarga ega — o'zgartirilmaydi.
+            </div>
+        </div>
+        <div class="table-wrap" id="matritsaWrap">
+            <div class="empty">Yuklanmoqda...</div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const wrap = document.getElementById('matritsaWrap');
+    const saveBtn = document.getElementById('saveBtn');
+    const ozgarganBelgi = document.getElementById('ozgarganBelgi');
+
+    let rollar = [];
+    let ruxsatlar = [];
+    let ozgarganRollar = new Set(); // qaysi rollar tahrirlangan
+
+    // Xabar fragment.html :: xabar dan keladi (global notification)
+    function toastKorsat(matn, ok) {
+        xabar(matn, ok ? 'ok' : 'err');
+    }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    async function load() {
+        try {
+            const [rolRes, ruxsatRes] = await Promise.all([
+                fetch('/admin/get-rollar'),
+                fetch('/admin/get-ruxsat-turlari')
+            ]);
+            if (!rolRes.ok || !ruxsatRes.ok) throw new Error();
+            rollar = await rolRes.json();
+            ruxsatlar = await ruxsatRes.json();
+            matritsaniChiz();
+        } catch (e) {
+            wrap.innerHTML = '<div class="empty">Yuklashda xatolik</div>';
+        }
+    }
+
+    function matritsaniChiz() {
+        if (!rollar.length) {
+            wrap.innerHTML = '<div class="empty">Rollar yo\u2018q — avval ' +
+                '<a href="/admin/rollar">Rollar sahifasidan</a> rol qo\u2018shing</div>';
+            return;
+        }
+
+        // Sarlavha: har bir rol bitta ustun (Owner qulf belgisi bilan)
+        let html = '<table><thead><tr><th class="ruxsat-col">Amal (ruxsat)</th>';
+        rollar.forEach(r => {
+            html += `<th>${esc(r.nomi)}${r.tizimRoli ? ' \uD83D\uDD12' : ''}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        // Ruxsatlar bo'limlar bo'yicha guruhlanadi
+        let joriyBolim = null;
+        ruxsatlar.forEach(rx => {
+            if (rx.bolim !== joriyBolim) {
+                joriyBolim = rx.bolim;
+                html += `<tr class="bolim-row"><td colspan="${rollar.length + 1}">${esc(joriyBolim)}</td></tr>`;
+            }
+            html += `<tr><td class="ruxsat-nomi">${esc(rx.nomi)}</td>`;
+            rollar.forEach(r => {
+                // Owner (tizim roli) — doim barcha ruxsatlar, o'zgartirilmaydi
+                const checked = (r.tizimRoli || r.ruxsatlar.includes(rx.kod)) ? 'checked' : '';
+                const disabled = r.tizimRoli ? 'disabled title="Owner doim barcha ruxsatlarga ega"' : '';
+                html += `<td class="checkbox-cell">
+                    <input type="checkbox" data-rol="${r.id}" data-ruxsat="${rx.kod}" ${checked} ${disabled}>
+                </td>`;
+            });
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
+    }
+
+    // Checkbox o'zgarganda — qaysi rol tahrirlanganini belgilaymiz
+    wrap.addEventListener('change', e => {
+        const cb = e.target.closest('input[type="checkbox"]');
+        if (!cb) return;
+        ozgarganRollar.add(Number(cb.dataset.rol));
+        ozgarganBelgi.classList.add('show');
+    });
+
+    // Saqlash — faqat o'zgargan rollar yuboriladi
+    saveBtn.addEventListener('click', async () => {
+        if (!ozgarganRollar.size) {
+            toastKorsat('O\u2018zgarish yo\u2018q', true);
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saqlanmoqda...';
+
+        let xatolik = false;
+        for (const rolId of ozgarganRollar) {
+            const kodlar = [...wrap.querySelectorAll(`input[data-rol="${rolId}"]:checked`)]
+                .map(cb => cb.dataset.ruxsat);
+            try {
+                const res = await fetch('/admin/update-rol-ruxsatlar/' + rolId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(kodlar)
+                });
+                const data = await res.json();
+                if (!data.holat) {
+                    xatolik = true;
+                    toastKorsat(data.message, false);
+                }
+            } catch (e) {
+                xatolik = true;
+                toastKorsat('Server bilan aloqa yo\u2018q', false);
+            }
+        }
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Saqlash';
+
+        if (!xatolik) {
+            toastKorsat('Barcha o\u2018zgarishlar saqlandi', true);
+            ozgarganRollar.clear();
+            ozgarganBelgi.classList.remove('show');
+            load(); // yangi holatni qayta yuklaymiz
+        }
+    });
+
+    load();
+</script>
+
+</body>
+</html>

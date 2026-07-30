@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
-            background-color: #dceef8;
+            background-color: var(--fon);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #2c3e50;
+            color: var(--matn);
         }
         .container {
             max-width: 1100px;
@@ -18,18 +21,18 @@
             padding: 0 20px;
         }
         .welcome-card {
-            background-color: #ffffff;
+            background-color: var(--karta);
             border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(100, 160, 200, 0.2);
+            box-shadow: 0 4px 20px var(--soya);
             padding: 32px;
         }
         .welcome-card h1 {
-            color: #2a7aad;
+            color: var(--kok);
             font-size: 22px;
             margin-bottom: 10px;
         }
         .welcome-card p {
-            color: #5b7a8c;
+            color: var(--matn2);
             font-size: 14px;
         }
     </style>
@@ -37,6 +40,7 @@
 <body>
 
 <nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
 
 <div class="container">
     <div class="welcome-card">

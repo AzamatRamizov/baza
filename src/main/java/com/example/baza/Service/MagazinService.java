@@ -4,6 +4,7 @@ import com.example.baza.Dto.ApiResponse;
 import com.example.baza.Dto.MagazinDto;
 import com.example.baza.Dto.MagazinQisqaDto;
 import com.example.baza.Dto.MagazinSaveDto;
+import com.example.baza.Dto.RolQisqaDto;
 import com.example.baza.Dto.UserDto;
 import com.example.baza.Entity.Magazin;
 import com.example.baza.Entity.Users;
@@ -36,7 +37,11 @@ public class MagazinService {
                         m.getNomi(),
                         m.getHodimlar().stream()
                                 .map(u -> new UserDto(u.getId(), u.getFish(), u.getTel(),
-                                        u.getAddress(), u.getIzoh(), u.getUsername(), u.getRole()))
+                                        u.getAddress(), u.getIzoh(), u.getUsername(),
+                                        u.getRollar().stream()
+                                                .map(r -> new RolQisqaDto(r.getId(), r.getNomi()))
+                                                .toList(),
+                                        null, null))
                                 .toList()))
                 .toList();
     }

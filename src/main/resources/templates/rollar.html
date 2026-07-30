@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magazinlar</title>
+    <title>Rollar</title>
     <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
     <link rel="stylesheet" href="/tema.css">
     <script src="/tema.js"></script>
@@ -15,7 +15,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: var(--matn);
         }
-        .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+        .container { max-width: 700px; margin: 32px auto; padding: 0 20px; }
         .card {
             background-color: var(--karta); border-radius: 10px;
             box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
@@ -32,18 +32,12 @@
         .add-btn:hover { background-color: var(--kok-hover); }
 
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); vertical-align: top; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); }
         th {
             color: var(--kok-och); font-size: 12px; text-transform: uppercase;
             background-color: var(--fon2);
         }
         tr:hover td { background-color: var(--fon4); }
-        .hodim-badge {
-            display: inline-block; padding: 3px 10px; border-radius: 12px;
-            font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0;
-            background-color: var(--fon3); color: var(--kok-toq);
-        }
-        .no-hodim { color: var(--sariq-toq); font-size: 12px; font-weight: 600; }
         .edit-btn {
             padding: 6px 12px; background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok);
             border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px;
@@ -66,7 +60,7 @@
         .modal-overlay.open { display: flex; }
         .modal {
             background: var(--karta); border-radius: 10px; padding: 28px 32px;
-            width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto;
+            width: 100%; max-width: 400px;
             box-shadow: 0 8px 32px var(--soya3);
         }
         .modal h2 { color: var(--kok); font-size: 18px; margin-bottom: 18px; }
@@ -81,26 +75,6 @@
             transition: border-color 0.2s; font-family: inherit;
         }
         .form-group input:focus { border-color: var(--kok); background-color: var(--karta); }
-
-        /* Hodim tanlash ro'yxati */
-        .hodim-list {
-            border: 1.5px solid var(--chegara-kok); border-radius: 6px;
-            max-height: 220px; overflow-y: auto; background-color: var(--fon2);
-        }
-        .hodim-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 9px 12px; cursor: pointer;
-            border-bottom: 1px solid var(--chegara);
-            transition: background-color 0.15s;
-        }
-        .hodim-item:last-child { border-bottom: none; }
-        .hodim-item:hover { background-color: var(--fon3); }
-        .hodim-item input { width: auto; accent-color: var(--kok); cursor: pointer; }
-        .hodim-item .h-fish { font-size: 14px; font-weight: 600; color: var(--matn); }
-        .hodim-item .h-username { font-size: 12px; color: var(--matn3); }
-        .hodim-list .empty { padding: 14px; text-align: center; color: var(--matn4); font-size: 13px; }
-        .tanlangan-soni { font-size: 12px; color: var(--kok-och); margin-top: 5px; }
-
         .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions .save-btn {
             flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
@@ -124,39 +98,41 @@
 <div class="container">
     <div class="card">
         <div class="card-header">
-            <h1>Magazinlar</h1>
-            <button class="add-btn" id="openModalBtn">+ Yangi magazin</button>
+            <h1>Rollar</h1>
+            <a href="/admin/ruxsatlar" style="margin-left:auto; margin-right:12px; color:var(--kok-toq); font-size:13px; font-weight:600;">Ruxsatlarni sozlash &rarr;</a>
+            <button class="add-btn" id="openModalBtn" style="margin-left:0">+ Yangi rol</button>
         </div>
         <table>
             <thead>
             <tr>
-                <th style="width:50px">#</th>
-                <th>Magazin nomi</th>
-                <th>Mas'ul hodimlar</th>
-                <th style="width:170px"></th>
+                <th style="width:60px">#</th>
+                <th>Nomi</th>
+                <th>Hodimlar</th>
+                <th>Ruxsatlar</th>
+                <th style="width:180px"></th>
             </tr>
             </thead>
-            <tbody id="magazinTbody">
-            <tr class="empty-row"><td colspan="4">Yuklanmoqda...</td></tr>
+            <tbody id="rolTbody">
+            <tr class="empty-row"><td colspan="5">Yuklanmoqda...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Magazin qo'shish/tahrirlash modali -->
+<!-- Kategoriya qo'shish/tahrirlash modali -->
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
-        <h2 id="modalTitle">Yangi magazin</h2>
+        <h2 id="modalTitle">Yangi rol</h2>
         <div class="form-group">
-            <label for="m_nomi">Magazin nomi *</label>
-            <input type="text" id="m_nomi" placeholder="Masalan: Markaziy do'kon" autocomplete="off">
+            <label for="k_nomi">Rol nomi *</label>
+            <input type="text" id="k_nomi" placeholder="Masalan: Sotuvchi" autocomplete="off">
         </div>
         <div class="form-group">
-            <label>Mas'ul hodimlar</label>
-            <div class="hodim-list" id="hodimList">
-                <div class="empty">Yuklanmoqda...</div>
-            </div>
-            <div class="tanlangan-soni" id="tanlanganSoni">Tanlangan: 0</div>
+            <label style="display:flex; align-items:center; gap:8px; text-transform:none; cursor:pointer; font-size:14px; color:var(--matn);">
+                <input type="checkbox" id="k_menejerKerak"
+                       style="width:16px; height:16px; accent-color:var(--kok); cursor:pointer;">
+                Bu roldagi hodimga menejer biriktiriladi
+            </label>
         </div>
         <p class="modal-error" id="modalError"></p>
         <div class="modal-actions">
@@ -168,16 +144,13 @@
 
 
 <script>
-    const tbody = document.getElementById('magazinTbody');
+    const tbody = document.getElementById('rolTbody');
     const overlay = document.getElementById('modalOverlay');
     const modalTitle = document.getElementById('modalTitle');
     const modalError = document.getElementById('modalError');
-    const hodimList = document.getElementById('hodimList');
-    const tanlanganSoni = document.getElementById('tanlanganSoni');
 
-    let magazinlar = [];   // oxirgi yuklangan ro'yxat
-    let hodimlar = [];     // barcha hodimlar (checkbox uchun)
-    let editingId = null;  // null = yangi qo'shish, aks holda tahrirlash
+    let rollar = [];
+    let editingId = null;
 
     // Xabar fragment.html :: xabar dan keladi (global notification)
     function toastKorsat(matn, ok) {
@@ -190,87 +163,46 @@
             .replaceAll('"', '&quot;');
     }
 
-    // ===== Ro'yxatlarni yuklash =====
-    async function loadMagazinlar() {
+    async function loadRollar() {
         try {
-            const res = await fetch('/admin/get-magazinlar');
+            const res = await fetch('/admin/get-rollar');
             if (!res.ok) throw new Error();
-            magazinlar = await res.json();
+            rollar = await res.json();
 
-            if (!magazinlar.length) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Magazinlar yo\u2018q</td></tr>';
+            if (!rollar.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Rollar yo\u2018q</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = magazinlar.map((m, i) => `
+            tbody.innerHTML = rollar.map((k, i) => `
                 <tr>
                     <td>${i + 1}</td>
-                    <td><b>${esc(m.nomi)}</b></td>
-                    <td>${
-                        m.hodimlar.length
-                            ? m.hodimlar.map(h =>
-                                `<span class="hodim-badge" title="${esc(h.username)}">${esc(h.fish || h.username)}</span>`
-                              ).join('')
-                            : '<span class="no-hodim">Mas\u2019ul hodim belgilanmagan</span>'
-                    }</td>
-                    <td>
-                        <button class="edit-btn" data-id="${m.id}">Tahrirlash</button>
-                        <button class="del-btn" data-id="${m.id}" data-name="${esc(m.nomi)}">O'chirish</button>
+                    <td><b>${esc(k.nomi)}</b>${k.menejerKerak
+                        ? ' <span style="font-size:11px; background:var(--sariq-fon); color:var(--sariq-toq2); padding:2px 8px; border-radius:10px; font-weight:600">menejer biriktiriladi</span>'
+                        : ''}</td>
+                    <td>${k.userSoni} ta hodim</td>
+                    <td>${k.tizimRoli ? 'Barchasi (tizim roli)' : k.ruxsatlar.length + ' ta ruxsat'}</td>
+                    <td>${k.tizimRoli
+                        ? '<span style="color:var(--matn4); font-size:12px; font-weight:600">🔒 Tizim roli</span>'
+                        : `<button class="edit-btn" data-id="${k.id}">Tahrirlash</button>
+                           <button class="del-btn" data-id="${k.id}" data-name="${esc(k.nomi)}">O'chirish</button>`}
                     </td>
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Yuklashda xatolik</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Yuklashda xatolik</td></tr>';
         }
-    }
-
-    async function loadHodimlar() {
-        const res = await fetch('/admin/get-users');
-        if (!res.ok) throw new Error();
-        hodimlar = await res.json();
     }
 
     // ===== Modal =====
-    function hodimCheckboxlarniChiz(tanlanganIds) {
-        if (!hodimlar.length) {
-            hodimList.innerHTML = '<div class="empty">Hodimlar yo\u2018q — avval Hodimlar sahifasidan qo\u2018shing</div>';
-            tanlanganSoniYangila();
-            return;
-        }
-        hodimList.innerHTML = hodimlar.map(h => `
-            <label class="hodim-item">
-                <input type="checkbox" value="${h.id}" ${tanlanganIds.includes(h.id) ? 'checked' : ''}>
-                <span>
-                    <span class="h-fish">${esc(h.fish || h.username)}</span>
-                    <span class="h-username">@${esc(h.username)}</span>
-                </span>
-            </label>
-        `).join('');
-        tanlanganSoniYangila();
-    }
-
-    function tanlanganSoniYangila() {
-        const soni = hodimList.querySelectorAll('input:checked').length;
-        tanlanganSoni.textContent = 'Tanlangan: ' + soni;
-    }
-
-    hodimList.addEventListener('change', tanlanganSoniYangila);
-
-    async function modalOchish(magazin) {
+    function modalOchish(kategoriya) {
         modalError.style.display = 'none';
-        editingId = magazin ? magazin.id : null;
-        modalTitle.textContent = magazin ? 'Magazinni tahrirlash' : 'Yangi magazin';
-        document.getElementById('m_nomi').value = magazin ? magazin.nomi : '';
-
-        try {
-            await loadHodimlar();
-        } catch (e) {
-            hodimList.innerHTML = '<div class="empty">Hodimlarni yuklashda xatolik</div>';
-        }
-        hodimCheckboxlarniChiz(magazin ? magazin.hodimlar.map(h => h.id) : []);
-
+        editingId = kategoriya ? kategoriya.id : null;
+        modalTitle.textContent = kategoriya ? 'Rolni tahrirlash' : 'Yangi rol';
+        document.getElementById('k_nomi').value = kategoriya ? kategoriya.nomi : '';
+        document.getElementById('k_menejerKerak').checked = kategoriya ? !!kategoriya.menejerKerak : false;
         overlay.classList.add('open');
-        document.getElementById('m_nomi').focus();
+        document.getElementById('k_nomi').focus();
     }
 
     function modalYopish() {
@@ -281,36 +213,39 @@
     document.getElementById('openModalBtn').addEventListener('click', () => modalOchish(null));
     document.getElementById('cancelBtn').addEventListener('click', modalYopish);
     overlay.addEventListener('click', e => { if (e.target === overlay) modalYopish(); });
+    document.getElementById('k_nomi').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('saveBtn').click();
+    });
 
-    // ===== Saqlash (qo'shish yoki tahrirlash) =====
+    // ===== Saqlash =====
     document.getElementById('saveBtn').addEventListener('click', async () => {
         modalError.style.display = 'none';
 
-        const nomi = document.getElementById('m_nomi').value.trim();
+        const nomi = document.getElementById('k_nomi').value.trim();
         if (!nomi) {
-            modalError.textContent = 'Magazin nomini kiriting';
+            modalError.textContent = 'Rol nomini kiriting';
             modalError.style.display = 'block';
             return;
         }
 
-        const hodimIds = [...hodimList.querySelectorAll('input:checked')]
-            .map(cb => Number(cb.value));
-
-        const url = editingId ? '/admin/update-magazin/' + editingId : '/admin/add-magazin';
+        const url = editingId ? '/admin/update-rol/' + editingId : '/admin/add-rol';
         const method = editingId ? 'PUT' : 'POST';
 
         try {
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nomi: nomi, hodimIds: hodimIds })
+                body: JSON.stringify({
+                    nomi: nomi,
+                    menejerKerak: document.getElementById('k_menejerKerak').checked
+                })
             });
             const data = await res.json();
 
             if (res.ok && data.holat) {
                 modalYopish();
                 toastKorsat(data.message, true);
-                loadMagazinlar();
+                loadRollar();
             } else {
                 modalError.textContent = data.message || 'Xatolik yuz berdi';
                 modalError.style.display = 'block';
@@ -321,30 +256,30 @@
         }
     });
 
-    // ===== Tahrirlash / O'chirish tugmalari =====
+    // ===== Tahrirlash / O'chirish =====
     tbody.addEventListener('click', async e => {
         const editBtn = e.target.closest('.edit-btn');
         if (editBtn) {
-            const magazin = magazinlar.find(m => m.id === Number(editBtn.dataset.id));
-            if (magazin) modalOchish(magazin);
+            const kategoriya = rollar.find(k => k.id === Number(editBtn.dataset.id));
+            if (kategoriya) modalOchish(kategoriya);
             return;
         }
 
         const delBtn = e.target.closest('.del-btn');
         if (delBtn) {
-            if (!confirm(`"${delBtn.dataset.name}" magazinini o'chirishni tasdiqlaysizmi?`)) return;
+            if (!confirm(`"${delBtn.dataset.name}" rolini o'chirishni tasdiqlaysizmi?`)) return;
             try {
-                const res = await fetch('/admin/delete-magazin/' + delBtn.dataset.id, { method: 'DELETE' });
+                const res = await fetch('/admin/delete-rol/' + delBtn.dataset.id, { method: 'DELETE' });
                 const data = await res.json();
                 toastKorsat(data.message, data.holat);
-                if (data.holat) loadMagazinlar();
+                if (data.holat) loadRollar();
             } catch (e) {
                 toastKorsat('Server bilan aloqa yo\u2018q', false);
             }
         }
     });
 
-    loadMagazinlar();
+    loadRollar();
 </script>
 
 </body>

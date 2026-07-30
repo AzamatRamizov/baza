@@ -1,0 +1,149 @@
+/* =========================================================
+   KUN / TUN REJIMI — umumiy ranglar
+   Barcha sahifalar shu fayldagi o'zgaruvchilardan foydalanadi.
+   Rejim <html data-tema="kun"> yoki <html data-tema="tun"> orqali.
+   Yangi rang kerak bo'lsa — shu yerga ikki rejim uchun qo'shiladi.
+   ========================================================= */
+
+:root,
+html[data-tema="kun"] {
+    color-scheme: light;
+
+    /* Fonlar */
+    --fon: #dceef8;          /* sahifa foni */
+    --karta: #ffffff;        /* karta / panel / modal foni */
+    --fon2: #f4f9fd;         /* jadval sarlavhasi, hover */
+    --fon3: #e3f1fa;         /* tanlangan / faol fon */
+    --fon4: #f9fcfe;         /* input foni */
+    --fon5: #eef4f8;         /* ajratgich, zebra */
+    --fon6: #eef2f5;         /* ajratgich-2 */
+
+    /* Matn */
+    --matn: #2c3e50;
+    --matn2: #5b7a8c;
+    --matn3: #7a95a6;
+    --matn4: #8aa8ba;
+    --matn5: #9bb3c4;
+
+    /* Ko'k (asosiy) */
+    --kok-toq: #1a6fa8;
+    --kok: #2a7aad;
+    --kok-och: #4a90b8;
+    --kok-hover: #1e5f8a;
+
+    /* Chegaralar */
+    --chegara: #e3eef6;
+    --chegara-kok: #b0d4ec;
+    --chegara2: #9cc3da;
+    --chegara3: #cfe6f5;
+
+    /* Qizil */
+    --qizil: #c0392b;
+    --qizil-fon: #fdecea;
+    --qizil-2: #f9d3cf;
+    --qizil-3: #f0b6b0;
+
+    /* Yashil */
+    --yashil: #2a9d5c;
+    --yashil-toq: #1f7a4d;
+    --yashil-fon: #e3f6ec;
+    --yashil-chegara: #b7e0c8;
+
+    /* Sariq */
+    --sariq: #e67e22;
+    --sariq-toq: #c58a2a;
+    --sariq-toq2: #b07a1e;
+    --sariq-fon: #fdf3e3;
+    --sariq-fon2: #fef9f0;
+    --sariq-chegara: #f0c070;
+
+    /* Soyalar va modal pardasi */
+    --soya: rgba(100, 160, 200, 0.2);
+    --soya2: rgba(100, 160, 200, 0.15);
+    --soya3: rgba(30, 60, 80, 0.25);
+    --soya4: rgba(30, 60, 80, 0.18);
+    --parda: rgba(30, 60, 80, 0.45);
+}
+
+html[data-tema="tun"] {
+    color-scheme: dark;
+
+    --fon: #0e1a23;
+    --karta: #16232e;
+    --fon2: #1c2c38;
+    --fon3: #223543;
+    --fon4: #1a2833;
+    --fon5: #1b2a35;
+    --fon6: #1b2a35;
+
+    --matn: #dce7ef;
+    --matn2: #9fb4c2;
+    --matn3: #8aa1b0;
+    --matn4: #7e97a7;
+    --matn5: #7e97a7;
+
+    --kok-toq: #7cc4f5;
+    --kok: #5eb3ea;
+    --kok-och: #86bfe0;
+    --kok-hover: #a8d8f8;
+
+    --chegara: #263846;
+    --chegara-kok: #2f4a5e;
+    --chegara2: #35576e;
+    --chegara3: #2c4658;
+
+    --qizil: #ef6a5c;
+    --qizil-fon: #3a1f1c;
+    --qizil-2: #4d2a26;
+    --qizil-3: #5e332e;
+
+    --yashil: #45c47e;
+    --yashil-toq: #6fd6a0;
+    --yashil-fon: #16342a;
+    --yashil-chegara: #24513c;
+
+    --sariq: #f2a24e;
+    --sariq-toq: #e0b063;
+    --sariq-toq2: #d8a558;
+    --sariq-fon: #3a2f1c;
+    --sariq-fon2: #362c1a;
+    --sariq-chegara: #5c4520;
+
+    --soya: rgba(0, 0, 0, 0.45);
+    --soya2: rgba(0, 0, 0, 0.35);
+    --soya3: rgba(0, 0, 0, 0.55);
+    --soya4: rgba(0, 0, 0, 0.5);
+    --parda: rgba(3, 10, 16, 0.72);
+}
+
+/* Rejim almashganda ranglar silliq o'tsin */
+html.tema-almashuv,
+html.tema-almashuv * {
+    transition: background-color 0.25s ease,
+                color 0.25s ease,
+                border-color 0.25s ease !important;
+}
+
+/* ============ KUN/TUN TUGMASI (navbar va login sahifasi) ============ */
+.tema-btn {
+    flex-shrink: 0;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    background-color: var(--fon2);
+    border: 1.5px solid var(--chegara-kok);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 17px; line-height: 1;
+    padding: 0;
+    font-family: inherit;
+    transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
+}
+.tema-btn:hover {
+    background-color: var(--fon3);
+    border-color: var(--kok);
+    transform: rotate(-18deg);
+}
+.tema-btn .kun-ikon { display: none; }
+.tema-btn .tun-ikon { display: inline; }
+html[data-tema="tun"] .tema-btn .kun-ikon { display: inline; }
+html[data-tema="tun"] .tema-btn .tun-ikon { display: none; }

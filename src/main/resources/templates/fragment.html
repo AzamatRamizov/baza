@@ -15,37 +15,48 @@
 <nav class="navbar" th:fragment="navbar">
     <style>
         .navbar {
-            background-color: #ffffff;
-            box-shadow: 0 2px 10px rgba(100, 160, 200, 0.15);
+            background-color: var(--karta);
+            box-shadow: 0 2px 10px var(--soya2);
             padding: 14px 28px;
             display: flex;
             align-items: center;
             gap: 28px;
         }
         .navbar .brand {
-            color: #1a6fa8; font-size: 20px; font-weight: 700; text-decoration: none;
+            color: var(--kok-toq); font-size: 20px; font-weight: 700; text-decoration: none;
         }
-        .navbar .nav-links { display: flex; gap: 18px; align-items: center; }
+        .navbar .nav-links { display: flex; gap: 18px; align-items: center; margin-right: auto; }
         .navbar .nav-links a {
-            color: #4a90b8; text-decoration: none; font-size: 14px; font-weight: 600;
+            color: var(--kok-och); text-decoration: none; font-size: 14px; font-weight: 600;
         }
         .navbar .nav-links a.active {
-            color: #1a6fa8; border-bottom: 2px solid #1a6fa8; padding-bottom: 2px;
+            color: var(--kok-toq); border-bottom: 2px solid var(--kok-toq); padding-bottom: 2px;
+        }
+
+        /* USD kursi badge */
+        .navbar .kurs-badge {
+            padding: 6px 12px;
+            background-color: var(--yashil-fon);
+            border: 1px solid var(--yashil-chegara);
+            border-radius: 6px;
+            color: var(--yashil-toq); font-size: 13px; font-weight: 700;
+            white-space: nowrap;
+            display: none; /* kurs yuklangach ko'rinadi */
         }
 
         /* User dropdown — o'ngga yopishgan */
-        .navbar .user-menu { margin-left: auto; position: relative; }
+        .navbar .user-menu { position: relative; }
         .navbar .user-btn {
             display: flex; align-items: center; gap: 8px;
             padding: 8px 14px;
-            background-color: #f4f9fd;
-            border: 1.5px solid #b0d4ec;
+            background-color: var(--fon2);
+            border: 1.5px solid var(--chegara-kok);
             border-radius: 6px;
-            color: #2a7aad; font-size: 14px; font-weight: 600;
+            color: var(--kok); font-size: 14px; font-weight: 600;
             cursor: pointer; font-family: inherit;
             transition: background-color 0.2s, border-color 0.2s;
         }
-        .navbar .user-btn:hover { background-color: #e3f1fa; border-color: #2a7aad; }
+        .navbar .user-btn:hover { background-color: var(--fon3); border-color: var(--kok); }
         .navbar .user-btn .chevron {
             font-size: 10px; transition: transform 0.2s;
         }
@@ -54,10 +65,10 @@
         .navbar .user-dropdown {
             position: absolute; top: calc(100% + 8px); right: 0;
             min-width: 170px;
-            background-color: #ffffff;
+            background-color: var(--karta);
             border-radius: 8px;
-            box-shadow: 0 6px 24px rgba(30, 60, 80, 0.18);
-            border: 1px solid #e3eef6;
+            box-shadow: 0 6px 24px var(--soya4);
+            border: 1px solid var(--chegara);
             padding: 6px 0;
             display: none;
             z-index: 150;
@@ -66,16 +77,16 @@
         .navbar .user-dropdown a {
             display: block;
             padding: 9px 16px;
-            color: #2c3e50; font-size: 14px; font-weight: 500;
+            color: var(--matn); font-size: 14px; font-weight: 500;
             text-decoration: none;
             transition: background-color 0.15s;
         }
-        .navbar .user-dropdown a:hover { background-color: #f4f9fd; }
+        .navbar .user-dropdown a:hover { background-color: var(--fon2); }
         .navbar .user-dropdown .divider {
-            height: 1px; background-color: #e3eef6; margin: 5px 0;
+            height: 1px; background-color: var(--chegara); margin: 5px 0;
         }
-        .navbar .user-dropdown a.chiqish { color: #c0392b; }
-        .navbar .user-dropdown a.chiqish:hover { background-color: #fdecea; }
+        .navbar .user-dropdown a.chiqish { color: var(--qizil); }
+        .navbar .user-dropdown a.chiqish:hover { background-color: var(--qizil-fon); }
     </style>
 
     <a class="brand" href="/admin/dashboard">Baza</a>
@@ -86,7 +97,17 @@
         <a href="/admin/magazinlar" th:classappend="${page == 'magazinlar'} ? 'active'">Magazinlar</a>
         <a href="/admin/mahsulotlar" th:classappend="${page == 'mahsulotlar'} ? 'active'">Mahsulotlar</a>
         <a href="/admin/kategoriyalar" th:classappend="${page == 'kategoriyalar'} ? 'active'">Kategoriyalar</a>
+        <a href="/admin/rollar" th:classappend="${page == 'rollar'} ? 'active'">Rollar</a>
+        <a href="/admin/ruxsatlar" th:classappend="${page == 'ruxsatlar'} ? 'active'">Ruxsatlar</a>
     </div>
+
+    <span class="kurs-badge" id="usdKursBadge" title="O'zbekiston Markaziy banki kursi"></span>
+
+    <button class="tema-btn" type="button" onclick="temaAlmash()"
+            title="Kun / tun rejimi" aria-label="Kun / tun rejimi">
+        <span class="tun-ikon">&#127769;</span>
+        <span class="kun-ikon">&#9728;</span>
+    </button>
 
     <div class="user-menu" id="userMenu">
         <button class="user-btn" id="userMenuBtn" type="button">
@@ -119,9 +140,310 @@
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') menu.classList.remove('open');
             });
+
+            // USD kursi (CBU) — navbar badge
+            fetch('/admin/get-usd-kurs')
+                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (data) {
+                    if (data && data.kurs != null) {
+                        var badge = document.getElementById('usdKursBadge');
+                        badge.textContent = '1 USD = ' +
+                            Math.round(data.kurs).toLocaleString('ru-RU') + ' UZS';
+                        if (data.sana) badge.title = 'Markaziy bank kursi (' + data.sana + ')';
+                        badge.style.display = 'inline-block';
+                        window._usdKurs = data.kurs; // sahifalar ham foydalanishi uchun
+                    }
+                })
+                .catch(function () { /* kurs chiqmasa navbar buzilmaydi */ });
         })();
     </script>
 </nav>
+
+<!-- =====================================================
+     XABAR (NOTIFICATION) FRAGMENTI
+     Chaqirish:  <div th:replace="~{fragment :: xabar}"></div>
+     Ishlatish (JS):
+        xabar('Saqlandi', 'ok');                 // ok | err | warn | info
+        xabar.ok('Saqlandi');   xabar.xato('Xatolik');
+        xabar.ogoh('Diqqat');   xabar.info('Ma\u2018lumot');
+        xabar('Matn', 'ok', 6000);               // muddat (ms)
+     Server tomondan:  redirect("/admin/dashboard?xabar=Matn&tur=err")
+     Bundan tashqari barcha fetch so'rovlari kuzatiladi:
+        403 -> "ruxsat yo'q" xabari,  401 -> login sahifasiga qaytariladi
+     ===================================================== -->
+<div th:fragment="xabar">
+    <style>
+        .xabar-wrap {
+            position: fixed; top: 22px; right: 22px;
+            z-index: 9999;
+            display: flex; flex-direction: column; gap: 14px;
+            width: 420px; max-width: calc(100vw - 32px);
+            pointer-events: none;
+        }
+        .xabar-item {
+            pointer-events: auto;
+            position: relative; overflow: hidden;
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 16px 18px 18px;
+            border-radius: 12px;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            opacity: 0; transform: translateX(48px) scale(0.96);
+            transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+        }
+        .xabar-item.show { opacity: 1; transform: translateX(0) scale(1); }
+        .xabar-item.hide { opacity: 0; transform: translateX(48px) scale(0.96); }
+
+        .xabar-item .belgi {
+            flex-shrink: 0;
+            width: 38px; height: 38px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 21px; font-weight: 700; line-height: 1;
+            background-color: rgba(255, 255, 255, 0.24);
+            box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+        }
+        .xabar-item .tana { flex: 1; padding-top: 1px; min-width: 0; }
+        .xabar-item .sarlavha {
+            font-size: 16px; font-weight: 700; letter-spacing: 0.2px;
+            margin-bottom: 3px;
+        }
+        .xabar-item .matn {
+            font-size: 15px; font-weight: 500; line-height: 1.45;
+            color: rgba(255, 255, 255, 0.94);
+            word-break: break-word;
+        }
+        .xabar-item .yopish {
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.18); border: none; cursor: pointer;
+            width: 26px; height: 26px; border-radius: 50%;
+            color: #ffffff; font-size: 17px; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            font-family: inherit; padding: 0;
+            transition: background-color 0.15s;
+        }
+        .xabar-item .yopish:hover { background: rgba(255, 255, 255, 0.35); }
+
+        /* Pastdagi vaqt chizig'i */
+        .xabar-item .chiziq {
+            position: absolute; left: 0; bottom: 0; height: 4px;
+            background-color: rgba(255, 255, 255, 0.85);
+            width: 100%;
+            transform-origin: left center;
+            animation: xabarChiziq linear forwards;
+        }
+        @keyframes xabarChiziq {
+            from { transform: scaleX(1); }
+            to   { transform: scaleX(0); }
+        }
+
+        /* ---- Turlar bo'yicha ranglar ---- */
+        .xabar-item.ok {
+            background-image: linear-gradient(135deg, #23ac66 0%, #14875a 100%);
+            box-shadow: 0 10px 30px rgba(20, 135, 90, 0.45);
+        }
+        .xabar-item.err {
+            background-image: linear-gradient(135deg, #ef5340 0%, #bf2718 100%);
+            box-shadow: 0 10px 30px rgba(191, 39, 24, 0.45);
+        }
+        .xabar-item.warn {
+            background-image: linear-gradient(135deg, #f79b26 0%, #d77410 100%);
+            box-shadow: 0 10px 30px rgba(215, 116, 16, 0.42);
+        }
+        .xabar-item.info {
+            background-image: linear-gradient(135deg, #3a9bdc 0%, #1c6ba5 100%);
+            box-shadow: 0 10px 30px rgba(28, 107, 165, 0.45);
+        }
+
+        /* Tun rejimida ranglar bir oz bosiqroq, soya quyuqroq */
+        html[data-tema="tun"] .xabar-item.ok {
+            background-image: linear-gradient(135deg, #1f9a5c 0%, #106d49 100%);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+        }
+        html[data-tema="tun"] .xabar-item.err {
+            background-image: linear-gradient(135deg, #d94634 0%, #9e2015 100%);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+        }
+        html[data-tema="tun"] .xabar-item.warn {
+            background-image: linear-gradient(135deg, #dd8a1f 0%, #b3610c 100%);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+        }
+        html[data-tema="tun"] .xabar-item.info {
+            background-image: linear-gradient(135deg, #2f88c4 0%, #17588a 100%);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+        }
+
+        @media (max-width: 520px) {
+            .xabar-wrap { top: 12px; right: 12px; left: 12px; width: auto; }
+            .xabar-item { padding: 14px 15px 16px; }
+            .xabar-item .sarlavha { font-size: 15px; }
+            .xabar-item .matn { font-size: 14px; }
+        }
+    </style>
+
+    <div class="xabar-wrap" id="xabarWrap" aria-live="polite"></div>
+
+    <script>
+        (function () {
+            const wrap = document.getElementById('xabarWrap');
+            const MAX = 4;                 // ekranda ko'rinadigan maksimal xabar
+            const TURLAR = {
+                ok:   { belgi: '\u2713', sarlavha: 'Bajarildi' },
+                err:  { belgi: '\u2715', sarlavha: 'Xatolik' },
+                warn: { belgi: '!',      sarlavha: 'Diqqat' },
+                info: { belgi: 'i',      sarlavha: 'Ma\u2018lumot' }
+            };
+            let ruxsatXatoVaqti = 0;       // 403/401 ko'rsatilgan vaqt
+
+            function yopish(el) {
+                if (!el || el.dataset.yopilgan) return;
+                el.dataset.yopilgan = '1';
+                el.classList.remove('show');
+                el.classList.add('hide');
+                setTimeout(function () { el.remove(); }, 280);
+            }
+
+            function korsat(matn, tur, muddat) {
+                if (!matn) return;
+                tur = TURLAR[tur] ? tur : 'info';
+                muddat = muddat || (tur === 'err' ? 6000 : 4000);
+
+                // Ruxsat xatosidan keyin kelgan ikkinchi darajali xato xabarlarini
+                // ko'rsatmaymiz (masalan "Server bilan aloqa yo'q") — chalkashmasin
+                if (tur === 'err' && Date.now() - ruxsatXatoVaqti < 1500) return;
+
+                // Bir xil matn allaqachon turgan bo'lsa — takrorlamaymiz, taymerni yangilaymiz
+                const bor = Array.from(wrap.children).find(function (el) {
+                    return el.dataset.matn === matn && !el.dataset.yopilgan;
+                });
+                if (bor) {
+                    clearTimeout(Number(bor.dataset.taymer));
+                    const ch = bor.querySelector('.chiziq');
+                    if (ch) {   // vaqt chizig'ini qaytadan yugurtiramiz
+                        ch.style.animation = 'none';
+                        void ch.offsetWidth;
+                        ch.style.animation = 'xabarChiziq ' + muddat + 'ms linear forwards';
+                    }
+                    bor.dataset.taymer = setTimeout(function () { yopish(bor); }, muddat);
+                    return;
+                }
+
+                while (wrap.children.length >= MAX) yopish(wrap.firstElementChild);
+
+                const cfg = TURLAR[tur];
+                const el = document.createElement('div');
+                el.className = 'xabar-item ' + tur;
+                el.dataset.matn = matn;
+                el.setAttribute('role', tur === 'err' ? 'alert' : 'status');
+
+                const belgi = document.createElement('span');
+                belgi.className = 'belgi';
+                belgi.textContent = cfg.belgi;
+
+                const tana = document.createElement('div');
+                tana.className = 'tana';
+                const sarlavha = document.createElement('div');
+                sarlavha.className = 'sarlavha';
+                sarlavha.textContent = cfg.sarlavha;
+                const p = document.createElement('div');
+                p.className = 'matn';
+                p.textContent = matn;
+                tana.appendChild(sarlavha);
+                tana.appendChild(p);
+
+                const btn = document.createElement('button');
+                btn.className = 'yopish';
+                btn.type = 'button';
+                btn.setAttribute('aria-label', 'Yopish');
+                btn.innerHTML = '&times;';
+                btn.addEventListener('click', function () { yopish(el); });
+
+                const chiziq = document.createElement('div');
+                chiziq.className = 'chiziq';
+                chiziq.style.animationDuration = muddat + 'ms';
+
+                el.appendChild(belgi);
+                el.appendChild(tana);
+                el.appendChild(btn);
+                el.appendChild(chiziq);
+                wrap.appendChild(el);
+
+                requestAnimationFrame(function () { el.classList.add('show'); });
+                el.dataset.taymer = setTimeout(function () { yopish(el); }, muddat);
+            }
+
+            window.xabar = korsat;
+            window.xabar.ok = function (m, d) { korsat(m, 'ok', d); };
+            window.xabar.xato = function (m, d) { korsat(m, 'err', d); };
+            window.xabar.ogoh = function (m, d) { korsat(m, 'warn', d); };
+            window.xabar.info = function (m, d) { korsat(m, 'info', d); };
+            window.xabar.hammasini_yopish = function () {
+                Array.from(wrap.children).forEach(yopish);
+            };
+
+            // ---- Server redirect qilib yuborgan xabar (?xabar=...&tur=...) ----
+            (function () {
+                const q = new URLSearchParams(window.location.search);
+                let matn = q.get('xabar');
+                let tur = q.get('tur') || 'info';
+
+                if (!matn && q.get('error') === 'access_denied') {
+                    matn = 'Sizda bu sahifaga kirish ruxsati yo\u2018q';
+                    tur = 'err';
+                }
+
+                if (matn) {
+                    korsat(matn, tur);
+                    // Manzil satrini tozalaymiz — sahifa yangilanganda takror chiqmasin
+                    q.delete('xabar'); q.delete('tur'); q.delete('error');
+                    const qs = q.toString();
+                    history.replaceState({}, '',
+                        window.location.pathname + (qs ? '?' + qs : ''));
+                }
+            })();
+
+            // ---- Barcha fetch so'rovlari uchun umumiy xato ushlagich ----
+            const aslFetch = window.fetch.bind(window);
+            window.fetch = async function (input, init) {
+                init = init || {};
+                const url = typeof input === 'string' ? input : (input && input.url) || '';
+                const ozImiz = url.indexOf('http') !== 0;   // faqat o'z serverimiz
+
+                if (ozImiz) {
+                    const h = new Headers(init.headers || (input && input.headers) || {});
+                    h.set('X-Requested-With', 'XMLHttpRequest');
+                    init = Object.assign({}, init, { headers: h });
+                }
+
+                let res;
+                try {
+                    res = await aslFetch(input, init);
+                } catch (e) {
+                    if (ozImiz) korsat('Server bilan aloqa yo\u2018q', 'err');
+                    throw e;
+                }
+
+                if (ozImiz && (res.status === 401 || res.status === 403)) {
+                    let matn = null;
+                    try {
+                        const d = await res.clone().json();
+                        matn = d && d.message;
+                    } catch (e) { /* JSON bo'lmasa standart matn */ }
+
+                    if (res.status === 401) {
+                        korsat(matn || 'Sessiya muddati tugadi. Qaytadan kiring', 'warn');
+                        ruxsatXatoVaqti = Date.now();
+                        setTimeout(function () { window.location.href = '/'; }, 1800);
+                    } else {
+                        korsat(matn || 'Sizda bu amal uchun ruxsat yo\u2018q', 'err');
+                        ruxsatXatoVaqti = Date.now();
+                    }
+                }
+
+                return res;
+            };
+        })();
+    </script>
+</div>
 
 </body>
 </html>
