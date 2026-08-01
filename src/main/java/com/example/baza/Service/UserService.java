@@ -27,13 +27,16 @@ public class UserService implements UserDetailsService {
     private final UsersRepository usersRepository;
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TarixService tarixService;
 
     public UserService(UsersRepository usersRepository,
                        RolRepository rolRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       TarixService tarixService) {
         this.usersRepository = usersRepository;
         this.rolRepository = rolRepository;
         this.passwordEncoder = passwordEncoder;
+        this.tarixService = tarixService;
     }
 
     @Override
@@ -61,7 +64,7 @@ public class UserService implements UserDetailsService {
                 u.getMenejer() == null ? null : u.getMenejer().getId(),
                 u.getMenejer() == null ? null
                         : (u.getMenejer().getFish() != null && !u.getMenejer().getFish().isBlank()
-                            ? u.getMenejer().getFish() : u.getMenejer().getUsername()));
+                           ? u.getMenejer().getFish() : u.getMenejer().getUsername()));
     }
 
     @Transactional
@@ -96,6 +99,8 @@ public class UserService implements UserDetailsService {
         }
         usersRepository.save(user);
 
+        tarixService.yoz("Hodim", "Qo'shildi", user.getId(), kim(user),
+                "Username: " + user.getUsername() + " | Rollar: " + rollarMatn(user));
         return new ApiResponse("Hodim qo'shildi", true);
     }
 
@@ -110,6 +115,7 @@ public class UserService implements UserDetailsService {
             return new ApiResponse("Hodim topilmadi", false);
         }
 
+        String eski = rollarMatn(user);
         if (rolIds == null || rolIds.isEmpty()) {
             user.setRollar(new LinkedHashSet<>());
         } else {
@@ -117,6 +123,8 @@ public class UserService implements UserDetailsService {
         }
         usersRepository.save(user);
 
+        tarixService.yoz("Hodim", "Rollari o'zgardi", user.getId(), kim(user),
+                "Oldin: " + eski + " | Endi: " + rollarMatn(user));
         return new ApiResponse("Rollar yangilandi", true);
     }
 
@@ -142,6 +150,8 @@ public class UserService implements UserDetailsService {
         }
         usersRepository.save(user);
 
+        tarixService.yoz("Hodim", "Menejer biriktirildi", user.getId(), kim(user),
+                "Menejer: " + (user.getMenejer() == null ? "—" : kim(user.getMenejer())));
         return new ApiResponse("Menejer biriktirildi", true);
     }
 
@@ -167,6 +177,7 @@ public class UserService implements UserDetailsService {
         user.setIzoh(dto.izoh());
         usersRepository.save(user);
 
+        tarixService.yoz("Profil", "Tahrirlandi", user.getId(), kim(user), null);
         return new ApiResponse("Profil yangilandi", true);
     }
 
@@ -186,6 +197,7 @@ public class UserService implements UserDetailsService {
         user.setPassword(passwordEncoder.encode(dto.yangiParol()));
         usersRepository.save(user);
 
+        tarixService.yoz("Profil", "Parol o'zgartirildi", user.getId(), kim(user), null);
         return new ApiResponse("Parol yangilandi", true);
     }
 
@@ -203,7 +215,24 @@ public class UserService implements UserDetailsService {
             return new ApiResponse("O'zingizni o'chira olmaysiz", false);
         }
 
+        String nomi = kim(user);
+        String username = user.getUsername();
         usersRepository.delete(user);
+
+        tarixService.yoz("Hodim", "O'chirildi", id, nomi, "Username: " + username);
         return new ApiResponse("Hodim o'chirildi", true);
+    }
+
+    // ================= YORDAMCHI =================
+
+    /** Tarixda ko'rinadigan nom: FISH bo'lsa u, bo'lmasa username */
+    private String kim(Users u) {
+        return u.getFish() != null && !u.getFish().isBlank() ? u.getFish() : u.getUsername();
+    }
+
+    private String rollarMatn(Users u) {
+        if (u.getRollar() == null || u.getRollar().isEmpty()) return "—";
+        return u.getRollar().stream().map(Rol::getNomi)
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 }

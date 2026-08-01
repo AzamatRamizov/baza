@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O'tkazmalar</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 90%; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .search-input {
+            margin-left: auto;
+            flex: 1; min-width: 200px; max-width: 320px;
+            padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2);
+            outline: none; font-family: inherit;
+        }
+        .search-input:focus { border-color: var(--kok); background-color: var(--karta); }
+
+        /* Tablar */
+        .tablar {
+            display: inline-flex; gap: 4px; padding: 4px;
+            background-color: var(--fon2); border-radius: 8px;
+            border: 1px solid var(--chegara); margin-bottom: 18px;
+        }
+        .tablar button {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 16px; border: none; border-radius: 6px;
+            background: transparent; color: var(--matn2);
+            font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+            transition: background-color 0.18s, color 0.18s;
+        }
+        .tablar button:hover { color: var(--kok); }
+        .tablar button.faol {
+            background-color: var(--karta); color: var(--kok-toq);
+            box-shadow: 0 1px 4px var(--soya2);
+        }
+        .tablar .son {
+            min-width: 20px; padding: 1px 7px; border-radius: 10px;
+            font-size: 11px; font-weight: 700;
+            background-color: var(--sariq); color: #fff;
+        }
+        .tablar .son.bosh { display: none; }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--chegara); white-space: nowrap; }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2);
+        }
+        tr:hover td { background-color: var(--fon4); }
+        .muted { color: var(--matn4); }
+        .izoh-matn {
+            white-space: normal; max-width: 260px; color: var(--matn2); font-size: 13px;
+        }
+
+        .miqdor-katak { white-space: nowrap; }
+        .miqdor-katak .qism-belgi {
+            font-size: 11px; font-weight: 600; color: var(--sariq-toq2); margin-top: 2px;
+        }
+        .yonalish { font-weight: 600; }
+        .yonalish .strelka { color: var(--kok); margin: 0 7px; font-weight: 700; }
+
+        .holat {
+            display: inline-block; padding: 4px 11px; border-radius: 12px;
+            font-size: 12px; font-weight: 700;
+        }
+        .holat-KUTILMOQDA {
+            background-color: var(--sariq-fon); color: var(--sariq-toq2);
+            border: 1px solid var(--sariq-chegara);
+        }
+        .holat-QABUL_QILINDI {
+            background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border: 1px solid var(--yashil-chegara);
+        }
+        .holat-RAD_ETILDI {
+            background-color: var(--qizil-fon); color: var(--qizil);
+            border: 1px solid var(--qizil-3);
+        }
+        .holat-BEKOR_QILINDI {
+            background-color: var(--fon5); color: var(--matn3);
+            border: 1px solid var(--chegara);
+        }
+
+        .amal-btn {
+            padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; margin-right: 6px; font-family: inherit;
+            transition: background-color 0.2s;
+        }
+        .qabul-btn {
+            background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border: 1px solid var(--yashil-chegara);
+        }
+        .qabul-btn:hover { background-color: var(--yashil-chegara); }
+        .rad-btn {
+            background-color: var(--qizil-fon); color: var(--qizil);
+            border: 1px solid var(--qizil-3);
+        }
+        .rad-btn:hover { background-color: var(--qizil-2); }
+        .bekor-btn {
+            background-color: var(--fon5); color: var(--matn2);
+            border: 1px solid var(--chegara);
+        }
+        .bekor-btn:hover { background-color: var(--fon6); }
+
+        .empty-row td {
+            text-align: center; color: var(--matn4); padding: 34px 16px;
+            white-space: normal; line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>O'tkazmalar</h1>
+            <input type="text" class="search-input" id="searchInput"
+                   placeholder="Qidirish: mahsulot, magazin, hodim...">
+        </div>
+
+        <div class="tablar" id="tablar">
+            <button type="button" class="faol" data-rejim="kelayotgan">
+                Menga kelayotgan <span class="son bosh" id="sonKelayotgan">0</span>
+            </button>
+            <button type="button" data-rejim="yuborgan">Men jo'natganlar</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Mahsulot</th>
+                    <th>Kodi</th>
+                    <th>Miqdor</th>
+                    <th>Yo'nalish</th>
+                    <th>Jo'natgan</th>
+                    <th>Jo'natilgan vaqt</th>
+                    <th>Izoh</th>
+                    <th>Holat</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="otkazmaTbody">
+                <tr class="empty-row"><td colspan="10">Yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tbody = document.getElementById('otkazmaTbody');
+    const searchInput = document.getElementById('searchInput');
+    const tablar = document.getElementById('tablar');
+
+    let royxat = [];
+    let rejim = 'kelayotgan';   // kelayotgan | yuborgan
+
+    const HOLAT_NOMI = {
+        KUTILMOQDA: 'Kutilmoqda',
+        QABUL_QILINDI: 'Qabul qilindi',
+        RAD_ETILDI: 'Rad etildi',
+        BEKOR_QILINDI: 'Bekor qilindi'
+    };
+
+    function toastKorsat(matn, ok) {
+        xabar(matn, ok ? 'ok' : 'err');
+    }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    function vaqtFormat(iso) {
+        if (!iso) return '<span class="muted">—</span>';
+        const d = new Date(iso);
+        if (isNaN(d)) return esc(iso);
+        const p = n => String(n).padStart(2, '0');
+        return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() +
+            ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
+    // ===== Jadval =====
+    function jadvalniChiz() {
+        const q = searchInput.value.trim().toLowerCase();
+        const list = !q ? royxat : royxat.filter(o =>
+            (o.mahsulotNomi || '').toLowerCase().includes(q) ||
+            (o.mahsulotKod || '').toLowerCase().includes(q) ||
+            (o.qayerdanNomi || '').toLowerCase().includes(q) ||
+            (o.qayergaNomi || '').toLowerCase().includes(q) ||
+            (o.yuborganFish || '').toLowerCase().includes(q)
+        );
+
+        if (!list.length) {
+            const matn = q
+                ? 'Qidiruv bo\u2018yicha hech narsa topilmadi'
+                : (rejim === 'kelayotgan'
+                    ? 'Tasdiq kutayotgan o\u2018tkazma yo\u2018q'
+                    : 'Siz hali mahsulot jo\u2018natmagansiz');
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="10">' + matn + '</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(o => {
+            let amallar = '';
+            if (o.holat === 'KUTILMOQDA') {
+                if (rejim === 'kelayotgan') {
+                    amallar =
+                        `<button class="amal-btn qabul-btn" data-qabul="${o.id}" data-name="${esc(o.mahsulotNomi)}">Tasdiqlash</button>` +
+                        `<button class="amal-btn rad-btn" data-rad="${o.id}" data-name="${esc(o.mahsulotNomi)}">Rad etish</button>`;
+                } else {
+                    amallar = `<button class="amal-btn bekor-btn" data-bekor="${o.id}" data-name="${esc(o.mahsulotNomi)}">Bekor qilish</button>`;
+                }
+            } else {
+                amallar = '<span class="muted">—</span>';
+            }
+
+            const izoh = [o.izoh, o.javobIzoh ? 'Javob: ' + o.javobIzoh : null]
+                .filter(Boolean).map(esc).join('<br>');
+
+            return `
+            <tr>
+                <td class="muted">${o.id}</td>
+                <td><b>${esc(o.mahsulotNomi)}</b></td>
+                <td class="miqdor-katak">
+                    <b>${o.miqdor != null ? o.miqdor : '—'}</b>
+                    <span class="muted">${esc(o.birlik) || ''}</span>
+                    ${o.natijaMahsulotId ? '<div class="qism-belgi">kesib berilgan</div>' : ''}
+                </td>
+                <td class="yonalish">
+                    ${esc(o.qayerdanNomi) || '—'}<span class="strelka">&rarr;</span>${esc(o.qayergaNomi) || '—'}
+                </td>
+                <td>${esc(o.yuborganFish) || '<span class="muted">—</span>'}</td>
+                <td>${vaqtFormat(o.yuborilganVaqt)}</td>
+                <td class="izoh-matn">${izoh || '<span class="muted">—</span>'}</td>
+                <td><span class="holat holat-${o.holat}">${HOLAT_NOMI[o.holat] || o.holat}</span></td>
+                <td>${amallar}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    searchInput.addEventListener('input', jadvalniChiz);
+
+    // ===== Yuklash =====
+    async function load() {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Yuklanmoqda...</td></tr>';
+        const url = rejim === 'kelayotgan'
+            ? '/admin/get-kelayotgan-otkazmalar'
+            : '/admin/get-yuborgan-otkazmalar';
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error();
+            royxat = await res.json();
+            jadvalniChiz();
+            if (rejim === 'kelayotgan') sonYangila(royxat.length);
+            else sonlarniQaytaSanash();
+        } catch (e) {
+            royxat = [];
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    function sonYangila(son) {
+        const el = document.getElementById('sonKelayotgan');
+        el.textContent = son;
+        el.classList.toggle('bosh', !son);
+    }
+
+    /** "Men jo'natganlar" tabida turganda ham kelayotganlar sonini ko'rsatamiz */
+    async function sonlarniQaytaSanash() {
+        try {
+            const res = await fetch('/admin/get-kelayotgan-otkazmalar');
+            if (!res.ok) return;
+            sonYangila((await res.json()).length);
+        } catch (e) { /* e'tiborsiz */ }
+    }
+
+    // ===== Tab =====
+    tablar.addEventListener('click', e => {
+        const btn = e.target.closest('button[data-rejim]');
+        if (!btn || btn.dataset.rejim === rejim) return;
+        rejim = btn.dataset.rejim;
+        tablar.querySelectorAll('button').forEach(b => b.classList.toggle('faol', b === btn));
+        searchInput.value = '';
+        load();
+    });
+
+    // ===== Amallar =====
+    async function sorov(url, body) {
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body || {})
+            });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) load();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo\u2018q', false);
+        }
+    }
+
+    tbody.addEventListener('click', async e => {
+        const qabul = e.target.closest('[data-qabul]');
+        if (qabul) {
+            const ha = await tasdiq({
+                tur: 'ok',
+                sarlavha: 'O\u2018tkazmani tasdiqlash',
+                matn: '\u201C' + qabul.dataset.name + '\u201D mahsuloti sizning magazinigizga o\u2018tadi.',
+                tugma: 'Ha, tasdiqlayman'
+            });
+            if (ha) sorov('/admin/otkazma-qabul/' + qabul.dataset.qabul, { izoh: null });
+            return;
+        }
+
+        const rad = e.target.closest('[data-rad]');
+        if (rad) {
+            const sabab = await tasdiq.soragich(
+                '\u201C' + rad.dataset.name + '\u201D o\u2018tkazmasini rad etish sababi:',
+                '', { sarlavha: 'Rad etish', tur: 'ogoh', tugma: 'Rad etish', placeholder: 'Masalan: mahsulot mos kelmadi' });
+            if (sabab === null) return;
+            sorov('/admin/otkazma-rad/' + rad.dataset.rad, { izoh: sabab || null });
+            return;
+        }
+
+        const bekor = e.target.closest('[data-bekor]');
+        if (bekor) {
+            const ha = await tasdiq({
+                tur: 'ogoh',
+                sarlavha: 'O\u2018tkazmani bekor qilish',
+                matn: '\u201C' + bekor.dataset.name + '\u201D bo\u2018yicha jo\u2018natishni bekor qilasizmi?',
+                tugma: 'Ha, bekor qilaman'
+            });
+            if (ha) sorov('/admin/otkazma-bekor/' + bekor.dataset.bekor);
+        }
+    });
+
+    load();
+</script>
+
+</body>
+</html>

@@ -15,7 +15,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: var(--matn);
         }
-        .container { max-width: 700px; margin: 32px auto; padding: 0 20px; }
+        .container { max-width: 1200px; margin: 32px auto; padding: 0 20px; }
         .card {
             background-color: var(--karta); border-radius: 10px;
             box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
@@ -94,6 +94,7 @@
 
 <nav th:replace="~{fragment :: navbar}"></nav>
 <div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
 
 <div class="container">
     <div class="card">
@@ -178,13 +179,13 @@
                 <tr>
                     <td>${i + 1}</td>
                     <td><b>${esc(k.nomi)}</b>${k.menejerKerak
-                        ? ' <span style="font-size:11px; background:var(--sariq-fon); color:var(--sariq-toq2); padding:2px 8px; border-radius:10px; font-weight:600">menejer biriktiriladi</span>'
-                        : ''}</td>
+                ? ' <span style="font-size:11px; background:var(--sariq-fon); color:var(--sariq-toq2); padding:2px 8px; border-radius:10px; font-weight:600">menejer biriktiriladi</span>'
+                : ''}</td>
                     <td>${k.userSoni} ta hodim</td>
                     <td>${k.tizimRoli ? 'Barchasi (tizim roli)' : k.ruxsatlar.length + ' ta ruxsat'}</td>
                     <td>${k.tizimRoli
-                        ? '<span style="color:var(--matn4); font-size:12px; font-weight:600">🔒 Tizim roli</span>'
-                        : `<button class="edit-btn" data-id="${k.id}">Tahrirlash</button>
+                ? '<span style="color:var(--matn4); font-size:12px; font-weight:600">🔒 Tizim roli</span>'
+                : `<button class="edit-btn" data-id="${k.id}">Tahrirlash</button>
                            <button class="del-btn" data-id="${k.id}" data-name="${esc(k.nomi)}">O'chirish</button>`}
                     </td>
                 </tr>
@@ -267,7 +268,7 @@
 
         const delBtn = e.target.closest('.del-btn');
         if (delBtn) {
-            if (!confirm(`"${delBtn.dataset.name}" rolini o'chirishni tasdiqlaysizmi?`)) return;
+            if (!await tasdiq.ochirish(delBtn.dataset.name, 'rolini')) return;
             try {
                 const res = await fetch('/admin/delete-rol/' + delBtn.dataset.id, { method: 'DELETE' });
                 const data = await res.json();

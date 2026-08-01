@@ -94,6 +94,7 @@
 
 <nav th:replace="~{fragment :: navbar}"></nav>
 <div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
 
 <div class="container">
     <div class="card">
@@ -248,7 +249,7 @@
 
         const delBtn = e.target.closest('.del-btn');
         if (delBtn) {
-            if (!confirm(`"${delBtn.dataset.name}" kategoriyasini o'chirishni tasdiqlaysizmi?`)) return;
+            if (!await tasdiq.ochirish(delBtn.dataset.name, 'kategoriyasini')) return;
             try {
                 const res = await fetch('/admin/delete-kategoriya/' + delBtn.dataset.id, { method: 'DELETE' });
                 const data = await res.json();

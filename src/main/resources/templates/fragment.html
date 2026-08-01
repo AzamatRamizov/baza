@@ -25,7 +25,10 @@
         .navbar .brand {
             color: var(--kok-toq); font-size: 20px; font-weight: 700; text-decoration: none;
         }
-        .navbar .nav-links { display: flex; gap: 18px; align-items: center; margin-right: auto; }
+        .navbar .nav-links {
+            display: flex; gap: 16px; align-items: center; margin-right: auto;
+            flex-wrap: wrap; row-gap: 8px;
+        }
         .navbar .nav-links a {
             color: var(--kok-och); text-decoration: none; font-size: 14px; font-weight: 600;
         }
@@ -96,9 +99,13 @@
         <a href="/admin/users" th:classappend="${page == 'users'} ? 'active'">Hodimlar</a>
         <a href="/admin/magazinlar" th:classappend="${page == 'magazinlar'} ? 'active'">Magazinlar</a>
         <a href="/admin/mahsulotlar" th:classappend="${page == 'mahsulotlar'} ? 'active'">Mahsulotlar</a>
+        <a href="/admin/mening-mahsulotlarim"
+           th:classappend="${page == 'mening-mahsulotlarim'} ? 'active'">Mening mahsulotlarim</a>
+        <a href="/admin/otkazmalar" th:classappend="${page == 'otkazmalar'} ? 'active'">O'tkazmalar</a>
         <a href="/admin/kategoriyalar" th:classappend="${page == 'kategoriyalar'} ? 'active'">Kategoriyalar</a>
         <a href="/admin/rollar" th:classappend="${page == 'rollar'} ? 'active'">Rollar</a>
         <a href="/admin/ruxsatlar" th:classappend="${page == 'ruxsatlar'} ? 'active'">Ruxsatlar</a>
+        <a href="/admin/tarix" th:classappend="${page == 'tarix'} ? 'active'">Tarix</a>
     </div>
 
     <span class="kurs-badge" id="usdKursBadge" title="O'zbekiston Markaziy banki kursi"></span>
@@ -440,6 +447,391 @@
                 }
 
                 return res;
+            };
+        })();
+    </script>
+</div>
+
+<!-- =====================================================
+     TASDIQ (MODAL) FRAGMENTI  — alert / confirm / prompt o'rniga
+     Chaqirish:  <div th:replace="~{fragment :: tasdiq}"></div>
+                 (fragment :: xabar dan keyin qo'yiladi)
+
+     Ishlatish (JS) — barchasi Promise qaytaradi, `await` bilan:
+
+        // o'chirishni tasdiqlash (qizil)
+        if (!await tasdiq.ochirish('Gilamlar', 'kategoriyasini')) return;
+
+        // umumiy savol
+        const ha = await tasdiq({
+            sarlavha: 'Chiqasizmi?',
+            matn: 'Tizimdan chiqmoqchimisiz?',
+            tur: 'ogoh',            // xavf | ogoh | info | ok
+            tugma: 'Ha, chiqaman',
+            bekor: 'Yo\u2018q'
+        });
+
+        await tasdiq.ogoh('Avval magazin tanlang');   // alert() o'rniga
+        await tasdiq.info('Ma\u2018lumot saqlandi');
+        const nom = await tasdiq.soragich('Yangi nomi', 'eski nom');  // prompt() o'rniga
+
+     Eslatma: window.alert() ham shu modalga yo'naltirilgan, lekin u
+     kutib turmaydi — yangi kodda `await tasdiq.ogoh(...)` ishlating.
+     confirm() va prompt() ni ishlatmang: ular brauzerni to'xtatadi va
+     bu modal bilan ishlamaydi.
+     ===================================================== -->
+<div th:fragment="tasdiq">
+    <style>
+        .tasdiq-parda {
+            position: fixed; inset: 0;
+            background: var(--parda);
+            display: none; align-items: center; justify-content: center;
+            z-index: 9000;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.18s ease;
+        }
+        .tasdiq-parda.bor { display: flex; }
+        .tasdiq-parda.ochiq { opacity: 1; }
+
+        .tasdiq-oyna {
+            background-color: var(--karta);
+            border-radius: 14px;
+            box-shadow: 0 18px 50px var(--soya3);
+            width: 100%; max-width: 440px;
+            padding: 26px 28px 22px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transform: translateY(14px) scale(0.96);
+            transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+        }
+        .tasdiq-parda.ochiq .tasdiq-oyna { transform: translateY(0) scale(1); }
+
+        .tasdiq-bosh { display: flex; align-items: flex-start; gap: 15px; }
+        .tasdiq-belgi {
+            flex-shrink: 0;
+            width: 46px; height: 46px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 700; line-height: 1;
+        }
+        .tasdiq-tana { flex: 1; min-width: 0; padding-top: 2px; }
+        .tasdiq-sarlavha {
+            font-size: 18px; font-weight: 700; color: var(--matn);
+            margin-bottom: 6px; line-height: 1.3;
+        }
+        .tasdiq-matn {
+            font-size: 15px; font-weight: 500; color: var(--matn2);
+            line-height: 1.5; word-break: break-word; white-space: pre-line;
+        }
+
+        .tasdiq-kiritish { margin-top: 16px; display: none; }
+        .tasdiq-kiritish.bor { display: block; }
+        .tasdiq-kiritish input {
+            width: 100%; padding: 10px 12px;
+            border: 1.5px solid var(--chegara-kok); border-radius: 8px;
+            font-size: 14px; font-family: inherit;
+            color: var(--matn); background-color: var(--fon4);
+            outline: none; transition: border-color 0.2s, background-color 0.2s;
+        }
+        .tasdiq-kiritish input:focus {
+            border-color: var(--kok); background-color: var(--karta);
+        }
+
+        .tasdiq-tugmalar {
+            display: flex; gap: 10px; justify-content: flex-end;
+            margin-top: 22px;
+        }
+        .tasdiq-tugmalar button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px; font-weight: 600; font-family: inherit;
+            cursor: pointer;
+            transition: background-color 0.18s, border-color 0.18s, transform 0.1s;
+        }
+        .tasdiq-tugmalar button:active { transform: scale(0.97); }
+        .tasdiq-tugmalar .tasdiq-yoq {
+            background-color: var(--fon5); color: var(--matn2);
+            border: 1.5px solid var(--chegara);
+        }
+        .tasdiq-tugmalar .tasdiq-yoq:hover {
+            background-color: var(--fon6); border-color: var(--chegara2);
+        }
+        .tasdiq-tugmalar .tasdiq-ha {
+            border: none; color: #ffffff;
+            min-width: 118px;
+        }
+        .tasdiq-tugmalar .tasdiq-ha:focus-visible,
+        .tasdiq-tugmalar .tasdiq-yoq:focus-visible {
+            outline: 3px solid var(--chegara2); outline-offset: 2px;
+        }
+
+        /* ---- Turlar bo'yicha ranglar ---- */
+        .tasdiq-parda[data-tur="xavf"] .tasdiq-belgi {
+            background-color: var(--qizil-fon); color: var(--qizil);
+            box-shadow: inset 0 0 0 1.5px var(--qizil-3);
+        }
+        .tasdiq-parda[data-tur="xavf"] .tasdiq-ha {
+            background-image: linear-gradient(135deg, #ef5340 0%, #bf2718 100%);
+            box-shadow: 0 6px 16px rgba(191, 39, 24, 0.35);
+        }
+        .tasdiq-parda[data-tur="ogoh"] .tasdiq-belgi {
+            background-color: var(--sariq-fon); color: var(--sariq);
+            box-shadow: inset 0 0 0 1.5px var(--sariq-chegara);
+        }
+        .tasdiq-parda[data-tur="ogoh"] .tasdiq-ha {
+            background-image: linear-gradient(135deg, #f79b26 0%, #d77410 100%);
+            box-shadow: 0 6px 16px rgba(215, 116, 16, 0.32);
+        }
+        .tasdiq-parda[data-tur="info"] .tasdiq-belgi {
+            background-color: var(--fon3); color: var(--kok);
+            box-shadow: inset 0 0 0 1.5px var(--chegara-kok);
+        }
+        .tasdiq-parda[data-tur="info"] .tasdiq-ha {
+            background-image: linear-gradient(135deg, #3a9bdc 0%, #1c6ba5 100%);
+            box-shadow: 0 6px 16px rgba(28, 107, 165, 0.32);
+        }
+        .tasdiq-parda[data-tur="ok"] .tasdiq-belgi {
+            background-color: var(--yashil-fon); color: var(--yashil-toq);
+            box-shadow: inset 0 0 0 1.5px var(--yashil-chegara);
+        }
+        .tasdiq-parda[data-tur="ok"] .tasdiq-ha {
+            background-image: linear-gradient(135deg, #23ac66 0%, #14875a 100%);
+            box-shadow: 0 6px 16px rgba(20, 135, 90, 0.32);
+        }
+
+        /* Faqat bitta tugma bo'lsa (alert o'rnida) */
+        .tasdiq-parda.yolgiz .tasdiq-yoq { display: none; }
+
+        @media (max-width: 520px) {
+            .tasdiq-oyna { padding: 22px 20px 18px; }
+            .tasdiq-sarlavha { font-size: 17px; }
+            .tasdiq-matn { font-size: 14px; }
+            .tasdiq-tugmalar { flex-direction: column-reverse; }
+            .tasdiq-tugmalar button { width: 100%; }
+        }
+    </style>
+
+    <div class="tasdiq-parda" id="tasdiqParda" role="dialog" aria-modal="true"
+         aria-labelledby="tasdiqSarlavha" aria-describedby="tasdiqMatn">
+        <div class="tasdiq-oyna">
+            <div class="tasdiq-bosh">
+                <span class="tasdiq-belgi" id="tasdiqBelgi" aria-hidden="true">!</span>
+                <div class="tasdiq-tana">
+                    <div class="tasdiq-sarlavha" id="tasdiqSarlavha">Tasdiqlang</div>
+                    <div class="tasdiq-matn" id="tasdiqMatn"></div>
+                </div>
+            </div>
+            <div class="tasdiq-kiritish" id="tasdiqKiritish">
+                <input type="text" id="tasdiqInput" autocomplete="off">
+            </div>
+            <div class="tasdiq-tugmalar">
+                <button type="button" class="tasdiq-yoq" id="tasdiqYoq">Bekor qilish</button>
+                <button type="button" class="tasdiq-ha" id="tasdiqHa">Ha</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const parda = document.getElementById('tasdiqParda');
+            const oyna = parda.querySelector('.tasdiq-oyna');
+            const belgiEl = document.getElementById('tasdiqBelgi');
+            const sarlavhaEl = document.getElementById('tasdiqSarlavha');
+            const matnEl = document.getElementById('tasdiqMatn');
+            const kiritishEl = document.getElementById('tasdiqKiritish');
+            const inputEl = document.getElementById('tasdiqInput');
+            const haBtn = document.getElementById('tasdiqHa');
+            const yoqBtn = document.getElementById('tasdiqYoq');
+
+            const TURLAR = {
+                xavf: { belgi: '\u2715', sarlavha: 'Tasdiqlang', tugma: 'Ha, o\u2018chirish' },
+                ogoh: { belgi: '!', sarlavha: 'Diqqat', tugma: 'Davom etish' },
+                info: { belgi: 'i', sarlavha: 'Ma\u2018lumot', tugma: 'OK' },
+                ok: { belgi: '\u2713', sarlavha: 'Tasdiqlang', tugma: 'Ha' }
+            };
+
+            const navbat = [];      // ketma-ket chaqirilsa — birin-ketin ko'rsatiladi
+            let joriy = null;       // { cfg, resolve }
+            let oldingiFokus = null;
+
+            function keyingisi() {
+                if (joriy || navbat.length === 0) return;
+                joriy = navbat.shift();
+                ochish(joriy.cfg);
+            }
+
+            function ochish(cfg) {
+                const t = TURLAR[cfg.tur] ? cfg.tur : 'ogoh';
+                const asos = TURLAR[t];
+
+                parda.dataset.tur = t;
+                parda.classList.toggle('yolgiz', cfg.yolgiz === true);
+
+                belgiEl.textContent = cfg.belgi || asos.belgi;
+                sarlavhaEl.textContent = cfg.sarlavha || asos.sarlavha;
+                matnEl.textContent = cfg.matn || '';
+                matnEl.style.display = cfg.matn ? '' : 'none';
+                haBtn.textContent = cfg.tugma || asos.tugma;
+                yoqBtn.textContent = cfg.bekor || 'Bekor qilish';
+
+                if (cfg.kiritish) {
+                    kiritishEl.classList.add('bor');
+                    inputEl.type = cfg.kiritishTuri || 'text';
+                    inputEl.value = cfg.qiymat == null ? '' : String(cfg.qiymat);
+                    inputEl.placeholder = cfg.placeholder || '';
+                } else {
+                    kiritishEl.classList.remove('bor');
+                    inputEl.value = '';
+                }
+
+                oldingiFokus = document.activeElement;
+                document.body.style.overflow = 'hidden';
+                parda.classList.add('bor');
+                requestAnimationFrame(function () {
+                    parda.classList.add('ochiq');
+                    if (cfg.kiritish) {
+                        inputEl.focus();
+                        inputEl.select();
+                    } else if (t === 'xavf' && cfg.yolgiz !== true) {
+                        yoqBtn.focus();      // o'chirishda kursor "Bekor qilish"da turadi
+                    } else {
+                        haBtn.focus();
+                    }
+                });
+            }
+
+            function yopish(natija) {
+                if (!joriy) return;
+                const res = joriy.resolve;
+                joriy = null;
+
+                parda.classList.remove('ochiq');
+                setTimeout(function () {
+                    parda.classList.remove('bor', 'yolgiz');
+                    if (navbat.length === 0) document.body.style.overflow = '';
+                    if (oldingiFokus && oldingiFokus.focus) {
+                        try { oldingiFokus.focus(); } catch (e) { /* e'tiborsiz */ }
+                    }
+                    oldingiFokus = null;
+                    res(natija);
+                    keyingisi();
+                }, 180);
+            }
+
+            function tasdiqla() {
+                if (!joriy) return;
+                if (joriy.cfg.kiritish) {
+                    const q = inputEl.value.trim();
+                    if (joriy.cfg.majburiy && !q) {
+                        inputEl.focus();
+                        return;
+                    }
+                    yopish(q);
+                } else {
+                    yopish(true);
+                }
+            }
+
+            function bekor() {
+                if (!joriy) return;
+                yopish(joriy.cfg.kiritish ? null : false);
+            }
+
+            haBtn.addEventListener('click', tasdiqla);
+            yoqBtn.addEventListener('click', bekor);
+
+            // Pardaga (tashqariga) bosilsa — bekor
+            parda.addEventListener('mousedown', function (e) {
+                if (e.target === parda) bekor();
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (!joriy) return;
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();     // sahifadagi boshqa modal yopilib ketmasin
+                    bekor();
+                } else if (e.key === 'Enter') {
+                    // O'chirishda Enter tasodifan bosilib ketmasligi uchun ishlamaydi
+                    if (joriy.cfg.kiritish || parda.dataset.tur !== 'xavf' || joriy.cfg.yolgiz) {
+                        e.preventDefault();
+                        tasdiqla();
+                    }
+                } else if (e.key === 'Tab') {
+                    // Fokus modal ichida qoladi
+                    const tugmalar = joriy.cfg.kiritish
+                        ? [inputEl, yoqBtn, haBtn] : [yoqBtn, haBtn];
+                    const faol = tugmalar.filter(function (el) {
+                        return el.offsetParent !== null;
+                    });
+                    const i = faol.indexOf(document.activeElement);
+                    e.preventDefault();
+                    const yangi = e.shiftKey
+                        ? (i <= 0 ? faol.length - 1 : i - 1)
+                        : (i === faol.length - 1 ? 0 : i + 1);
+                    faol[yangi].focus();
+                }
+            }, true);
+
+            // ---- Asosiy API ----
+            function tasdiq(cfg) {
+                if (typeof cfg === 'string') cfg = { matn: cfg };
+                cfg = cfg || {};
+                return new Promise(function (resolve) {
+                    navbat.push({ cfg: cfg, resolve: resolve });
+                    keyingisi();
+                });
+            }
+
+            // O'chirishni tasdiqlash:  tasdiq.ochirish('Gilamlar', 'kategoriyasini')
+            tasdiq.ochirish = function (nomi, nima, qoshimcha) {
+                return tasdiq({
+                    tur: 'xavf',
+                    sarlavha: 'O\u2018chirishni tasdiqlang',
+                    matn: '\u201C' + (nomi || '') + '\u201D ' +
+                        (nima || 'yozuvini') + ' o\u2018chirmoqchimisiz?' +
+                        (qoshimcha ? '\n' + qoshimcha : '\nBu amalni qaytarib bo\u2018lmaydi.'),
+                    tugma: 'Ha, o\u2018chirish',
+                    bekor: 'Bekor qilish'
+                });
+            };
+
+            // alert() o'rniga — bitta tugmali xabar
+            tasdiq.ogoh = function (matn, sarlavha) {
+                return tasdiq({
+                    tur: 'ogoh', matn: matn, sarlavha: sarlavha,
+                    tugma: 'Tushunarli', yolgiz: true
+                });
+            };
+            tasdiq.info = function (matn, sarlavha) {
+                return tasdiq({
+                    tur: 'info', matn: matn, sarlavha: sarlavha,
+                    tugma: 'OK', yolgiz: true
+                });
+            };
+            tasdiq.xato = function (matn, sarlavha) {
+                return tasdiq({
+                    tur: 'xavf', matn: matn, sarlavha: sarlavha || 'Xatolik',
+                    tugma: 'Yopish', yolgiz: true
+                });
+            };
+
+            // prompt() o'rniga — matn qaytaradi, bekor qilinsa null
+            tasdiq.soragich = function (matn, qiymat, cfg) {
+                return tasdiq(Object.assign({
+                    tur: 'info',
+                    sarlavha: 'Ma\u2018lumot kiriting',
+                    matn: matn,
+                    kiritish: true,
+                    qiymat: qiymat,
+                    tugma: 'Saqlash'
+                }, cfg || {}));
+            };
+
+            window.tasdiq = tasdiq;
+
+            // Eski/tasodifiy alert() chaqiruvlari ham modalda chiqsin
+            window.alert = function (matn) {
+                tasdiq.ogoh(matn == null ? '' : String(matn));
             };
         })();
     </script>

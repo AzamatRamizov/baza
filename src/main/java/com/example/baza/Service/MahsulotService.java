@@ -25,21 +25,34 @@ public class MahsulotService {
     private final UsersRepository usersRepository;
     private final KategoriyaRepository kategoriyaRepository;
     private final ValyutaService valyutaService;
+    private final TarixService tarixService;
 
     public MahsulotService(MahsulotRepository mahsulotRepository,
                            MagazinRepository magazinRepository,
                            UsersRepository usersRepository,
                            KategoriyaRepository kategoriyaRepository,
-                           ValyutaService valyutaService) {
+                           ValyutaService valyutaService,
+                           TarixService tarixService) {
         this.mahsulotRepository = mahsulotRepository;
         this.magazinRepository = magazinRepository;
         this.usersRepository = usersRepository;
         this.kategoriyaRepository = kategoriyaRepository;
         this.valyutaService = valyutaService;
+        this.tarixService = tarixService;
     }
 
     public List<MahsulotDto> getAllMahsulotlar() {
         return mahsulotRepository.findAllDto();
+    }
+
+    /**
+     * "Mening mahsulotlarim" — men mas'ul bo'lgan magazin(lar)dagi mahsulotlar.
+     * Bitta hodim bir nechta magazinga mas'ul bo'lishi mumkin.
+     */
+    public List<MahsulotDto> getMeningMahsulotlarim(String username) {
+        return usersRepository.findByUsername(username)
+                .map(u -> mahsulotRepository.findMagazinimDto(u.getId()))
+                .orElseGet(List::of);
     }
 
     @Transactional
@@ -47,20 +60,27 @@ public class MahsulotService {
         String xato = tekshir(dto, null);
         if (xato != null) return new ApiResponse(xato, false);
 
-        Long narxSom = narxniSomgaAylantir(dto);
+        Double miqdor = miqdorniAniqla(dto);
+        Long narxSom = narxniSomgaAylantir(dto, miqdor);
         if (narxSom == null && dto.zavodNarxi() != null) {
             return new ApiResponse(
                     "Dollar kursini olib bo'lmadi — keyinroq urinib ko'ring yoki narxni so'mda kiriting", false);
         }
 
         Mahsulot mahsulot = new Mahsulot();
-        maydonlarniTuldirish(mahsulot, dto, narxSom);
+        maydonlarniTuldirish(mahsulot, dto, narxSom, miqdor);
 
         // Yaratgan user — SecurityContext'dan (faqat yaratishda)
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         usersRepository.findByUsername(username).ifPresent(mahsulot::setYaratganUser);
 
         mahsulotRepository.save(mahsulot);
+
+        tarixService.yoz("Mahsulot", "Qo'shildi", mahsulot.getId(), mahsulot.getNomi(),
+                "Kod: " + mahsulot.getKod() +
+                        " | Magazin: " + (mahsulot.getMagazin() == null ? "—" : mahsulot.getMagazin().getNomi()) +
+                        " | Miqdor: " + mahsulot.getMiqdor() + " " + mahsulot.getBirlik() +
+                        " | Zavod narxi: " + (mahsulot.getZavodNarxi() == null ? "—" : mahsulot.getZavodNarxi() + " so'm"));
         return new ApiResponse("Mahsulot qo'shildi", true);
     }
 
@@ -74,24 +94,49 @@ public class MahsulotService {
         String xato = tekshir(dto, id);
         if (xato != null) return new ApiResponse(xato, false);
 
-        Long narxSom = narxniSomgaAylantir(dto);
+        Double miqdor = miqdorniAniqla(dto);
+        Long narxSom = narxniSomgaAylantir(dto, miqdor);
         if (narxSom == null && dto.zavodNarxi() != null) {
             return new ApiResponse(
                     "Dollar kursini olib bo'lmadi — keyinroq urinib ko'ring yoki narxni so'mda kiriting", false);
         }
 
-        maydonlarniTuldirish(mahsulot, dto, narxSom); // yaratganUser o'zgarmaydi
+        String eskiHolat = mahsulotHolati(mahsulot);
+        maydonlarniTuldirish(mahsulot, dto, narxSom, miqdor); // yaratganUser o'zgarmaydi
         mahsulotRepository.save(mahsulot);
+
+        String yangiHolat = mahsulotHolati(mahsulot);
+        tarixService.yoz("Mahsulot", "Tahrirlandi", mahsulot.getId(), mahsulot.getNomi(),
+                eskiHolat.equals(yangiHolat) ? null : eskiHolat + "  =>  " + yangiHolat);
         return new ApiResponse("Mahsulot yangilandi", true);
     }
 
     @Transactional
     public ApiResponse deleteMahsulot(Long id) {
-        if (!mahsulotRepository.existsById(id)) {
+        Mahsulot mahsulot = mahsulotRepository.findById(id).orElse(null);
+        if (mahsulot == null) {
             return new ApiResponse("Mahsulot topilmadi", false);
         }
-        mahsulotRepository.deleteById(id);
+        String nomi = mahsulot.getNomi();
+        String kod = mahsulot.getKod();
+        mahsulotRepository.delete(mahsulot);
+
+        tarixService.yoz("Mahsulot", "O'chirildi", id, nomi, "Kod: " + kod);
         return new ApiResponse("Mahsulot o'chirildi", true);
+    }
+
+    /** Tarix uchun mahsulotning qisqacha holati */
+    private String mahsulotHolati(Mahsulot m) {
+        return "kod=" + m.getKod()
+                + ", nomi=" + m.getNomi()
+                + ", kategoriya=" + (m.getKategoriya() == null ? "—" : m.getKategoriya().getNomi())
+                + ", turi=" + m.getTuri()
+                + ", birlik=" + m.getBirlik()
+                + ", o'lcham=" + m.getBoyi() + "x" + m.getEni()
+                + ", kv=" + m.getKv()
+                + ", miqdor=" + m.getMiqdor() + " " + m.getBirlik()
+                + ", narx=" + m.getZavodNarxi()
+                + ", magazin=" + (m.getMagazin() == null ? "—" : m.getMagazin().getNomi());
     }
 
     // ================= YORDAMCHI =================
@@ -116,18 +161,28 @@ public class MahsulotService {
         if ((dto.boyi() != null && dto.boyi() < 0) || (dto.eni() != null && dto.eni() < 0)) {
             return "O'lchamlar manfiy bo'lishi mumkin emas";
         }
+        if (dto.miqdor() != null) {
+            if (dto.miqdor() <= 0) {
+                return "Miqdor 0 dan katta bo'lishi kerak";
+            }
+            if (donami(dto.birlik()) && Math.abs(dto.miqdor() - Math.round(dto.miqdor())) > 0.0001) {
+                return "Dona uchun miqdor butun son bo'lishi kerak";
+            }
+        }
         return null;
     }
 
     /**
-     * Zavod narxi 1 KV METR uchun kiritiladi. Umumiy narx:
-     *   umumiy = kv (boyi * eni) * 1 kv narxi
-     * Masalan 3x4 (12 kv), 3.3$ dan: 12 * 3.3 = 39.6$ -> kurs bo'yicha so'mga.
+     * Zavod narxi BIR BIRLIK uchun kiritiladi, umumiy narx miqdorga ko'paytiriladi:
+     *   umumiy = miqdor * 1 birlik narxi
+     * Masalan:
+     *   kv.metr, 3x4 (miqdor = 12 kv), 3.3$ dan -> 12 * 3.3 = 39.6$
+     *   dona, 5 dona, 40$ dan                   -> 5 * 40 = 200$
+     *   metr, 25 metr, 6$ dan                   -> 25 * 6 = 150$
      * - valyuta "USD" bo'lsa — CBU kursi bo'yicha so'mga (kurs topilmasa null),
      * - so'm bo'lsa — so'mligicha.
-     * O'lchamlar kiritilmagan bo'lsa (kv yo'q) — kiritilgan qiymat umumiy narx deb olinadi.
      */
-    private Long narxniSomgaAylantir(MahsulotSaveDto dto) {
+    private Long narxniSomgaAylantir(MahsulotSaveDto dto, Double miqdor) {
         if (dto.zavodNarxi() == null) return null;
 
         double narx = dto.zavodNarxi();
@@ -138,15 +193,41 @@ public class MahsulotService {
             narx *= kurs.kurs();
         }
 
-        Double kvVal = kvHisobla(dto.boyi(), dto.eni());
-        if (kvVal != null && kvVal > 0) {
-            narx *= kvVal;
+        if (miqdor != null && miqdor > 0) {
+            narx *= miqdor;
         }
 
         return Math.round(narx);
     }
 
-    private void maydonlarniTuldirish(Mahsulot mahsulot, MahsulotSaveDto dto, Long narxSom) {
+    /**
+     * Miqdor kiritilmagan bo'lsa birlikdan kelib chiqib o'zi hisoblanadi:
+     *   kv.metr -> kv (boyi * eni),  metr -> bo'yi,  dona -> 1
+     */
+    private Double miqdorniAniqla(MahsulotSaveDto dto) {
+        if (dto.miqdor() != null && dto.miqdor() > 0) {
+            return yaxlit(dto.miqdor());
+        }
+        if ("kv.metr".equals(dto.birlik())) {
+            Double kv = kvHisobla(dto.boyi(), dto.eni());
+            if (kv != null && kv > 0) return kv;
+        }
+        if ("metr".equals(dto.birlik()) && dto.boyi() != null && dto.boyi() > 0) {
+            return yaxlit(dto.boyi());
+        }
+        return 1.0;
+    }
+
+    static boolean donami(String birlik) {
+        return birlik == null || "dona".equals(birlik);
+    }
+
+    static Double yaxlit(Double son) {
+        return son == null ? null : Math.round(son * 100.0) / 100.0;
+    }
+
+    private void maydonlarniTuldirish(Mahsulot mahsulot, MahsulotSaveDto dto,
+                                      Long narxSom, Double miqdor) {
         mahsulot.setNomi(dto.nomi().trim());
         mahsulot.setKod(dto.kod().trim());
         mahsulot.setKategoriya(dto.kategoriyaId() == null
@@ -157,6 +238,7 @@ public class MahsulotService {
         mahsulot.setBoyi(dto.boyi());
         mahsulot.setEni(dto.eni());
         mahsulot.setKv(kvHisobla(dto.boyi(), dto.eni()));
+        mahsulot.setMiqdor(miqdor);
         mahsulot.setTuri(dto.turi());
 
         if (dto.magazinId() != null) {

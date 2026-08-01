@@ -22,10 +22,13 @@ public class RolService {
 
     private final RolRepository rolRepository;
     private final UsersRepository usersRepository;
+    private final TarixService tarixService;
 
-    public RolService(RolRepository rolRepository, UsersRepository usersRepository) {
+    public RolService(RolRepository rolRepository, UsersRepository usersRepository,
+                      TarixService tarixService) {
         this.rolRepository = rolRepository;
         this.usersRepository = usersRepository;
+        this.tarixService = tarixService;
     }
 
     /** Tizimdagi barcha ruxsat turlari — enum'dan avtomatik */
@@ -57,6 +60,7 @@ public class RolService {
         rol.setMenejerKerak(Boolean.TRUE.equals(dto.menejerKerak()));
         rolRepository.save(rol);
 
+        tarixService.yoz("Rol", "Qo'shildi", rol.getId(), rol.getNomi(), null);
         return new ApiResponse("Rol qo'shildi", true);
     }
 
@@ -74,10 +78,13 @@ public class RolService {
         String xato = nomiTekshir(dto, id);
         if (xato != null) return new ApiResponse(xato, false);
 
+        String eskiNomi = rol.getNomi();
         rol.setNomi(dto.nomi().trim());
         rol.setMenejerKerak(Boolean.TRUE.equals(dto.menejerKerak()));
         rolRepository.save(rol);
 
+        tarixService.yoz("Rol", "Tahrirlandi", rol.getId(), rol.getNomi(),
+                eskiNomi.equals(rol.getNomi()) ? null : "Nomi: " + eskiNomi + " -> " + rol.getNomi());
         return new ApiResponse("Rol yangilandi", true);
     }
 
@@ -97,7 +104,10 @@ public class RolService {
                     "Bu rolda " + userSoni + " ta hodim bor — avval ularga boshqa rol biriktiring", false);
         }
 
+        String nomi = rol.getNomi();
         rolRepository.deleteById(id);
+
+        tarixService.yoz("Rol", "O'chirildi", id, nomi, null);
         return new ApiResponse("Rol o'chirildi", true);
     }
 
@@ -123,13 +133,22 @@ public class RolService {
             }
         }
 
+        LinkedHashSet<Ruxsat> eski = new LinkedHashSet<>(rol.getRuxsatlar());
         rol.setRuxsatlar(yangi);
         rolRepository.save(rol);
 
+        tarixService.yoz("Rol", "Ruxsatlari o'zgardi", rol.getId(), rol.getNomi(),
+                "Oldin: " + kodlarMatn(eski) + " | Endi: " + kodlarMatn(yangi));
         return new ApiResponse("\"" + rol.getNomi() + "\" ruxsatlari saqlandi", true);
     }
 
     // ================= YORDAMCHI =================
+
+    private String kodlarMatn(LinkedHashSet<Ruxsat> ruxsatlar) {
+        if (ruxsatlar == null || ruxsatlar.isEmpty()) return "—";
+        return ruxsatlar.stream().map(Enum::name)
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
 
     private String nomiTekshir(RolSaveDto dto, Long ozId) {
         if (dto.nomi() == null || dto.nomi().isBlank()) {

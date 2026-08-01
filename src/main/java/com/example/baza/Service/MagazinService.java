@@ -23,11 +23,14 @@ public class MagazinService {
 
     private final MagazinRepository magazinRepository;
     private final UsersRepository usersRepository;
+    private final TarixService tarixService;
 
     public MagazinService(MagazinRepository magazinRepository,
-                          UsersRepository usersRepository) {
+                          UsersRepository usersRepository,
+                          TarixService tarixService) {
         this.magazinRepository = magazinRepository;
         this.usersRepository = usersRepository;
+        this.tarixService = tarixService;
     }
 
     public List<MagazinDto> getAllMagazinlar() {
@@ -63,6 +66,8 @@ public class MagazinService {
         magazin.setHodimlar(hodimlarniYukla(dto.hodimIds()));
         magazinRepository.save(magazin);
 
+        tarixService.yoz("Magazin", "Qo'shildi", magazin.getId(), magazin.getNomi(),
+                "Mas'ul hodimlar: " + hodimNomlari(magazin));
         return new ApiResponse("Magazin qo'shildi", true);
     }
 
@@ -81,10 +86,24 @@ public class MagazinService {
         String xato = nomiTekshir(dto, id);
         if (xato != null) return new ApiResponse(xato, false);
 
+        String eskiNomi = magazin.getNomi();
+        String eskiHodimlar = hodimNomlari(magazin);
+
         magazin.setNomi(dto.nomi().trim());
         magazin.setHodimlar(hodimlarniYukla(dto.hodimIds()));
         magazinRepository.save(magazin);
 
+        StringBuilder tafsilot = new StringBuilder();
+        if (!eskiNomi.equals(magazin.getNomi())) {
+            tafsilot.append("Nomi: ").append(eskiNomi).append(" -> ").append(magazin.getNomi());
+        }
+        String yangiHodimlar = hodimNomlari(magazin);
+        if (!eskiHodimlar.equals(yangiHodimlar)) {
+            if (tafsilot.length() > 0) tafsilot.append(" | ");
+            tafsilot.append("Hodimlar: ").append(eskiHodimlar).append(" -> ").append(yangiHodimlar);
+        }
+        tarixService.yoz("Magazin", "Tahrirlandi", magazin.getId(), magazin.getNomi(),
+                tafsilot.length() == 0 ? null : tafsilot.toString());
         return new ApiResponse("Magazin yangilandi", true);
     }
 
@@ -94,8 +113,11 @@ public class MagazinService {
         if (magazin == null) {
             return new ApiResponse("Magazin topilmadi", false);
         }
+        String nomi = magazin.getNomi();
         magazin.getHodimlar().clear(); // avval bog'lanish jadvalini tozalaymiz
         magazinRepository.delete(magazin);
+
+        tarixService.yoz("Magazin", "O'chirildi", id, nomi, null);
         return new ApiResponse("Magazin o'chirildi", true);
     }
 
@@ -110,6 +132,14 @@ public class MagazinService {
             return "Bunday nomli magazin allaqachon mavjud";
         }
         return null;
+    }
+
+    /** Tarix uchun hodimlar ro'yxatini matnga aylantiradi */
+    private String hodimNomlari(Magazin magazin) {
+        if (magazin.getHodimlar() == null || magazin.getHodimlar().isEmpty()) return "—";
+        return magazin.getHodimlar().stream()
+                .map(u -> u.getFish() != null && !u.getFish().isBlank() ? u.getFish() : u.getUsername())
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     private LinkedHashSet<Users> hodimlarniYukla(List<Long> hodimIds) {

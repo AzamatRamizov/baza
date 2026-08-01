@@ -37,6 +37,15 @@ public class Mahsulot extends AbstractLongEntity {
     /** Kvadrat (avtomatik: boyi * eni) — servisda hisoblanadi */
     private Double kv;
 
+    /**
+     * Mavjud (qoldiq) miqdor — mahsulotning BIRLIGIDA o'lchanadi:
+     *   dona     -> nechta dona
+     *   metr     -> necha metr
+     *   kv.metr  -> necha kv.metr
+     * Boshqa magazinga qisman jo'natilganda shu qiymat kamayadi.
+     */
+    private Double miqdor;
+
     /** Turi: "gatoviy" yoki "metraj" */
     private String turi;
 

@@ -16,7 +16,7 @@
             color: var(--matn);
         }
 
-        .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+        .container { max-width: 80%; margin: 32px auto; padding: 0 20px; }
         .card {
             background-color: var(--karta); border-radius: 10px;
             box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
@@ -119,6 +119,7 @@
 
 <nav th:replace="~{fragment :: navbar}"></nav>
 <div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
 
 <div class="container">
     <div class="card">
@@ -355,7 +356,7 @@
 
         try {
             const res = await fetch('/admin/update-user-menejer/' + userId +
-                    (menejerId ? '?menejerId=' + menejerId : ''), { method: 'PUT' });
+                (menejerId ? '?menejerId=' + menejerId : ''), { method: 'PUT' });
             const data = await res.json();
             toastKorsat(data.message, data.holat);
             if (!data.holat) loadUsers();
@@ -449,7 +450,7 @@
         const btn = e.target.closest('.del-btn');
         if (!btn) return;
 
-        if (!confirm(`"${btn.dataset.name}" hodimini o'chirishni tasdiqlaysizmi?`)) return;
+        if (!await tasdiq.ochirish(btn.dataset.name, 'hodimini')) return;
 
         try {
             const res = await fetch('/admin/delete-user/' + btn.dataset.id, { method: 'DELETE' });

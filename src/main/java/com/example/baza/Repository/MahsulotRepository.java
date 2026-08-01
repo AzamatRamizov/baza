@@ -4,6 +4,7 @@ import com.example.baza.Dto.MahsulotDto;
 import com.example.baza.Entity.Mahsulot;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +18,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
     @Query("""
             select new com.example.baza.Dto.MahsulotDto(
                 m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
-                m.boyi, m.eni, m.kv, m.turi,
+                m.boyi, m.eni, m.kv, m.miqdor, m.turi,
                 mag.id, mag.nomi, u.fish)
             from Mahsulot m
             left join m.kategoriya k
@@ -26,6 +27,25 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
             order by m.id desc
             """)
     List<MahsulotDto> findAllDto();
+
+    /**
+     * "Mening mahsulotlarim" — men mas'ul bo'lgan magazin(lar)dagi mahsulotlar.
+     * Bitta hodim bir nechta magazinga mas'ul bo'lishi mumkin.
+     */
+    @Query("""
+            select distinct new com.example.baza.Dto.MahsulotDto(
+                m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
+                m.boyi, m.eni, m.kv, m.miqdor, m.turi,
+                mag.id, mag.nomi, u.fish)
+            from Mahsulot m
+            left join m.kategoriya k
+            join m.magazin mag
+            join mag.hodimlar h
+            left join m.yaratganUser u
+            where h.id = :userId
+            order by m.id desc
+            """)
+    List<MahsulotDto> findMagazinimDto(@Param("userId") Long userId);
 
     /** Kategoriya o'chirilishidan oldin tekshirish uchun */
     long countByKategoriya_Id(Long kategoriyaId);

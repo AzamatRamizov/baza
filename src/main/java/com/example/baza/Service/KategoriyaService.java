@@ -18,11 +18,14 @@ public class KategoriyaService {
 
     private final KategoriyaRepository kategoriyaRepository;
     private final MahsulotRepository mahsulotRepository;
+    private final TarixService tarixService;
 
     public KategoriyaService(KategoriyaRepository kategoriyaRepository,
-                             MahsulotRepository mahsulotRepository) {
+                             MahsulotRepository mahsulotRepository,
+                             TarixService tarixService) {
         this.kategoriyaRepository = kategoriyaRepository;
         this.mahsulotRepository = mahsulotRepository;
+        this.tarixService = tarixService;
     }
 
     public List<KategoriyaDto> getAllKategoriyalar() {
@@ -40,6 +43,8 @@ public class KategoriyaService {
         kategoriya.setNomi(dto.nomi().trim());
         kategoriyaRepository.save(kategoriya);
 
+        tarixService.yoz("Kategoriya", "Qo'shildi",
+                kategoriya.getId(), kategoriya.getNomi(), null);
         return new ApiResponse("Kategoriya qo'shildi", true);
     }
 
@@ -53,15 +58,21 @@ public class KategoriyaService {
         String xato = nomiTekshir(dto, id);
         if (xato != null) return new ApiResponse(xato, false);
 
+        String eskiNomi = kategoriya.getNomi();
         kategoriya.setNomi(dto.nomi().trim());
         kategoriyaRepository.save(kategoriya);
 
+        tarixService.yoz("Kategoriya", "Tahrirlandi",
+                kategoriya.getId(), kategoriya.getNomi(),
+                eskiNomi.equals(kategoriya.getNomi()) ? null
+                        : "Nomi: " + eskiNomi + " -> " + kategoriya.getNomi());
         return new ApiResponse("Kategoriya yangilandi", true);
     }
 
     @Transactional
     public ApiResponse deleteKategoriya(Long id) {
-        if (!kategoriyaRepository.existsById(id)) {
+        Kategoriya kategoriya = kategoriyaRepository.findById(id).orElse(null);
+        if (kategoriya == null) {
             return new ApiResponse("Kategoriya topilmadi", false);
         }
 
@@ -69,10 +80,12 @@ public class KategoriyaService {
         if (mahsulotSoni > 0) {
             return new ApiResponse(
                     "Bu kategoriyada " + mahsulotSoni + " ta mahsulot bor — " +
-                    "avval ularni boshqa kategoriyaga o'tkazing", false);
+                            "avval ularni boshqa kategoriyaga o'tkazing", false);
         }
 
         kategoriyaRepository.deleteById(id);
+
+        tarixService.yoz("Kategoriya", "O'chirildi", id, kategoriya.getNomi(), null);
         return new ApiResponse("Kategoriya o'chirildi", true);
     }
 

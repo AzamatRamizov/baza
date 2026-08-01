@@ -120,6 +120,7 @@
 
 <nav th:replace="~{fragment :: navbar}"></nav>
 <div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
 
 <div class="container">
     <div class="card">
@@ -207,12 +208,12 @@
                     <td>${i + 1}</td>
                     <td><b>${esc(m.nomi)}</b></td>
                     <td>${
-                        m.hodimlar.length
-                            ? m.hodimlar.map(h =>
-                                `<span class="hodim-badge" title="${esc(h.username)}">${esc(h.fish || h.username)}</span>`
-                              ).join('')
-                            : '<span class="no-hodim">Mas\u2019ul hodim belgilanmagan</span>'
-                    }</td>
+                m.hodimlar.length
+                    ? m.hodimlar.map(h =>
+                        `<span class="hodim-badge" title="${esc(h.username)}">${esc(h.fish || h.username)}</span>`
+                    ).join('')
+                    : '<span class="no-hodim">Mas\u2019ul hodim belgilanmagan</span>'
+            }</td>
                     <td>
                         <button class="edit-btn" data-id="${m.id}">Tahrirlash</button>
                         <button class="del-btn" data-id="${m.id}" data-name="${esc(m.nomi)}">O'chirish</button>
@@ -332,7 +333,7 @@
 
         const delBtn = e.target.closest('.del-btn');
         if (delBtn) {
-            if (!confirm(`"${delBtn.dataset.name}" magazinini o'chirishni tasdiqlaysizmi?`)) return;
+            if (!await tasdiq.ochirish(delBtn.dataset.name, 'magazinini')) return;
             try {
                 const res = await fetch('/admin/delete-magazin/' + delBtn.dataset.id, { method: 'DELETE' });
                 const data = await res.json();

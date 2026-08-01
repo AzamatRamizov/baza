@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amallar tarixi</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 90%; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .card-header .jami { font-size: 13px; color: var(--matn3); font-weight: 600; }
+
+        /* Filtrlar */
+        .filtrlar {
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+            padding: 14px 16px; margin-bottom: 18px;
+            background-color: var(--fon2); border: 1px solid var(--chegara); border-radius: 10px;
+        }
+        .filtr { display: flex; flex-direction: column; gap: 5px; }
+        .filtr label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.3px; color: var(--kok-och);
+        }
+        .filtr input, .filtr select {
+            padding: 8px 11px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--karta);
+            outline: none; font-family: inherit;
+        }
+        .filtr input:focus, .filtr select:focus { border-color: var(--kok); }
+        .filtr.qidiruv { flex: 1; min-width: 200px; }
+        .filtr.qidiruv input { width: 100%; }
+        .filtr-tugma {
+            padding: 9px 18px; background-color: var(--fon5); color: var(--kok-och);
+            border: 1px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+        .filtr-tugma:hover { background-color: var(--fon6); }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); vertical-align: top; }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2); white-space: nowrap;
+        }
+        tr:hover td { background-color: var(--fon4); }
+        td.vaqt, td.kim, td.bolim { white-space: nowrap; }
+        td.vaqt { color: var(--matn3); font-size: 13px; }
+        .muted { color: var(--matn4); }
+
+        .bolim-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 600;
+            background-color: var(--fon3); color: var(--kok-toq);
+        }
+        .amal-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 600; white-space: nowrap;
+            background-color: var(--fon5); color: var(--matn2);
+            border: 1px solid var(--chegara);
+        }
+        .amal-qoshildi {
+            background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border-color: var(--yashil-chegara);
+        }
+        .amal-ochirildi {
+            background-color: var(--qizil-fon); color: var(--qizil);
+            border-color: var(--qizil-3);
+        }
+        .amal-ozgardi {
+            background-color: var(--sariq-fon); color: var(--sariq-toq2);
+            border-color: var(--sariq-chegara);
+        }
+        .tafsilot {
+            color: var(--matn2); font-size: 13px; line-height: 1.5;
+            max-width: 520px; word-break: break-word;
+        }
+
+        .empty-row td {
+            text-align: center; color: var(--matn4); padding: 34px 16px; line-height: 1.6;
+        }
+
+        /* Sahifalash */
+        .sahifalash {
+            display: flex; align-items: center; justify-content: center; gap: 14px;
+            margin-top: 20px;
+        }
+        .sahifalash button {
+            padding: 8px 16px; border-radius: 6px;
+            background-color: var(--fon2); color: var(--kok);
+            border: 1.5px solid var(--chegara-kok);
+            font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+        .sahifalash button:hover:not(:disabled) { background-color: var(--fon3); }
+        .sahifalash button:disabled { opacity: 0.45; cursor: not-allowed; }
+        .sahifalash .holat { font-size: 13px; color: var(--matn3); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Amallar tarixi</h1>
+            <span class="jami" id="jamiMatn"></span>
+        </div>
+
+        <div class="filtrlar">
+            <div class="filtr">
+                <label for="fBolim">Bo'lim</label>
+                <select id="fBolim">
+                    <option value="">Barchasi</option>
+                </select>
+            </div>
+            <div class="filtr">
+                <label for="fSanadan">Sanadan</label>
+                <input type="date" id="fSanadan">
+            </div>
+            <div class="filtr">
+                <label for="fSanagacha">Sanagacha</label>
+                <input type="date" id="fSanagacha">
+            </div>
+            <div class="filtr qidiruv">
+                <label for="fQidiruv">Qidirish</label>
+                <input type="text" id="fQidiruv" placeholder="Hodim, amal, obyekt nomi, tafsilot...">
+            </div>
+            <button class="filtr-tugma" id="tozalaBtn">Tozalash</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th style="width:150px">Vaqt</th>
+                    <th style="width:160px">Kim</th>
+                    <th style="width:120px">Bo'lim</th>
+                    <th style="width:150px">Amal</th>
+                    <th style="width:200px">Obyekt</th>
+                    <th>Tafsilot</th>
+                </tr>
+                </thead>
+                <tbody id="tarixTbody">
+                <tr class="empty-row"><td colspan="6">Yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="sahifalash">
+            <button id="oldingiBtn" disabled>&larr; Oldingi</button>
+            <span class="holat" id="sahifaHolat">—</span>
+            <button id="keyingiBtn" disabled>Keyingi &rarr;</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tbody = document.getElementById('tarixTbody');
+    const fBolim = document.getElementById('fBolim');
+    const fSanadan = document.getElementById('fSanadan');
+    const fSanagacha = document.getElementById('fSanagacha');
+    const fQidiruv = document.getElementById('fQidiruv');
+
+    let sahifa = 0;
+    let jamiSahifa = 0;
+    let kutish = null;   // qidiruv uchun debounce
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    function vaqtFormat(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (isNaN(d)) return esc(iso);
+        const p = n => String(n).padStart(2, '0');
+        return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() +
+            '<br>' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    }
+
+    function amalKlass(amal) {
+        const a = (amal || '').toLowerCase();
+        if (a.includes("qo'sh") || a.includes('tasdiq') || a.includes('kir')) return 'amal-qoshildi';
+        if (a.includes("o'chir") || a.includes('rad')) return 'amal-ochirildi';
+        if (a.includes("o'zgar") || a.includes('tahrir') || a.includes('bekor')) return 'amal-ozgardi';
+        return '';
+    }
+
+    // ===== Yuklash =====
+    async function load() {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Yuklanmoqda...</td></tr>';
+
+        const p = new URLSearchParams();
+        p.set('sahifa', sahifa);
+        if (fBolim.value) p.set('bolim', fBolim.value);
+        if (fQidiruv.value.trim()) p.set('q', fQidiruv.value.trim());
+        if (fSanadan.value) p.set('sanadan', fSanadan.value);
+        if (fSanagacha.value) p.set('sanagacha', fSanagacha.value);
+
+        try {
+            const res = await fetch('/admin/get-tarix?' + p.toString());
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            chiz(data);
+        } catch (e) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    function chiz(data) {
+        jamiSahifa = data.jamiSahifa;
+        sahifa = data.sahifa;
+
+        document.getElementById('jamiMatn').textContent =
+            data.jami ? data.jami.toLocaleString('ru-RU') + ' ta yozuv' : '';
+        document.getElementById('sahifaHolat').textContent =
+            jamiSahifa ? (sahifa + 1) + ' / ' + jamiSahifa : '—';
+        document.getElementById('oldingiBtn').disabled = sahifa <= 0;
+        document.getElementById('keyingiBtn').disabled = sahifa >= jamiSahifa - 1;
+
+        if (!data.royxat.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Bu filtr bo\u2018yicha yozuv topilmadi</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.royxat.map(t => `
+            <tr>
+                <td class="vaqt">${vaqtFormat(t.vaqt)}</td>
+                <td class="kim">
+                    <b>${esc(t.fish) || esc(t.username) || '<span class="muted">—</span>'}</b>
+                    ${t.fish && t.username ? '<br><span class="muted">' + esc(t.username) + '</span>' : ''}
+                </td>
+                <td class="bolim">${t.bolim ? '<span class="bolim-badge">' + esc(t.bolim) + '</span>' : '<span class="muted">—</span>'}</td>
+                <td><span class="amal-badge ${amalKlass(t.amal)}">${esc(t.amal)}</span></td>
+                <td>${esc(t.obyektNomi) || '<span class="muted">—</span>'}
+                    ${t.obyektId ? '<span class="muted"> #' + t.obyektId + '</span>' : ''}</td>
+                <td class="tafsilot">${esc(t.tafsilot) || '<span class="muted">—</span>'}</td>
+            </tr>
+        `).join('');
+    }
+
+    // ===== Filtrlar =====
+    function filtrOzgardi() {
+        sahifa = 0;
+        load();
+    }
+
+    fBolim.addEventListener('change', filtrOzgardi);
+    fSanadan.addEventListener('change', filtrOzgardi);
+    fSanagacha.addEventListener('change', filtrOzgardi);
+    fQidiruv.addEventListener('input', () => {
+        clearTimeout(kutish);
+        kutish = setTimeout(filtrOzgardi, 350);
+    });
+
+    document.getElementById('tozalaBtn').addEventListener('click', () => {
+        fBolim.value = '';
+        fSanadan.value = '';
+        fSanagacha.value = '';
+        fQidiruv.value = '';
+        filtrOzgardi();
+    });
+
+    document.getElementById('oldingiBtn').addEventListener('click', () => {
+        if (sahifa > 0) { sahifa--; load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    });
+    document.getElementById('keyingiBtn').addEventListener('click', () => {
+        if (sahifa < jamiSahifa - 1) { sahifa++; load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    });
+
+    // ===== Bo'limlar ro'yxati =====
+    async function loadBolimlar() {
+        try {
+            const res = await fetch('/admin/get-tarix-bolimlar');
+            if (!res.ok) return;
+            const bolimlar = await res.json();
+            fBolim.innerHTML = '<option value="">Barchasi</option>' +
+                bolimlar.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+        } catch (e) { /* filtr bo'sh qoladi */ }
+    }
+
+    loadBolimlar();
+    load();
+</script>
+
+</body>
+</html>

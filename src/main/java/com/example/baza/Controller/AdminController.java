@@ -10,18 +10,24 @@ import com.example.baza.Dto.MagazinQisqaDto;
 import com.example.baza.Dto.MagazinSaveDto;
 import com.example.baza.Dto.MahsulotDto;
 import com.example.baza.Dto.MahsulotSaveDto;
+import com.example.baza.Dto.OtkazmaDto;
+import com.example.baza.Dto.OtkazmaJavobDto;
+import com.example.baza.Dto.OtkazmaSaveDto;
 import com.example.baza.Dto.ParolUpdateDto;
 import com.example.baza.Dto.ProfilUpdateDto;
 import com.example.baza.Dto.RolDto;
 import com.example.baza.Dto.RolSaveDto;
 import com.example.baza.Dto.RuxsatDto;
+import com.example.baza.Dto.TarixSahifaDto;
 import com.example.baza.Dto.UsdKursDto;
 import com.example.baza.Dto.UserAddDto;
 import com.example.baza.Dto.UserDto;
 import com.example.baza.Service.KategoriyaService;
 import com.example.baza.Service.MagazinService;
 import com.example.baza.Service.MahsulotService;
+import com.example.baza.Service.OtkazmaService;
 import com.example.baza.Service.RolService;
+import com.example.baza.Service.TarixService;
 import com.example.baza.Service.ValyutaService;
 import com.example.baza.Service.UserService;
 import jakarta.servlet.http.Cookie;
@@ -32,6 +38,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -40,6 +47,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 
 @Controller
@@ -56,6 +64,8 @@ public class AdminController {
     private final KategoriyaService kategoriyaService;
     private final ValyutaService valyutaService;
     private final RolService rolService;
+    private final OtkazmaService otkazmaService;
+    private final TarixService tarixService;
 
     public AdminController(AuthenticationManager authenticationManager,
                            TokenGenerator tokenGenerator,
@@ -64,7 +74,9 @@ public class AdminController {
                            MahsulotService mahsulotService,
                            KategoriyaService kategoriyaService,
                            ValyutaService valyutaService,
-                           RolService rolService) {
+                           RolService rolService,
+                           OtkazmaService otkazmaService,
+                           TarixService tarixService) {
         this.authenticationManager = authenticationManager;
         this.tokenGenerator = tokenGenerator;
         this.userService = userService;
@@ -73,6 +85,8 @@ public class AdminController {
         this.kategoriyaService = kategoriyaService;
         this.valyutaService = valyutaService;
         this.rolService = rolService;
+        this.otkazmaService = otkazmaService;
+        this.tarixService = tarixService;
     }
 
     // ================= LOGIN =================
@@ -93,6 +107,8 @@ public class AdminController {
             cookie.setMaxAge(TOKEN_MUDDATI_SEKUND);
             response.addCookie(cookie);
 
+            tarixService.yozUser(auth.getName(), "Kirish", "Tizimga kirdi",
+                    null, auth.getName(), null);
             return ResponseEntity.ok(new ApiResponse("Muvaffaqiyatli kirildi", true));
 
         } catch (AuthenticationException e) {
@@ -226,6 +242,21 @@ public class AdminController {
         return ResponseEntity.ok(mahsulotService.getAllMahsulotlar());
     }
 
+    // ---- Mening mahsulotlarim (har bir hodim o'ziga tegishlisini ko'radi) ----
+    @GetMapping("/mening-mahsulotlarim")
+    public String meningMahsulotlarimPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "mening-mahsulotlarim");
+        return "mening-mahsulotlarim";
+    }
+
+    @GetMapping("/get-mening-mahsulotlarim")
+    @ResponseBody
+    public ResponseEntity<List<MahsulotDto>> getMeningMahsulotlarim(Authentication authentication) {
+        return ResponseEntity.ok(
+                mahsulotService.getMeningMahsulotlarim(authentication.getName()));
+    }
+
     @GetMapping("/get-magazin-nomlar")
     @ResponseBody
     public ResponseEntity<List<MagazinQisqaDto>> getMagazinNomlar() {
@@ -255,6 +286,107 @@ public class AdminController {
     public ResponseEntity<ApiResponse> deleteMahsulot(@PathVariable Long id) {
         ApiResponse res = mahsulotService.deleteMahsulot(id);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= O'TKAZMALAR =================
+    @GetMapping("/otkazmalar")
+    public String otkazmalarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "otkazmalar");
+        return "otkazmalar";
+    }
+
+    /** Menga kelayotgan (tasdiq kutayotgan) o'tkazmalar */
+    @GetMapping("/get-kelayotgan-otkazmalar")
+    @ResponseBody
+    public ResponseEntity<List<OtkazmaDto>> getKelayotganOtkazmalar(Authentication authentication) {
+        return ResponseEntity.ok(otkazmaService.kelayotganlar(authentication.getName()));
+    }
+
+    /** Men jo'natgan o'tkazmalar (barcha holat) */
+    @GetMapping("/get-yuborgan-otkazmalar")
+    @ResponseBody
+    public ResponseEntity<List<OtkazmaDto>> getYuborganOtkazmalar(Authentication authentication) {
+        return ResponseEntity.ok(otkazmaService.yuborganlarim(authentication.getName()));
+    }
+
+    /** Bitta mahsulotning o'tkazmalar tarixi */
+    @GetMapping("/get-mahsulot-otkazmalari/{mahsulotId}")
+    @ResponseBody
+    public ResponseEntity<List<OtkazmaDto>> getMahsulotOtkazmalari(@PathVariable Long mahsulotId) {
+        return ResponseEntity.ok(otkazmaService.mahsulotBoyicha(mahsulotId));
+    }
+
+    @PostMapping("/otkazma-yuborish")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('OTKAZMA_YUBORISH')")
+    public ResponseEntity<ApiResponse> otkazmaYuborish(Authentication authentication,
+                                                       @RequestBody OtkazmaSaveDto dto) {
+        ApiResponse res = otkazmaService.yuborish(authentication.getName(), dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PostMapping("/otkazma-qabul/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('OTKAZMA_QABUL')")
+    public ResponseEntity<ApiResponse> otkazmaQabul(Authentication authentication,
+                                                    @PathVariable Long id,
+                                                    @RequestBody(required = false) OtkazmaJavobDto dto) {
+        ApiResponse res = otkazmaService.qabulQilish(authentication.getName(), id,
+                dto == null ? null : dto.izoh());
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PostMapping("/otkazma-rad/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('OTKAZMA_QABUL')")
+    public ResponseEntity<ApiResponse> otkazmaRad(Authentication authentication,
+                                                  @PathVariable Long id,
+                                                  @RequestBody(required = false) OtkazmaJavobDto dto) {
+        ApiResponse res = otkazmaService.radEtish(authentication.getName(), id,
+                dto == null ? null : dto.izoh());
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PostMapping("/otkazma-bekor/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('OTKAZMA_YUBORISH')")
+    public ResponseEntity<ApiResponse> otkazmaBekor(Authentication authentication,
+                                                    @PathVariable Long id) {
+        ApiResponse res = otkazmaService.bekorQilish(authentication.getName(), id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= TARIX =================
+    @GetMapping("/tarix")
+    @PreAuthorize("hasAuthority('TARIX_KORISH')")
+    public String tarixPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "tarix");
+        return "tarix";
+    }
+
+    @GetMapping("/get-tarix")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('TARIX_KORISH')")
+    public ResponseEntity<TarixSahifaDto> getTarix(
+            @RequestParam(name = "bolim", defaultValue = "") String bolim,
+            @RequestParam(name = "userId", required = false) Long userId,
+            @RequestParam(name = "q", defaultValue = "") String q,
+            @RequestParam(name = "sanadan", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sanadan,
+            @RequestParam(name = "sanagacha", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sanagacha,
+            @RequestParam(name = "sahifa", defaultValue = "0") int sahifa) {
+        return ResponseEntity.ok(
+                tarixService.qidir(bolim, userId, q, sanadan, sanagacha, sahifa));
+    }
+
+    @GetMapping("/get-tarix-bolimlar")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('TARIX_KORISH')")
+    public ResponseEntity<List<String>> getTarixBolimlar() {
+        return ResponseEntity.ok(tarixService.getBolimlar());
     }
 
     // ================= KATEGORIYALAR =================

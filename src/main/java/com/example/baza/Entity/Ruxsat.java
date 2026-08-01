@@ -20,7 +20,14 @@ public enum Ruxsat {
     // ===== Mahsulotlar =====
     MAHSULOT_QOSHISH("Mahsulot qo'shish va tahrirlash", "Mahsulotlar"),
     MAHSULOT_OCHIRISH("Mahsulot o'chirish", "Mahsulotlar"),
-    KATEGORIYA_BOSHQARISH("Kategoriyalarni boshqarish", "Mahsulotlar");
+    KATEGORIYA_BOSHQARISH("Kategoriyalarni boshqarish", "Mahsulotlar"),
+
+    // ===== O'tkazmalar =====
+    OTKAZMA_YUBORISH("Mahsulotni boshqa magazinga jo'natish", "O'tkazmalar"),
+    OTKAZMA_QABUL("Kelgan o'tkazmani tasdiqlash yoki rad etish", "O'tkazmalar"),
+
+    // ===== Tarix =====
+    TARIX_KORISH("Amallar tarixini ko'rish", "Tarix");
 
     private final String nomi;
     private final String bolim;

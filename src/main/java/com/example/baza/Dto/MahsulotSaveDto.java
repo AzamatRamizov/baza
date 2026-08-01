@@ -8,6 +8,7 @@ public record MahsulotSaveDto(String nomi,
                               String valyuta,
                               Double boyi,
                               Double eni,
+                              Double miqdor,
                               String turi,
                               Long magazinId) {
 }

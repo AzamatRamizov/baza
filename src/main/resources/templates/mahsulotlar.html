@@ -15,7 +15,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: var(--matn);
         }
-        .container { max-width: 1200px; margin: 32px auto; padding: 0 20px; }
+        .container { max-width: 90%; margin: 32px auto; padding: 0 20px; }
         .card {
             background-color: var(--karta); border-radius: 10px;
             box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
@@ -121,6 +121,7 @@
 
 <nav th:replace="~{fragment :: navbar}"></nav>
 <div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
 
 <div class="container">
     <div class="card">
@@ -143,6 +144,7 @@
                     <th>Bo'yi</th>
                     <th>Eni</th>
                     <th>Kv</th>
+                    <th>Miqdor</th>
                     <th>Zavod narxi (umumiy)</th>
                     <th>Magazin</th>
                     <th>Yaratgan</th>
@@ -150,7 +152,7 @@
                 </tr>
                 </thead>
                 <tbody id="mahsulotTbody">
-                <tr class="empty-row"><td colspan="13">Yuklanmoqda...</td></tr>
+                <tr class="empty-row"><td colspan="14">Yuklanmoqda...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -199,7 +201,14 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="mh_zavod">Zavod narxi (1 kv uchun)</label>
+                <label for="mh_miqdor" id="miqdorLabel">Nechta (dona) *</label>
+                <input type="number" id="mh_miqdor" min="0" step="1" placeholder="1">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="mh_zavod" id="narxLabel">Zavod narxi (1 dona uchun)</label>
                 <div style="display:flex; gap:8px;">
                     <input type="number" id="mh_zavod" min="0" step="0.01" placeholder="0" style="flex:1">
                     <select id="mh_valyuta" style="width:90px">
@@ -278,7 +287,7 @@
         );
 
         if (!list.length) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">' +
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="14">' +
                 (q ? 'Qidiruv bo\u2018yicha hech narsa topilmadi' : 'Mahsulotlar yo\u2018q') +
                 '</td></tr>';
             return;
@@ -294,7 +303,8 @@
                 <td>${esc(m.birlik) || '<span class="muted">—</span>'}</td>
                 <td>${m.boyi ?? '<span class="muted">—</span>'}</td>
                 <td>${m.eni ?? '<span class="muted">—</span>'}</td>
-                <td>${m.kv != null ? '<b>' + m.kv + '</b>' : '<span class="muted">—</span>'}</td>
+                <td>${m.kv != null ? m.kv : '<span class="muted">—</span>'}</td>
+                <td><b>${m.miqdor != null ? m.miqdor : '—'}</b> <span class="muted">${esc(m.birlik) || ''}</span></td>
                 <td>${m.zavodNarxi != null ? sonFormat(m.zavodNarxi) : '<span class="muted">—</span>'}</td>
                 <td>${esc(m.magazinNomi) || '<span class="muted">—</span>'}</td>
                 <td>${esc(m.yaratganFish) || '<span class="muted">—</span>'}</td>
@@ -314,8 +324,31 @@
             if (!res.ok) throw new Error();
             mahsulotlar = await res.json();
             jadvalniChiz();
+            tahrirParamniOchish();
         } catch (e) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">Yuklashda xatolik</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="14">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    /**
+     * Boshqa sahifadan ?tahrir=<id> bilan kelinsa (masalan "Mening mahsulotlarim"),
+     * shu mahsulotning tahrirlash modali darrov ochiladi.
+     */
+    function tahrirParamniOchish() {
+        const q = new URLSearchParams(window.location.search);
+        const id = q.get('tahrir');
+        if (!id) return;
+
+        // Manzil satrini tozalaymiz — sahifa yangilanganda takror ochilmasin
+        q.delete('tahrir');
+        const qs = q.toString();
+        history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+
+        const mahsulot = mahsulotlar.find(m => m.id === Number(id));
+        if (mahsulot) {
+            modalOchish(mahsulot);
+        } else {
+            xabar('Mahsulot topilmadi', 'warn');
         }
     }
 
@@ -348,14 +381,66 @@
         }
     }
 
-    // ===== Valyuta / kurs =====
-    function joriyKv() {
-        const boyi = parseFloat(document.getElementById('mh_boyi').value);
-        const eni = parseFloat(document.getElementById('mh_eni').value);
-        if (isNaN(boyi) || isNaN(eni)) return null;
-        return Math.round(boyi * eni * 100) / 100;
+    // ===== Birlik / miqdor =====
+    const BIRLIK_MATN = { 'dona': 'dona', 'metr': 'metr', 'kv.metr': 'kv.metr' };
+
+    function joriyBirlik() {
+        return document.getElementById('mh_birlik').value || 'dona';
     }
 
+    function joriyMiqdor() {
+        const q = parseFloat(document.getElementById('mh_miqdor').value);
+        return isNaN(q) || q <= 0 ? null : q;
+    }
+
+    /** Birlikka qarab miqdor maydonining nomi, qadami va narx yorlig'i o'zgaradi */
+    function birlikYangila() {
+        const b = joriyBirlik();
+        const miqdorInput = document.getElementById('mh_miqdor');
+
+        document.getElementById('miqdorLabel').textContent =
+            b === 'dona' ? 'Nechta (dona) *'
+                : b === 'metr' ? 'Necha metr *' : 'Necha kv.metr *';
+        document.getElementById('narxLabel').textContent =
+            'Zavod narxi (1 ' + BIRLIK_MATN[b] + ' uchun)';
+
+        miqdorInput.step = b === 'dona' ? '1' : '0.01';
+        miqdorInput.placeholder = b === 'dona' ? '1' : '0.00';
+
+        miqdorniAvtoTuldir();
+    }
+
+    /**
+     * Metr/kv.metr uchun miqdor o'lchamlardan avtomatik to'ldiriladi
+     * (foydalanuvchi o'zi qo'lda kiritsa — tegilmaydi).
+     */
+    function miqdorniAvtoTuldir() {
+        const miqdorInput = document.getElementById('mh_miqdor');
+        if (miqdorInput.dataset.qolda === '1') return;
+
+        const b = joriyBirlik();
+        const boyi = parseFloat(document.getElementById('mh_boyi').value);
+        const eni = parseFloat(document.getElementById('mh_eni').value);
+
+        if (b === 'kv.metr' && !isNaN(boyi) && !isNaN(eni)) {
+            miqdorInput.value = Math.round(boyi * eni * 100) / 100;
+        } else if (b === 'metr' && !isNaN(boyi)) {
+            miqdorInput.value = boyi;
+        } else if (b === 'dona' && !miqdorInput.value) {
+            miqdorInput.value = 1;
+        }
+    }
+
+    document.getElementById('mh_birlik').addEventListener('change', () => {
+        birlikYangila();
+        kursHintYangila();
+    });
+    document.getElementById('mh_miqdor').addEventListener('input', e => {
+        e.target.dataset.qolda = '1';   // qo'lda kiritildi — endi avto to'ldirilmaydi
+        kursHintYangila();
+    });
+
+    // ===== Valyuta / kurs =====
     function kursHintYangila() {
         const hint = document.getElementById('kursHint');
         const valyuta = document.getElementById('mh_valyuta').value;
@@ -366,10 +451,11 @@
             return;
         }
 
-        const kv = joriyKv();
-        const umumiy = (kv != null && kv > 0) ? narx * kv : narx;
-        const kvMatn = (kv != null && kv > 0)
-            ? kv + ' kv × ' + narx + (valyuta === 'USD' ? '$' : ' so‘m') + ' = '
+        const b = joriyBirlik();
+        const miqdor = joriyMiqdor();
+        const umumiy = miqdor != null ? narx * miqdor : narx;
+        const kvMatn = miqdor != null
+            ? miqdor + ' ' + BIRLIK_MATN[b] + ' × ' + narx + (valyuta === 'USD' ? '$' : ' so‘m') + ' = '
             : '';
 
         if (valyuta === 'USD') {
@@ -400,8 +486,10 @@
             ? (Math.round(boyi * eni * 100) / 100).toString()
             : '—';
     }
-    document.getElementById('mh_boyi').addEventListener('input', () => { kvYangila(); kursHintYangila(); });
-    document.getElementById('mh_eni').addEventListener('input', () => { kvYangila(); kursHintYangila(); });
+    document.getElementById('mh_boyi').addEventListener('input',
+        () => { kvYangila(); miqdorniAvtoTuldir(); kursHintYangila(); });
+    document.getElementById('mh_eni').addEventListener('input',
+        () => { kvYangila(); miqdorniAvtoTuldir(); kursHintYangila(); });
 
     // ===== Modal ochish/yopish =====
     async function modalOchish(mahsulot) {
@@ -413,22 +501,28 @@
         document.getElementById('mh_kod').value = mahsulot ? (mahsulot.kod || '') : '';
         document.getElementById('mh_turi').value = mahsulot ? (mahsulot.turi || 'gatoviy') : 'gatoviy';
         document.getElementById('mh_birlik').value = mahsulot ? (mahsulot.birlik || 'dona') : 'dona';
-        // Bazada UMUMIY narx so'mda saqlanadi; formaga esa 1 kv narxi kiritiladi —
-        // shuning uchun tahrirlashda umumiyni kv'ga bo'lib 1 kv narxini ko'rsatamiz
-        let narxKv = '';
+        // Miqdor: tahrirlashda bazadagi qiymat, yangi mahsulotda avto to'ldiriladi
+        const miqdorInput = document.getElementById('mh_miqdor');
+        miqdorInput.value = mahsulot && mahsulot.miqdor != null ? mahsulot.miqdor : '';
+        miqdorInput.dataset.qolda = mahsulot ? '1' : '';
+
+        // Bazada UMUMIY narx so'mda saqlanadi; formaga esa 1 BIRLIK narxi kiritiladi —
+        // shuning uchun tahrirlashda umumiyni miqdorga bo'lib ko'rsatamiz
+        let narxBirlik = '';
         if (mahsulot && mahsulot.zavodNarxi != null) {
-            narxKv = (mahsulot.kv != null && mahsulot.kv > 0)
-                ? Math.round(mahsulot.zavodNarxi / mahsulot.kv * 100) / 100
+            narxBirlik = (mahsulot.miqdor != null && mahsulot.miqdor > 0)
+                ? Math.round(mahsulot.zavodNarxi / mahsulot.miqdor * 100) / 100
                 : mahsulot.zavodNarxi;
         }
-        document.getElementById('mh_zavod').value = narxKv;
+        document.getElementById('mh_zavod').value = narxBirlik;
         // Tahrirlashda narx bazada so'mda saqlangan — valyuta so'm qilib ko'rsatiladi,
         // yangi mahsulotda esa default $ turadi
         document.getElementById('mh_valyuta').value = mahsulot ? 'UZS' : 'USD';
-        kursHintYangila();
         document.getElementById('mh_boyi').value = mahsulot && mahsulot.boyi != null ? mahsulot.boyi : '';
         document.getElementById('mh_eni').value = mahsulot && mahsulot.eni != null ? mahsulot.eni : '';
         kvYangila();
+        birlikYangila();
+        kursHintYangila();
 
         await loadKategoriyaSelect(mahsulot ? mahsulot.kategoriyaId : null);
         await loadMagazinSelect(mahsulot ? mahsulot.magazinId : null);
@@ -458,6 +552,18 @@
             return;
         }
 
+        const miqdor = joriyMiqdor();
+        if (miqdor == null) {
+            modalError.textContent = 'Miqdorni kiriting (0 dan katta)';
+            modalError.style.display = 'block';
+            return;
+        }
+        if (joriyBirlik() === 'dona' && !Number.isInteger(miqdor)) {
+            modalError.textContent = 'Dona uchun miqdor butun son bo\u2018lishi kerak';
+            modalError.style.display = 'block';
+            return;
+        }
+
         const zavod = document.getElementById('mh_zavod').value;
         const boyi = document.getElementById('mh_boyi').value;
         const eni = document.getElementById('mh_eni').value;
@@ -471,6 +577,7 @@
             kategoriyaId: kategoriyaVal === '' ? null : Number(kategoriyaVal),
             turi: document.getElementById('mh_turi').value,
             birlik: document.getElementById('mh_birlik').value,
+            miqdor: miqdor,
             zavodNarxi: zavod === '' ? null : Number(zavod),
             valyuta: document.getElementById('mh_valyuta').value,
             boyi: boyi === '' ? null : Number(boyi),
@@ -514,7 +621,7 @@
 
         const delBtn = e.target.closest('.del-btn');
         if (delBtn) {
-            if (!confirm(`"${delBtn.dataset.name}" mahsulotini o'chirishni tasdiqlaysizmi?`)) return;
+            if (!await tasdiq.ochirish(delBtn.dataset.name, 'mahsulotini')) return;
             try {
                 const res = await fetch('/admin/delete-mahsulot/' + delBtn.dataset.id, { method: 'DELETE' });
                 const data = await res.json();
