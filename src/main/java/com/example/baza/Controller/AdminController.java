@@ -3,6 +3,7 @@ package com.example.baza.Controller;
 import com.example.baza.Configurations.TokenGenerator;
 import com.example.baza.Dto.ApiResponse;
 import com.example.baza.Dto.KategoriyaDto;
+import com.example.baza.Dto.ImportNatijaDto;
 import com.example.baza.Dto.KategoriyaSaveDto;
 import com.example.baza.Dto.LoginDto;
 import com.example.baza.Dto.MagazinDto;
@@ -43,6 +44,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -417,6 +419,19 @@ public class AdminController {
     public ResponseEntity<ApiResponse> updateKategoriya(@PathVariable Long id,
                                                         @RequestBody KategoriyaSaveDto dto) {
         ApiResponse res = kategoriyaService.updateKategoriya(id, dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /**
+     * Kategoriyalarni Excel (.xlsx/.xls) yoki CSV fayldan ommaviy qo'shish.
+     * Faylda faqat nomlar bo'ladi.
+     */
+    @PostMapping("/import-kategoriya")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KATEGORIYA_BOSHQARISH')")
+    public ResponseEntity<ImportNatijaDto> importKategoriya(
+            @RequestParam("file") MultipartFile file) {
+        ImportNatijaDto res = kategoriyaService.importQil(file);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 

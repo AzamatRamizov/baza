@@ -15,7 +15,13 @@ public interface TarixRepository extends JpaRepository<Tarix, Long> {
 
     /**
      * Filtrlar ixtiyoriy — bo'sh qiymat "filtrsiz" degani:
-     *   bolim = "", userId = -1, q = "", sanadan/sanagacha = null
+     *   bolim = "", userId = -1, q = ""
+     *
+     * MUHIM: sanadan/sanagacha HECH QACHON null bo'lmasligi kerak.
+     * PostgreSQL "(:param is null or ...)" ko'rinishidagi shartda parametr
+     * turini aniqlay olmaydi va "не удалось определить тип данных параметра"
+     * xatosini beradi. Shuning uchun filtr bo'sh bo'lganda TarixService
+     * juda keng chegara (SANA_MIN / SANA_MAX) uzatadi.
      */
     @Query(value = """
             select new com.example.baza.Dto.TarixDto(
@@ -25,8 +31,8 @@ public interface TarixRepository extends JpaRepository<Tarix, Long> {
             left join t.user u
             where (:bolim = '' or t.bolim = :bolim)
               and (:userId = -1 or u.id = :userId)
-              and (:sanadan is null or t.vaqt >= :sanadan)
-              and (:sanagacha is null or t.vaqt <= :sanagacha)
+              and t.vaqt >= :sanadan
+              and t.vaqt <= :sanagacha
               and (:q = ''
                    or lower(coalesce(t.obyektNomi, '')) like concat('%', :q, '%')
                    or lower(coalesce(t.tafsilot, '')) like concat('%', :q, '%')
@@ -40,8 +46,8 @@ public interface TarixRepository extends JpaRepository<Tarix, Long> {
             left join t.user u
             where (:bolim = '' or t.bolim = :bolim)
               and (:userId = -1 or u.id = :userId)
-              and (:sanadan is null or t.vaqt >= :sanadan)
-              and (:sanagacha is null or t.vaqt <= :sanagacha)
+              and t.vaqt >= :sanadan
+              and t.vaqt <= :sanagacha
               and (:q = ''
                    or lower(coalesce(t.obyektNomi, '')) like concat('%', :q, '%')
                    or lower(coalesce(t.tafsilot, '')) like concat('%', :q, '%')

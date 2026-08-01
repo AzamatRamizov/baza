@@ -30,6 +30,19 @@ public class TarixService {
 
     public static final int SAHIFA_HAJMI = 30;
 
+    /**
+     * Sana filtri bo'sh bo'lganda ishlatiladigan chegaralar.
+     * null uzatib bo'lmaydi — TarixRepository.qidir izohiga qarang.
+     */
+    private static final LocalDateTime SANA_MIN = LocalDateTime.of(1970, 1, 1, 0, 0);
+    private static final LocalDateTime SANA_MAX = LocalDateTime.of(2999, 12, 31, 23, 59, 59);
+
+    /**
+     * Kunning oxiri. LocalTime.MAX (.999999999) ishlatilmaydi — PostgreSQL
+     * timestamp'ni mikrosekundgacha yaxlitlab, keyingi kunga o'tkazib yuboradi.
+     */
+    private static final LocalTime KUN_OXIRI = LocalTime.of(23, 59, 59, 999_000_000);
+
     private final TarixRepository tarixRepository;
     private final UsersRepository usersRepository;
 
@@ -77,8 +90,8 @@ public class TarixService {
                 bolim == null ? "" : bolim.trim(),
                 userId == null ? -1L : userId,
                 q == null ? "" : q.trim().toLowerCase(),
-                sanadan == null ? null : sanadan.atStartOfDay(),
-                sanagacha == null ? null : sanagacha.atTime(LocalTime.MAX),
+                sanadan == null ? SANA_MIN : sanadan.atStartOfDay(),
+                sanagacha == null ? SANA_MAX : sanagacha.atTime(KUN_OXIRI),
                 PageRequest.of(Math.max(sahifa, 0), SAHIFA_HAJMI));
 
         return new TarixSahifaDto(page.getContent(), page.getNumber(),

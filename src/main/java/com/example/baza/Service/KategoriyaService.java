@@ -2,16 +2,22 @@ package com.example.baza.Service;
 
 import com.example.baza.Dto.ApiResponse;
 import com.example.baza.Dto.KategoriyaDto;
+import com.example.baza.Dto.ImportNatijaDto;
 import com.example.baza.Dto.KategoriyaSaveDto;
 import com.example.baza.Entity.Kategoriya;
 import com.example.baza.Repository.KategoriyaRepository;
 import com.example.baza.Repository.MahsulotRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class KategoriyaService {
@@ -19,13 +25,19 @@ public class KategoriyaService {
     private final KategoriyaRepository kategoriyaRepository;
     private final MahsulotRepository mahsulotRepository;
     private final TarixService tarixService;
+    private final ExcelOqishService excelOqishService;
+
+    /** Bitta faylda ruxsat etilgan maksimal nomlar soni */
+    private static final int MAX_QATOR = 5000;
 
     public KategoriyaService(KategoriyaRepository kategoriyaRepository,
                              MahsulotRepository mahsulotRepository,
-                             TarixService tarixService) {
+                             TarixService tarixService,
+                             ExcelOqishService excelOqishService) {
         this.kategoriyaRepository = kategoriyaRepository;
         this.mahsulotRepository = mahsulotRepository;
         this.tarixService = tarixService;
+        this.excelOqishService = excelOqishService;
     }
 
     public List<KategoriyaDto> getAllKategoriyalar() {
@@ -89,7 +101,91 @@ public class KategoriyaService {
         return new ApiResponse("Kategoriya o'chirildi", true);
     }
 
+    /**
+     * Exceldan (yoki CSV'dan) kategoriyalarni ommaviy qo'shish.
+     * Faylda faqat nomlar bo'ladi — har qatordan birinchi to'ldirilgan katak olinadi.
+     *
+     * Bazada bor nomlar va fayl ichidagi takrorlar o'tkazib yuboriladi
+     * (xato deb hisoblanmaydi) — shuning uchun bitta faylni ikki marta
+     * yuklash ham xavfsiz.
+     */
+    @Transactional
+    public ImportNatijaDto importQil(MultipartFile file) {
+        List<String> nomlar;
+        try {
+            nomlar = excelOqishService.nomlarniOqi(file);
+        } catch (IllegalArgumentException e) {
+            return ImportNatijaDto.xato(e.getMessage());
+        }
+
+        if (nomlar.isEmpty()) {
+            return ImportNatijaDto.xato("Faylda birorta ham nom topilmadi");
+        }
+        if (nomlar.size() > MAX_QATOR) {
+            return ImportNatijaDto.xato(
+                    "Faylda juda ko'p qator (" + nomlar.size() + "). " +
+                            "Bir martada eng ko'pi " + MAX_QATOR + " ta bo'lishi mumkin");
+        }
+
+        // Bazada bor nomlar (kichik harfda) — har bir qator uchun so'rov yubormaslik uchun
+        Set<String> mavjud = new LinkedHashSet<>();
+        for (Kategoriya k : kategoriyaRepository.findAll()) {
+            if (k.getNomi() != null) mavjud.add(kalit(k.getNomi()));
+        }
+
+        Set<String> fayldaKorilgan = new LinkedHashSet<>();
+        List<String> qoshilganlar = new ArrayList<>();
+        List<String> otkazilgan = new ArrayList<>();
+        List<Kategoriya> yangilar = new ArrayList<>();
+
+        for (String nomi : nomlar) {
+            String kalit = kalit(nomi);
+
+            if (!fayldaKorilgan.add(kalit)) {
+                otkazilgan.add(nomi + " — faylda takrorlangan");
+                continue;
+            }
+            if (mavjud.contains(kalit)) {
+                otkazilgan.add(nomi + " — bazada allaqachon bor");
+                continue;
+            }
+
+            Kategoriya k = new Kategoriya();
+            k.setNomi(nomi);
+            yangilar.add(k);
+            qoshilganlar.add(nomi);
+        }
+
+        if (!yangilar.isEmpty()) {
+            kategoriyaRepository.saveAll(yangilar);
+        }
+
+        int faylTakror = (int) otkazilgan.stream().filter(t -> t.endsWith("faylda takrorlangan")).count();
+        int bazaTakror = otkazilgan.size() - faylTakror;
+
+        tarixService.yoz("Kategoriya", "Exceldan yuklandi", null,
+                file.getOriginalFilename(),
+                "O'qildi: " + nomlar.size() + " | Qo'shildi: " + qoshilganlar.size() +
+                        " | O'tkazib yuborildi: " + otkazilgan.size() +
+                        (qoshilganlar.isEmpty() ? "" : " | " + String.join(", ", qoshilganlar)));
+
+        String xulosa = qoshilganlar.isEmpty()
+                ? "Yangi kategoriya topilmadi — barchasi allaqachon bazada bor"
+                : qoshilganlar.size() + " ta kategoriya qo'shildi";
+        if (!otkazilgan.isEmpty()) {
+            xulosa += ", " + otkazilgan.size() + " tasi o'tkazib yuborildi";
+        }
+
+        return new ImportNatijaDto(true, xulosa, nomlar.size(), qoshilganlar.size(),
+                bazaTakror, faylTakror, qoshilganlar, otkazilgan);
+    }
+
     // ================= YORDAMCHI =================
+
+    /** Taqqoslash uchun kalit — registr va ortiqcha bo'shliqlarga bog'liq emas */
+    private String kalit(String nomi) {
+        return nomi.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
 
     private String nomiTekshir(KategoriyaSaveDto dto, Long ozId) {
         if (dto.nomi() == null || dto.nomi().isBlank()) {

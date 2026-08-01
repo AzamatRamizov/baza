@@ -30,6 +30,55 @@
             transition: background-color 0.2s;
         }
         .add-btn:hover { background-color: var(--kok-hover); }
+        .card-header .tugmalar { display: flex; gap: 10px; align-items: center; }
+        .import-btn {
+            padding: 9px 18px; background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border: 1.5px solid var(--yashil-chegara); border-radius: 6px;
+            font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: background-color 0.2s;
+        }
+        .import-btn:hover { background-color: var(--yashil-chegara); }
+
+        /* ---- Excel import modali ---- */
+        .drop-zone {
+            border: 2px dashed var(--chegara-kok); border-radius: 10px;
+            padding: 28px 20px; text-align: center; cursor: pointer;
+            background-color: var(--fon2); transition: background-color 0.2s, border-color 0.2s;
+        }
+        .drop-zone:hover, .drop-zone.ustida {
+            border-color: var(--kok); background-color: var(--fon3);
+        }
+        .drop-zone .belgi { font-size: 30px; line-height: 1; margin-bottom: 8px; }
+        .drop-zone .asosiy { font-size: 15px; font-weight: 600; color: var(--matn); }
+        .drop-zone .qosh {
+            font-size: 12px; color: var(--matn3); margin-top: 6px; line-height: 1.5;
+        }
+        .drop-zone.tanlangan { border-style: solid; border-color: var(--yashil-toq); }
+        .drop-zone.tanlangan .asosiy { color: var(--yashil-toq); }
+
+        .import-yordam {
+            font-size: 12px; color: var(--matn3); line-height: 1.6;
+            background-color: var(--fon2); border-left: 3px solid var(--chegara-kok);
+            border-radius: 0 6px 6px 0; padding: 10px 14px; margin-top: 14px;
+        }
+        .import-natija { margin-top: 16px; display: none; }
+        .natija-satr {
+            display: flex; justify-content: space-between; gap: 12px;
+            padding: 7px 0; font-size: 14px; border-bottom: 1px solid var(--chegara);
+        }
+        .natija-satr b { font-weight: 700; }
+        .natija-satr.ok b { color: var(--yashil-toq); }
+        .natija-satr.otkaz b { color: var(--sariq-toq2); }
+        .natija-royxat {
+            max-height: 170px; overflow-y: auto; margin-top: 12px;
+            font-size: 13px; color: var(--matn2); line-height: 1.7;
+        }
+        .natija-royxat div { padding: 2px 0; }
+        .natija-royxat .sarlavha {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            color: var(--kok-och); margin: 10px 0 4px;
+        }
+        .yuklanmoqda { text-align: center; color: var(--matn3); font-size: 14px; padding: 14px 0; }
 
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); }
@@ -100,7 +149,10 @@
     <div class="card">
         <div class="card-header">
             <h1>Kategoriyalar</h1>
-            <button class="add-btn" id="openModalBtn">+ Yangi kategoriya</button>
+            <div class="tugmalar">
+                <button class="import-btn" id="openImportBtn">Exceldan yuklash</button>
+                <button class="add-btn" id="openModalBtn">+ Yangi kategoriya</button>
+            </div>
         </div>
         <table>
             <thead>
@@ -133,6 +185,35 @@
     </div>
 </div>
 
+<!-- Exceldan yuklash modali -->
+<div class="modal-overlay" id="importOverlay">
+    <div class="modal">
+        <h2>Exceldan kategoriya yuklash</h2>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="belgi">&#128196;</div>
+            <div class="asosiy" id="dropMatn">Faylni bu yerga tashlang yoki bosing</div>
+            <div class="qosh">.xlsx, .xls yoki .csv &middot; eng ko'pi 5 MB</div>
+        </div>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none">
+
+        <div class="import-yordam">
+            Faylda faqat <b>nomlar</b> bo'lsin — har qatorda bitta kategoriya.
+            Sarlavha qatori ("Nomi", "Kategoriya") bo'lsa avtomatik tashlanadi.
+            Bazada bor nomlar va takrorlar o'tkazib yuboriladi, shuning uchun
+            bitta faylni qayta yuklash xavfsiz.
+        </div>
+
+        <div class="yuklanmoqda" id="importYuklanmoqda" style="display:none">Yuklanmoqda...</div>
+        <div class="import-natija" id="importNatija"></div>
+
+        <p class="modal-error" id="importError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="importSaveBtn">Yuklash</button>
+            <button class="cancel-btn" id="importCancelBtn">Yopish</button>
+        </div>
+    </div>
+</div>
 
 <script>
     const tbody = document.getElementById('kategoriyaTbody');
@@ -258,6 +339,143 @@
             } catch (e) {
                 toastKorsat('Server bilan aloqa yo\u2018q', false);
             }
+        }
+    });
+
+    // ===== Exceldan yuklash =====
+    const importOverlay = document.getElementById('importOverlay');
+    const importFile = document.getElementById('importFile');
+    const dropZone = document.getElementById('dropZone');
+    const dropMatn = document.getElementById('dropMatn');
+    const importError = document.getElementById('importError');
+    const importNatija = document.getElementById('importNatija');
+    const importYuklanmoqda = document.getElementById('importYuklanmoqda');
+    const importSaveBtn = document.getElementById('importSaveBtn');
+
+    let tanlanganFayl = null;
+
+    function importModalOchish() {
+        faylniTozala();
+        importError.style.display = 'none';
+        importNatija.style.display = 'none';
+        importNatija.innerHTML = '';
+        importSaveBtn.style.display = '';
+        importOverlay.classList.add('open');
+    }
+
+    function importModalYopish() {
+        importOverlay.classList.remove('open');
+    }
+
+    function faylniTozala() {
+        tanlanganFayl = null;
+        importFile.value = '';
+        dropZone.classList.remove('tanlangan');
+        dropMatn.textContent = 'Faylni bu yerga tashlang yoki bosing';
+    }
+
+    function faylniOl(fayl) {
+        if (!fayl) return;
+        const nom = fayl.name.toLowerCase();
+        if (!/\.(xlsx|xls|csv)$/.test(nom)) {
+            importError.textContent = 'Faqat .xlsx, .xls yoki .csv fayl yuklash mumkin';
+            importError.style.display = 'block';
+            return;
+        }
+        if (fayl.size > 5 * 1024 * 1024) {
+            importError.textContent = 'Fayl hajmi 5 MB dan oshmasligi kerak';
+            importError.style.display = 'block';
+            return;
+        }
+        tanlanganFayl = fayl;
+        importError.style.display = 'none';
+        dropZone.classList.add('tanlangan');
+        dropMatn.textContent = fayl.name;
+    }
+
+    document.getElementById('openImportBtn').addEventListener('click', importModalOchish);
+    document.getElementById('importCancelBtn').addEventListener('click', importModalYopish);
+    importOverlay.addEventListener('click', e => { if (e.target === importOverlay) importModalYopish(); });
+
+    dropZone.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', () => faylniOl(importFile.files[0]));
+
+    ['dragenter', 'dragover'].forEach(nom =>
+        dropZone.addEventListener(nom, e => {
+            e.preventDefault();
+            dropZone.classList.add('ustida');
+        }));
+    ['dragleave', 'drop'].forEach(nom =>
+        dropZone.addEventListener(nom, e => {
+            e.preventDefault();
+            dropZone.classList.remove('ustida');
+        }));
+    dropZone.addEventListener('drop', e => faylniOl(e.dataTransfer.files[0]));
+
+    function natijaniChiz(data) {
+        let html =
+            `<div class="natija-satr"><span>Fayldan o'qildi</span><b>${data.oqildi}</b></div>` +
+            `<div class="natija-satr ok"><span>Qo'shildi</span><b>${data.qoshildi}</b></div>`;
+
+        if (data.takror) {
+            html += `<div class="natija-satr otkaz"><span>Bazada bor edi</span><b>${data.takror}</b></div>`;
+        }
+        if (data.faylTakror) {
+            html += `<div class="natija-satr otkaz"><span>Faylda takrorlangan</span><b>${data.faylTakror}</b></div>`;
+        }
+
+        if (data.qoshilganlar.length || data.otkazilgan.length) {
+            html += '<div class="natija-royxat">';
+            if (data.qoshilganlar.length) {
+                html += '<div class="sarlavha">Qo\u2018shilganlar</div>' +
+                    data.qoshilganlar.map(n => '<div>+ ' + esc(n) + '</div>').join('');
+            }
+            if (data.otkazilgan.length) {
+                html += '<div class="sarlavha">O\u2018tkazib yuborilganlar</div>' +
+                    data.otkazilgan.map(n => '<div>— ' + esc(n) + '</div>').join('');
+            }
+            html += '</div>';
+        }
+
+        importNatija.innerHTML = html;
+        importNatija.style.display = 'block';
+    }
+
+    importSaveBtn.addEventListener('click', async () => {
+        importError.style.display = 'none';
+        if (!tanlanganFayl) {
+            importError.textContent = 'Avval faylni tanlang';
+            importError.style.display = 'block';
+            return;
+        }
+
+        const form = new FormData();
+        form.append('file', tanlanganFayl);
+
+        importSaveBtn.disabled = true;
+        importYuklanmoqda.style.display = 'block';
+        importNatija.style.display = 'none';
+
+        try {
+            const res = await fetch('/admin/import-kategoriya', { method: 'POST', body: form });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                natijaniChiz(data);
+                toastKorsat(data.message, data.qoshildi > 0);
+                faylniTozala();
+                importSaveBtn.style.display = 'none';   // natija ko'rinib tursin
+                loadKategoriyalar();
+            } else {
+                importError.textContent = data.message || 'Xatolik yuz berdi';
+                importError.style.display = 'block';
+            }
+        } catch (e) {
+            importError.textContent = 'Server bilan aloqa yo\u2018q';
+            importError.style.display = 'block';
+        } finally {
+            importSaveBtn.disabled = false;
+            importYuklanmoqda.style.display = 'none';
         }
     });
 
