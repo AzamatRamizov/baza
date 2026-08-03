@@ -7,37 +7,150 @@
 <body>
 
 <!-- =====================================================
-     NAVBAR FRAGMENTI
+     SIDEBAR + TOPBAR FRAGMENTI
      Chaqirish:  <nav th:replace="~{fragment :: navbar}"></nav>
-     Controller'dan kutadi: username (majburiy), page (ixtiyoriy:
-     'dashboard' | 'users' — aktiv havolani belgilash uchun)
+       (fragment nomi "navbar" bo'lib qoldi — sahifalarni o'zgartirmaslik uchun)
+
+     Controller'dan kutadi: username (majburiy), page (ixtiyoriy —
+     aktiv havolani belgilash uchun: 'dashboard', 'mahsulotlar', ...)
+
+     TUZILISHI:
+       - chapda sidebar (bo'limlar, guruhlangan)
+       - tepada topbar (☰ tugma, USD kursi, kun/tun, profil menyusi)
+     Sidebar ochiq/yopiq holati tema.js orqali <html class="sb-yopiq">
+     ko'rinishida saqlanadi — sahifa yangilanganda ham eslab qoladi.
+
+     Yangi bo'lim qo'shish: kerakli guruh ichiga <a> qo'shiladi va
+     guruhning th:classappend ro'yxatiga sahifa nomi yoziladi.
      ===================================================== -->
-<nav class="navbar" th:fragment="navbar">
+<aside th:fragment="navbar">
     <style>
-        .navbar {
+        :root { --sb-eni: 248px; --tb-balandlik: 58px; }
+
+        /* Kontent sidebar va topbar ostiga kirib ketmasin */
+        body {
+            padding-left: var(--sb-eni);
+            padding-top: var(--tb-balandlik);
+            transition: padding-left 0.22s ease;
+        }
+        html.sb-yopiq body { padding-left: 0; }
+
+        /* ================= TOPBAR ================= */
+        .tb {
+            position: fixed; top: 0; right: 0; left: var(--sb-eni);
+            height: var(--tb-balandlik);
+            display: flex; align-items: center; gap: 12px;
+            padding: 0 20px;
             background-color: var(--karta);
+            border-bottom: 1px solid var(--chegara);
             box-shadow: 0 2px 10px var(--soya2);
-            padding: 14px 28px;
-            display: flex;
-            align-items: center;
-            gap: 28px;
+            z-index: 95;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: left 0.22s ease;
         }
-        .navbar .brand {
-            color: var(--kok-toq); font-size: 20px; font-weight: 700; text-decoration: none;
+        html.sb-yopiq .tb { left: 0; }
+
+        .tb-toggle {
+            flex-shrink: 0;
+            width: 38px; height: 38px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            background-color: var(--fon2); color: var(--kok);
+            border: 1.5px solid var(--chegara-kok);
+            font-size: 17px; line-height: 1; cursor: pointer; font-family: inherit;
+            transition: background-color 0.2s, border-color 0.2s;
         }
-        .navbar .nav-links {
-            display: flex; gap: 16px; align-items: center; margin-right: auto;
-            flex-wrap: wrap; row-gap: 8px;
+        .tb-toggle:hover { background-color: var(--fon3); border-color: var(--kok); }
+
+        /* Brand faqat sidebar yopiq bo'lganda topbar'da ko'rinadi */
+        .tb-brand {
+            display: none;
+            color: var(--kok-toq); font-size: 18px; font-weight: 700;
+            text-decoration: none;
         }
-        .navbar .nav-links a {
-            color: var(--kok-och); text-decoration: none; font-size: 14px; font-weight: 600;
+        html.sb-yopiq .tb-brand { display: block; }
+
+        .tb-bosh { margin-left: auto; }
+
+        /* ================= SIDEBAR ================= */
+        .sb-panel {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: var(--sb-eni);
+            background-color: var(--karta);
+            border-right: 1px solid var(--chegara);
+            box-shadow: 2px 0 12px var(--soya2);
+            display: flex; flex-direction: column;
+            /* Sahifalardagi modal oynalar (z-index: 100) sidebar USTIDA chiqishi kerak */
+            z-index: 96;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: transform 0.22s ease;
         }
-        .navbar .nav-links a.active {
-            color: var(--kok-toq); border-bottom: 2px solid var(--kok-toq); padding-bottom: 2px;
+        html.sb-yopiq .sb-panel { transform: translateX(-100%); }
+
+        .sb-panel .brand {
+            display: flex; align-items: center;
+            height: var(--tb-balandlik); padding: 0 22px;
+            color: var(--kok-toq); font-size: 21px; font-weight: 700;
+            text-decoration: none; letter-spacing: 0.3px;
+            border-bottom: 1px solid var(--chegara);
         }
 
-        /* USD kursi badge */
-        .navbar .kurs-badge {
+        /* ---- Havolalar ---- */
+        .sb-nav {
+            flex: 1; overflow-y: auto; padding: 12px 10px;
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .sb-nav::-webkit-scrollbar { width: 6px; }
+        .sb-nav::-webkit-scrollbar-thumb {
+            background-color: var(--chegara2); border-radius: 3px;
+        }
+
+        .sb-link {
+            display: block; padding: 10px 14px; border-radius: 7px;
+            color: var(--matn2); font-size: 14px; font-weight: 600;
+            text-decoration: none;
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .sb-link:hover { background-color: var(--fon2); color: var(--kok); }
+        .sb-link.active {
+            background-color: var(--fon3); color: var(--kok-toq);
+            box-shadow: inset 3px 0 0 var(--kok-toq);
+        }
+
+        /* ---- Guruh (dropdown) ---- */
+        .sb-guruh-btn {
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; padding: 10px 14px; border: none; border-radius: 7px;
+            background: transparent; color: var(--matn2);
+            font-size: 14px; font-weight: 600; font-family: inherit;
+            cursor: pointer; text-align: left;
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .sb-guruh-btn:hover { background-color: var(--fon2); color: var(--kok); }
+        .sb-guruh.ichida .sb-guruh-btn { color: var(--kok-toq); }
+        .sb-guruh-btn .chevron {
+            font-size: 9px; color: var(--matn3); transition: transform 0.2s;
+        }
+        .sb-guruh.ochiq .sb-guruh-btn .chevron { transform: rotate(180deg); }
+
+        .sb-ichki {
+            display: none;
+            margin: 2px 0 6px 14px; padding-left: 10px;
+            border-left: 1.5px solid var(--chegara);
+        }
+        .sb-guruh.ochiq .sb-ichki { display: block; }
+        .sb-ichki a {
+            display: block; padding: 8px 12px; border-radius: 6px;
+            color: var(--matn3); font-size: 13.5px; font-weight: 500;
+            text-decoration: none;
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .sb-ichki a:hover { background-color: var(--fon2); color: var(--kok); }
+        .sb-ichki a.active {
+            background-color: var(--fon3); color: var(--kok-toq); font-weight: 700;
+        }
+
+        /* ---- USD kursi (topbar'da) ---- */
+        .kurs-badge {
             padding: 6px 12px;
             background-color: var(--yashil-fon);
             border: 1px solid var(--yashil-chegara);
@@ -47,9 +160,9 @@
             display: none; /* kurs yuklangach ko'rinadi */
         }
 
-        /* User dropdown — o'ngga yopishgan */
-        .navbar .user-menu { position: relative; }
-        .navbar .user-btn {
+        /* ---- Profil menyusi (topbar o'ng tomonida) ---- */
+        .user-menu { position: relative; flex-shrink: 0; }
+        .user-btn {
             display: flex; align-items: center; gap: 8px;
             padding: 8px 14px;
             background-color: var(--fon2);
@@ -59,96 +172,217 @@
             cursor: pointer; font-family: inherit;
             transition: background-color 0.2s, border-color 0.2s;
         }
-        .navbar .user-btn:hover { background-color: var(--fon3); border-color: var(--kok); }
-        .navbar .user-btn .chevron {
-            font-size: 10px; transition: transform 0.2s;
-        }
-        .navbar .user-menu.open .user-btn .chevron { transform: rotate(180deg); }
+        .user-btn:hover { background-color: var(--fon3); border-color: var(--kok); }
+        .user-btn .ism { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .user-btn .chevron { font-size: 10px; transition: transform 0.2s; }
+        .user-menu.open .user-btn .chevron { transform: rotate(180deg); }
 
-        .navbar .user-dropdown {
+        .user-dropdown {
             position: absolute; top: calc(100% + 8px); right: 0;
-            min-width: 170px;
+            min-width: 180px;
             background-color: var(--karta);
             border-radius: 8px;
             box-shadow: 0 6px 24px var(--soya4);
             border: 1px solid var(--chegara);
             padding: 6px 0;
             display: none;
-            z-index: 150;
+            z-index: 250;
         }
-        .navbar .user-menu.open .user-dropdown { display: block; }
-        .navbar .user-dropdown a {
-            display: block;
-            padding: 9px 16px;
+        .user-menu.open .user-dropdown { display: block; }
+        .user-dropdown .kim {
+            padding: 8px 16px 10px; margin-bottom: 4px;
+            border-bottom: 1px solid var(--chegara);
+            font-size: 12px; color: var(--matn3); font-weight: 600;
+        }
+        .user-dropdown .kim b { display: block; font-size: 14px; color: var(--matn); margin-top: 2px; }
+        .user-dropdown a {
+            display: block; padding: 9px 16px;
             color: var(--matn); font-size: 14px; font-weight: 500;
             text-decoration: none;
             transition: background-color 0.15s;
         }
-        .navbar .user-dropdown a:hover { background-color: var(--fon2); }
-        .navbar .user-dropdown .divider {
-            height: 1px; background-color: var(--chegara); margin: 5px 0;
+        .user-dropdown a:hover { background-color: var(--fon2); }
+        .user-dropdown .divider { height: 1px; background-color: var(--chegara); margin: 5px 0; }
+        .user-dropdown a.chiqish { color: var(--qizil); }
+        .user-dropdown a.chiqish:hover { background-color: var(--qizil-fon); }
+
+        /* ---- Mobil ---- */
+        .sb-parda {
+            display: none;
+            position: fixed; inset: 0; background: var(--parda); z-index: 94;
         }
-        .navbar .user-dropdown a.chiqish { color: var(--qizil); }
-        .navbar .user-dropdown a.chiqish:hover { background-color: var(--qizil-fon); }
+        .sb-parda.ochiq { display: block; }
+
+        @media (max-width: 900px) {
+            /* Mobilda sidebar har doim ustidan chiqadi */
+            body { padding-left: 0; }
+            .tb { left: 0; }
+            .tb-brand { display: block; }
+            .sb-panel { transform: translateX(-100%); }
+            html:not(.sb-yopiq) .sb-panel { transform: translateX(0); }
+            .kurs-badge { display: none !important; }
+            .user-btn .ism { max-width: 90px; }
+        }
     </style>
 
-    <a class="brand" href="/admin/dashboard">Baza</a>
+    <!-- ================= TOPBAR ================= -->
+    <header class="tb">
+        <button class="tb-toggle" type="button" id="sbToggle"
+                title="Menyuni ochish / yopish" aria-label="Menyu">&#9776;</button>
 
-    <div class="nav-links">
-        <a href="/admin/dashboard" th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
-        <a href="/admin/users" th:classappend="${page == 'users'} ? 'active'">Hodimlar</a>
-        <a href="/admin/magazinlar" th:classappend="${page == 'magazinlar'} ? 'active'">Magazinlar</a>
-        <a href="/admin/mahsulotlar" th:classappend="${page == 'mahsulotlar'} ? 'active'">Mahsulotlar</a>
-        <a href="/admin/mening-mahsulotlarim"
-           th:classappend="${page == 'mening-mahsulotlarim'} ? 'active'">Mening mahsulotlarim</a>
-        <a href="/admin/otkazmalar" th:classappend="${page == 'otkazmalar'} ? 'active'">O'tkazmalar</a>
-        <a href="/admin/kategoriyalar" th:classappend="${page == 'kategoriyalar'} ? 'active'">Kategoriyalar</a>
-        <a href="/admin/rollar" th:classappend="${page == 'rollar'} ? 'active'">Rollar</a>
-        <a href="/admin/ruxsatlar" th:classappend="${page == 'ruxsatlar'} ? 'active'">Ruxsatlar</a>
-        <a href="/admin/tarix" th:classappend="${page == 'tarix'} ? 'active'">Tarix</a>
-    </div>
+        <a class="tb-brand" href="/admin/dashboard">Baza</a>
 
-    <span class="kurs-badge" id="usdKursBadge" title="O'zbekiston Markaziy banki kursi"></span>
+        <div class="tb-bosh"></div>
 
-    <button class="tema-btn" type="button" onclick="temaAlmash()"
-            title="Kun / tun rejimi" aria-label="Kun / tun rejimi">
-        <span class="tun-ikon">&#127769;</span>
-        <span class="kun-ikon">&#9728;</span>
-    </button>
+        <span class="kurs-badge" id="usdKursBadge"
+              title="O'zbekiston Markaziy banki kursi"></span>
 
-    <div class="user-menu" id="userMenu">
-        <button class="user-btn" id="userMenuBtn" type="button">
-            <span th:text="${username}">user</span>
-            <span class="chevron">&#9660;</span>
+        <button class="tema-btn" type="button" onclick="temaAlmash()"
+                title="Kun / tun rejimi" aria-label="Kun / tun rejimi">
+            <span class="tun-ikon">&#127769;</span>
+            <span class="kun-ikon">&#9728;</span>
         </button>
-        <div class="user-dropdown">
-            <a href="/admin/profil">Profil</a>
-            <div class="divider"></div>
-            <a href="/admin/logout" class="chiqish">Chiqish</a>
+
+        <div class="user-menu" id="userMenu">
+            <button class="user-btn" id="userMenuBtn" type="button">
+                <span class="ism" th:text="${username}">user</span>
+                <span class="chevron">&#9660;</span>
+            </button>
+            <div class="user-dropdown">
+                <div class="kim">
+                    Kirgan hodim
+                    <b th:text="${username}">user</b>
+                </div>
+                <a href="/admin/profil">Profil</a>
+                <a href="/admin/mening-mahsulotlarim">Mening mahsulotlarim</a>
+                <div class="divider"></div>
+                <a href="/admin/logout" class="chiqish">Chiqish</a>
+            </div>
         </div>
+    </header>
+
+    <div class="sb-parda" id="sbParda"></div>
+
+    <!-- ================= SIDEBAR ================= -->
+    <div class="sb-panel" id="sbPanel">
+        <a class="brand" href="/admin/dashboard">Baza</a>
+
+        <nav class="sb-nav">
+            <a class="sb-link" href="/admin/dashboard"
+               th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
+
+            <!-- ===== Mahsulotlar guruhi ===== -->
+            <div class="sb-guruh"
+                 th:classappend="${#lists.contains({'mahsulotlar','mening-mahsulotlarim','otkazmalar','sotuvlar','kategoriyalar'}, page)} ? 'ochiq ichida'">
+                <button class="sb-guruh-btn" type="button">
+                    <span>Mahsulotlar</span>
+                    <span class="chevron">&#9660;</span>
+                </button>
+                <div class="sb-ichki">
+                    <a href="/admin/mahsulotlar"
+                       th:classappend="${page == 'mahsulotlar'} ? 'active'">Mahsulotlar</a>
+                    <a href="/admin/mening-mahsulotlarim"
+                       th:classappend="${page == 'mening-mahsulotlarim'} ? 'active'">Mening mahsulotlarim</a>
+                    <a href="/admin/otkazmalar"
+                       th:classappend="${page == 'otkazmalar'} ? 'active'">O'tkazmalar</a>
+                    <a href="/admin/sotuvlar"
+                       th:classappend="${page == 'sotuvlar'} ? 'active'">Sotuvlar</a>
+                    <a href="/admin/kategoriyalar"
+                       th:classappend="${page == 'kategoriyalar'} ? 'active'">Kategoriyalar</a>
+                </div>
+            </div>
+
+            <a class="sb-link" href="/admin/magazinlar"
+               th:classappend="${page == 'magazinlar'} ? 'active'">Magazinlar</a>
+
+            <!-- ===== Hodimlar va ruxsatlar guruhi ===== -->
+            <div class="sb-guruh"
+                 th:classappend="${#lists.contains({'users','rollar','ruxsatlar'}, page)} ? 'ochiq ichida'">
+                <button class="sb-guruh-btn" type="button">
+                    <span>Hodimlar</span>
+                    <span class="chevron">&#9660;</span>
+                </button>
+                <div class="sb-ichki">
+                    <a href="/admin/users"
+                       th:classappend="${page == 'users'} ? 'active'">Hodimlar</a>
+                    <a href="/admin/rollar"
+                       th:classappend="${page == 'rollar'} ? 'active'">Rollar</a>
+                    <a href="/admin/ruxsatlar"
+                       th:classappend="${page == 'ruxsatlar'} ? 'active'">Ruxsatlar</a>
+                </div>
+            </div>
+
+            <a class="sb-link" href="/admin/tarix"
+               th:classappend="${page == 'tarix'} ? 'active'">Tarix</a>
+        </nav>
     </div>
 
     <script>
         (function () {
-            const menu = document.getElementById('userMenu');
-            const btn = document.getElementById('userMenuBtn');
+            const panel = document.getElementById('sbPanel');
+            const parda = document.getElementById('sbParda');
+            const toggle = document.getElementById('sbToggle');
 
-            btn.addEventListener('click', function (e) {
+            function mobilmi() {
+                return window.matchMedia('(max-width: 900px)').matches;
+            }
+
+            /* Mobilda sidebar ustidan chiqadi — orqa fon pardasi kerak.
+               Holatning o'zi tema.js dagi sidebarAlmash() orqali <html> ga
+               klass sifatida qo'yiladi va localStorage'da saqlanadi. */
+            function pardaniMoslash() {
+                parda.classList.toggle('ochiq', mobilmi() && sidebarOchiqmi());
+            }
+
+            // Mobilda sahifa har safar YOPIQ holatda ochilsin
+            if (mobilmi()) document.documentElement.classList.add('sb-yopiq');
+            pardaniMoslash();
+
+            toggle.addEventListener('click', function (e) {
+                e.stopPropagation();
+                sidebarAlmash();
+                pardaniMoslash();
+            });
+
+            parda.addEventListener('click', function () {
+                if (sidebarOchiqmi()) sidebarAlmash();
+                pardaniMoslash();
+            });
+
+            window.addEventListener('resize', pardaniMoslash);
+
+            // Mobilda havola bosilsa sidebar yopiladi
+            panel.addEventListener('click', function (e) {
+                if (mobilmi() && e.target.closest('a')) {
+                    document.documentElement.classList.add('sb-yopiq');
+                    pardaniMoslash();
+                }
+            });
+
+            // ---- Guruhlarni ochish / yopish ----
+            document.querySelectorAll('.sb-guruh-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    btn.closest('.sb-guruh').classList.toggle('ochiq');
+                });
+            });
+
+            // ---- Profil menyusi ----
+            const menu = document.getElementById('userMenu');
+            const userBtn = document.getElementById('userMenuBtn');
+
+            userBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 menu.classList.toggle('open');
             });
 
-            // Tashqariga bosilsa yopiladi
-            document.addEventListener('click', function () {
-                menu.classList.remove('open');
+            document.addEventListener('click', function (e) {
+                if (!menu.contains(e.target)) menu.classList.remove('open');
             });
-
-            // Escape bosilsa yopiladi
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') menu.classList.remove('open');
             });
 
-            // USD kursi (CBU) — navbar badge
+            // ---- USD kursi (CBU) ----
             fetch('/admin/get-usd-kurs')
                 .then(function (res) { return res.ok ? res.json() : null; })
                 .then(function (data) {
@@ -161,10 +395,10 @@
                         window._usdKurs = data.kurs; // sahifalar ham foydalanishi uchun
                     }
                 })
-                .catch(function () { /* kurs chiqmasa navbar buzilmaydi */ });
+                .catch(function () { /* kurs chiqmasa menyu buzilmaydi */ });
         })();
     </script>
-</nav>
+</aside>
 
 <!-- =====================================================
      XABAR (NOTIFICATION) FRAGMENTI
@@ -181,7 +415,8 @@
 <div th:fragment="xabar">
     <style>
         .xabar-wrap {
-            position: fixed; top: 22px; right: 22px;
+            /* Topbar ostidan boshlanadi (--tb-balandlik sidebar fragmentida) */
+            position: fixed; top: calc(var(--tb-balandlik, 58px) + 16px); right: 22px;
             z-index: 9999;
             display: flex; flex-direction: column; gap: 14px;
             width: 420px; max-width: calc(100vw - 32px);

@@ -26,6 +26,11 @@ public enum Ruxsat {
     OTKAZMA_YUBORISH("Mahsulotni boshqa magazinga jo'natish", "O'tkazmalar"),
     OTKAZMA_QABUL("Kelgan o'tkazmani tasdiqlash yoki rad etish", "O'tkazmalar"),
 
+    // ===== Sotuv =====
+    SOTUV_QILISH("Mahsulot sotish", "Sotuv"),
+    SOTUV_KORISH("Sotuvlarni ko'rish", "Sotuv"),
+    SOTUV_QAYTARISH("Sotuvni qaytarish (bekor qilish)", "Sotuv"),
+
     // ===== Tarix =====
     TARIX_KORISH("Amallar tarixini ko'rish", "Tarix");
 

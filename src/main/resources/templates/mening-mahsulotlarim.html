@@ -83,6 +83,11 @@
             text-decoration: none; display: inline-block;
             transition: background-color 0.2s;
         }
+        .sot-btn {
+            background-color: var(--kok); color: var(--karta);
+            border: 1px solid var(--kok);
+        }
+        .sot-btn:hover { background-color: var(--kok-hover); }
         .send-btn {
             background-color: var(--yashil-fon); color: var(--yashil-toq);
             border: 1px solid var(--yashil-chegara);
@@ -131,6 +136,15 @@
             border-radius: 6px; font-size: 14px; color: var(--matn);
             background-color: var(--fon2); outline: none; font-family: inherit;
             transition: border-color 0.2s;
+        }
+        .form-group input[type="text"] {
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok);
+            border-radius: 6px; font-size: 14px; color: var(--matn);
+            background-color: var(--fon2); outline: none; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group input[type="text"]:focus {
+            border-color: var(--kok); background-color: var(--karta);
         }
         .form-group input[type="number"] {
             width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok);
@@ -260,6 +274,53 @@
     </div>
 </div>
 
+<!-- Sotish modali -->
+<div class="modal-overlay" id="sotuvOverlay">
+    <div class="modal">
+        <h2>Mahsulotni sotish</h2>
+        <div class="mahsulot-nomi" id="sotuvMahsulot">—</div>
+
+        <div class="form-group">
+            <label for="s_miqdor" id="sotuvMiqdorLabel">Sotiladigan miqdor *</label>
+            <input type="number" id="s_miqdor" min="0" step="0.01" placeholder="0">
+            <div class="miqdor-hint" id="sotuvMiqdorHint"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="s_narx" id="sotuvNarxLabel">Sotuv narxi (1 birlik uchun) *</label>
+            <div style="display:flex; gap:8px">
+                <input type="number" id="s_narx" min="0" step="0.01" placeholder="0" style="flex:1">
+                <select id="s_valyuta" style="width:100px">
+                    <option value="UZS">so'm</option>
+                    <option value="USD">$</option>
+                </select>
+            </div>
+            <div class="miqdor-hint" id="sotuvJamiHint"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="s_mijoz">Mijoz (ixtiyoriy)</label>
+            <input type="text" id="s_mijoz" placeholder="Ism familiya" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+            <label for="s_tel">Telefon (ixtiyoriy)</label>
+            <input type="text" id="s_tel" placeholder="+998 90 123 45 67" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+            <label for="s_izoh">Izoh (ixtiyoriy)</label>
+            <textarea id="s_izoh" placeholder="Masalan: nasiyaga, 50% oldindan"></textarea>
+        </div>
+
+        <p class="modal-error" id="sotuvError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="sotuvSaveBtn">Sotish</button>
+            <button class="cancel-btn" id="sotuvCancelBtn">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const tbody = document.getElementById('mahsulotTbody');
     const searchInput = document.getElementById('searchInput');
@@ -322,6 +383,7 @@
 
         tbody.innerHTML = list.map(m => {
             const kutmoqda = kutilayotganIds.has(m.id);
+            const sotibBolmaydi = kutmoqda || !(m.miqdor > 0);
             return `
             <tr>
                 <td class="muted">${m.id}</td>
@@ -340,6 +402,7 @@
                 <td>${m.zavodNarxi != null ? sonFormat(m.zavodNarxi) : '<span class="muted">—</span>'}</td>
                 <td>${esc(m.magazinNomi) || '<span class="muted">—</span>'}</td>
                 <td>
+                    <button class="amal-btn sot-btn" data-sot="${m.id}" ${sotibBolmaydi ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Sotish</button>
                     <button class="amal-btn send-btn" data-id="${m.id}" ${kutmoqda ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Jo'natish</button>
                     <a class="amal-btn edit-btn" href="/admin/mahsulotlar?tahrir=${m.id}">Tahrirlash</a>
                     <button class="amal-btn del-btn" data-del="${m.id}" data-name="${esc(m.nomi)}">O'chirish</button>
@@ -505,8 +568,150 @@
         }
     });
 
+    // ===== Sotish modali =====
+    const sotuvOverlay = document.getElementById('sotuvOverlay');
+    const sotuvError = document.getElementById('sotuvError');
+    let sotilayotgan = null;
+
+    function sotuvHintYangila() {
+        if (!sotilayotgan) return;
+
+        const bor = sotilayotgan.miqdor || 0;
+        const birlik = sotilayotgan.birlik || 'dona';
+        const q = parseFloat(document.getElementById('s_miqdor').value);
+        const narx = parseFloat(document.getElementById('s_narx').value);
+        const valyuta = document.getElementById('s_valyuta').value;
+
+        // Miqdor izohi
+        const mHint = document.getElementById('sotuvMiqdorHint');
+        if (isNaN(q) || q <= 0) {
+            mHint.innerHTML = 'Mavjud qoldiq: <b>' + bor + ' ' + esc(birlik) + '</b>';
+        } else if (q > bor + 0.0001) {
+            mHint.innerHTML = '<span class="qism">Mahsulotda faqat ' + bor + ' ' + esc(birlik) + ' bor</span>';
+        } else if (q >= bor - 0.0001) {
+            mHint.innerHTML = 'Butun qoldiq sotiladi — <b>mahsulot tugaydi</b>';
+        } else {
+            mHint.innerHTML = 'Sotilgach <b>' + (Math.round((bor - q) * 100) / 100) +
+                ' ' + esc(birlik) + '</b> qoladi';
+        }
+
+        // Jami summa
+        const jHint = document.getElementById('sotuvJamiHint');
+        if (isNaN(q) || q <= 0 || isNaN(narx) || narx <= 0) {
+            jHint.textContent = '';
+        } else {
+            const jami = Math.round(q * narx * 100) / 100;
+            jHint.innerHTML = 'Jami: <b>' + jami.toLocaleString('ru-RU') + ' ' +
+                (valyuta === 'USD' ? '$' : 'so\u2018m') + '</b>' +
+                (valyuta === 'USD' ? ' <span class="qism">(kurs bo\u2018yicha so\u2018mga aylantiriladi)</span>' : '');
+        }
+    }
+
+    ['s_miqdor', 's_narx', 's_valyuta'].forEach(id =>
+        document.getElementById(id).addEventListener('input', sotuvHintYangila));
+    document.getElementById('s_valyuta').addEventListener('change', sotuvHintYangila);
+
+    function sotuvModalOchish(mahsulot) {
+        sotilayotgan = mahsulot;
+        sotuvError.style.display = 'none';
+
+        const birlik = mahsulot.birlik || 'dona';
+        const miqdorInput = document.getElementById('s_miqdor');
+        miqdorInput.step = birlik === 'dona' ? '1' : '0.01';
+        miqdorInput.max = mahsulot.miqdor != null ? mahsulot.miqdor : '';
+        miqdorInput.value = birlik === 'dona' ? 1 : (mahsulot.miqdor != null ? mahsulot.miqdor : '');
+
+        document.getElementById('sotuvMiqdorLabel').textContent =
+            'Sotiladigan miqdor (' + birlik + ') *';
+        document.getElementById('sotuvNarxLabel').textContent =
+            'Sotuv narxi (1 ' + birlik + ' uchun) *';
+
+        document.getElementById('s_narx').value = '';
+        document.getElementById('s_valyuta').value = 'UZS';
+        document.getElementById('s_mijoz').value = '';
+        document.getElementById('s_tel').value = '';
+        document.getElementById('s_izoh').value = '';
+
+        // Tannarx — sotuvchi zarariga sotmasligi uchun ko'rsatkich
+        const tannarxBir = (mahsulot.zavodNarxi != null && mahsulot.miqdor > 0)
+            ? Math.round(mahsulot.zavodNarxi / mahsulot.miqdor) : null;
+        document.getElementById('sotuvMahsulot').innerHTML =
+            '<b>' + esc(mahsulot.nomi) + '</b> (' + esc(mahsulot.kod) + ') — qoldiq: <b>' +
+            (mahsulot.miqdor != null ? mahsulot.miqdor : '—') + ' ' + esc(birlik) + '</b>' +
+            (tannarxBir ? ', tannarx: <b>' + tannarxBir.toLocaleString('ru-RU') +
+                ' so\u2018m</b>/' + esc(birlik) : '');
+
+        sotuvHintYangila();
+        sotuvOverlay.classList.add('open');
+        miqdorInput.focus();
+    }
+
+    function sotuvModalYopish() {
+        sotuvOverlay.classList.remove('open');
+        sotilayotgan = null;
+    }
+
+    document.getElementById('sotuvCancelBtn').addEventListener('click', sotuvModalYopish);
+    sotuvOverlay.addEventListener('click', e => { if (e.target === sotuvOverlay) sotuvModalYopish(); });
+
+    document.getElementById('sotuvSaveBtn').addEventListener('click', async () => {
+        if (!sotilayotgan) return;
+        sotuvError.style.display = 'none';
+
+        const bor = sotilayotgan.miqdor || 0;
+        const birlik = sotilayotgan.birlik || 'dona';
+        const miqdor = parseFloat(document.getElementById('s_miqdor').value);
+        const narx = parseFloat(document.getElementById('s_narx').value);
+
+        function xato(matn) {
+            sotuvError.textContent = matn;
+            sotuvError.style.display = 'block';
+        }
+
+        if (isNaN(miqdor) || miqdor <= 0) return xato('Sotiladigan miqdorni kiriting');
+        if (miqdor > bor + 0.0001) return xato('Mahsulotda faqat ' + bor + ' ' + birlik + ' bor');
+        if (birlik === 'dona' && !Number.isInteger(miqdor)) {
+            return xato('Dona uchun miqdor butun son bo\u2018lishi kerak');
+        }
+        if (isNaN(narx) || narx <= 0) return xato('Sotuv narxini kiriting');
+
+        try {
+            const res = await fetch('/admin/sotish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mahsulotId: sotilayotgan.id,
+                    miqdor: miqdor,
+                    birlikNarxi: narx,
+                    valyuta: document.getElementById('s_valyuta').value,
+                    mijozIsmi: document.getElementById('s_mijoz').value.trim() || null,
+                    mijozTel: document.getElementById('s_tel').value.trim() || null,
+                    izoh: document.getElementById('s_izoh').value.trim() || null
+                })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                sotuvModalYopish();
+                toastKorsat(data.message, true);
+                loadMahsulotlar();
+            } else {
+                xato(data.message || 'Xatolik yuz berdi');
+            }
+        } catch (e) {
+            xato('Server bilan aloqa yo\u2018q');
+        }
+    });
+
     // ===== Jadvaldagi tugmalar =====
     tbody.addEventListener('click', async e => {
+        const sotBtn = e.target.closest('.sot-btn');
+        if (sotBtn && !sotBtn.disabled) {
+            const m = mahsulotlar.find(x => x.id === Number(sotBtn.dataset.sot));
+            if (m) sotuvModalOchish(m);
+            return;
+        }
+
         const sendBtn = e.target.closest('.send-btn');
         if (sendBtn && !sendBtn.disabled) {
             const m = mahsulotlar.find(x => x.id === Number(sendBtn.dataset.id));

@@ -19,6 +19,9 @@ import com.example.baza.Dto.ProfilUpdateDto;
 import com.example.baza.Dto.RolDto;
 import com.example.baza.Dto.RolSaveDto;
 import com.example.baza.Dto.RuxsatDto;
+import com.example.baza.Dto.SotuvDto;
+import com.example.baza.Dto.SotuvJavobDto;
+import com.example.baza.Dto.SotuvSaveDto;
 import com.example.baza.Dto.TarixSahifaDto;
 import com.example.baza.Dto.UsdKursDto;
 import com.example.baza.Dto.UserAddDto;
@@ -28,6 +31,7 @@ import com.example.baza.Service.MagazinService;
 import com.example.baza.Service.MahsulotService;
 import com.example.baza.Service.OtkazmaService;
 import com.example.baza.Service.RolService;
+import com.example.baza.Service.SotuvService;
 import com.example.baza.Service.TarixService;
 import com.example.baza.Service.ValyutaService;
 import com.example.baza.Service.UserService;
@@ -67,6 +71,7 @@ public class AdminController {
     private final ValyutaService valyutaService;
     private final RolService rolService;
     private final OtkazmaService otkazmaService;
+    private final SotuvService sotuvService;
     private final TarixService tarixService;
 
     public AdminController(AuthenticationManager authenticationManager,
@@ -78,6 +83,7 @@ public class AdminController {
                            ValyutaService valyutaService,
                            RolService rolService,
                            OtkazmaService otkazmaService,
+                           SotuvService sotuvService,
                            TarixService tarixService) {
         this.authenticationManager = authenticationManager;
         this.tokenGenerator = tokenGenerator;
@@ -88,6 +94,7 @@ public class AdminController {
         this.valyutaService = valyutaService;
         this.rolService = rolService;
         this.otkazmaService = otkazmaService;
+        this.sotuvService = sotuvService;
         this.tarixService = tarixService;
     }
 
@@ -356,6 +363,57 @@ public class AdminController {
     public ResponseEntity<ApiResponse> otkazmaBekor(Authentication authentication,
                                                     @PathVariable Long id) {
         ApiResponse res = otkazmaService.bekorQilish(authentication.getName(), id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= SOTUV =================
+    @GetMapping("/sotuvlar")
+    @PreAuthorize("hasAuthority('SOTUV_KORISH')")
+    public String sotuvlarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "sotuvlar");
+        return "sotuvlar";
+    }
+
+    /** Hodim uchun faqat o'z magazin(lar)i sotuvlari, Owner uchun barchasi */
+    @GetMapping("/get-sotuvlar")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SOTUV_KORISH')")
+    public ResponseEntity<List<SotuvDto>> getSotuvlar(
+            Authentication authentication,
+            @RequestParam(name = "sanadan", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sanadan,
+            @RequestParam(name = "sanagacha", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sanagacha) {
+        return ResponseEntity.ok(
+                sotuvService.getSotuvlar(authentication.getName(), sanadan, sanagacha));
+    }
+
+    /** Bitta mahsulotning sotuv tarixi */
+    @GetMapping("/get-mahsulot-sotuvlari/{mahsulotId}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SOTUV_KORISH')")
+    public ResponseEntity<List<SotuvDto>> getMahsulotSotuvlari(@PathVariable Long mahsulotId) {
+        return ResponseEntity.ok(sotuvService.mahsulotBoyicha(mahsulotId));
+    }
+
+    @PostMapping("/sotish")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SOTUV_QILISH')")
+    public ResponseEntity<ApiResponse> sotish(Authentication authentication,
+                                              @RequestBody SotuvSaveDto dto) {
+        ApiResponse res = sotuvService.sotish(authentication.getName(), dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PostMapping("/sotuv-qaytarish/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SOTUV_QAYTARISH')")
+    public ResponseEntity<ApiResponse> sotuvQaytarish(Authentication authentication,
+                                                      @PathVariable Long id,
+                                                      @RequestBody(required = false) SotuvJavobDto dto) {
+        ApiResponse res = sotuvService.qaytarish(authentication.getName(), id,
+                dto == null ? null : dto.sabab());
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 

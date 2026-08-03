@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sotuvlar</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 90%; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .card-header .jami { font-size: 13px; color: var(--matn3); font-weight: 600; }
+
+        /* Filtrlar */
+        .filtrlar {
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+            padding: 14px 16px; margin-bottom: 18px;
+            background-color: var(--fon2); border: 1px solid var(--chegara); border-radius: 10px;
+        }
+        .filtr { display: flex; flex-direction: column; gap: 5px; }
+        .filtr label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.3px; color: var(--kok-och);
+        }
+        .filtr input, .filtr select {
+            padding: 8px 11px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--karta);
+            outline: none; font-family: inherit;
+        }
+        .filtr input:focus, .filtr select:focus { border-color: var(--kok); }
+        .filtr.qidiruv { flex: 1; min-width: 200px; }
+        .filtr.qidiruv input { width: 100%; }
+        .filtr-tugma {
+            padding: 9px 16px; background-color: var(--fon5); color: var(--kok-och);
+            border: 1px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+        .filtr-tugma:hover { background-color: var(--fon6); }
+        .filtr-tugma.faol {
+            background-color: var(--fon3); color: var(--kok-toq); border-color: var(--kok);
+        }
+
+        /* Statistika */
+        .statlar {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px; margin-bottom: 20px;
+        }
+        .stat {
+            background-color: var(--fon2); border: 1px solid var(--chegara);
+            border-radius: 10px; padding: 14px 16px;
+        }
+        .stat .nom {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; color: var(--kok-och); margin-bottom: 6px;
+        }
+        .stat .qiymat { font-size: 21px; font-weight: 700; color: var(--matn); }
+        .stat .qiymat small { font-size: 13px; font-weight: 600; color: var(--matn3); }
+        .stat.foyda .qiymat { color: var(--yashil-toq); }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); white-space: nowrap; }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2);
+        }
+        tr:hover td { background-color: var(--fon4); }
+        tr.qaytarilgan td { opacity: 0.62; }
+        .muted { color: var(--matn4); }
+        td.vaqt { color: var(--matn3); font-size: 13px; }
+        td.summa { font-weight: 700; }
+        td.foyda { font-weight: 700; color: var(--yashil-toq); }
+        td.foyda.manfiy { color: var(--qizil); }
+
+        .holat {
+            display: inline-block; padding: 4px 11px; border-radius: 12px;
+            font-size: 12px; font-weight: 700;
+        }
+        .holat-SOTILDI {
+            background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border: 1px solid var(--yashil-chegara);
+        }
+        .holat-QAYTARILDI {
+            background-color: var(--fon5); color: var(--matn3);
+            border: 1px solid var(--chegara);
+        }
+
+        .qaytar-btn {
+            padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            background-color: var(--qizil-fon); color: var(--qizil);
+            border: 1px solid var(--qizil-3);
+            transition: background-color 0.2s;
+        }
+        .qaytar-btn:hover { background-color: var(--qizil-2); }
+
+        .empty-row td {
+            text-align: center; color: var(--matn4); padding: 34px 16px;
+            white-space: normal; line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Sotuvlar</h1>
+            <span class="jami" id="jamiMatn"></span>
+        </div>
+
+        <div class="filtrlar">
+            <div class="filtr">
+                <label for="fSanadan">Sanadan</label>
+                <input type="date" id="fSanadan">
+            </div>
+            <div class="filtr">
+                <label for="fSanagacha">Sanagacha</label>
+                <input type="date" id="fSanagacha">
+            </div>
+            <div class="filtr qidiruv">
+                <label for="fQidiruv">Qidirish</label>
+                <input type="text" id="fQidiruv" placeholder="Mahsulot, kod, mijoz, sotuvchi...">
+            </div>
+            <button class="filtr-tugma" data-oraliq="bugun">Bugun</button>
+            <button class="filtr-tugma" data-oraliq="hafta">7 kun</button>
+            <button class="filtr-tugma faol" data-oraliq="oy">30 kun</button>
+            <button class="filtr-tugma" data-oraliq="hammasi">Hammasi</button>
+        </div>
+
+        <div class="statlar">
+            <div class="stat">
+                <div class="nom">Sotuvlar soni</div>
+                <div class="qiymat" id="statSoni">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Umumiy tushum</div>
+                <div class="qiymat" id="statSumma">—</div>
+            </div>
+            <div class="stat foyda">
+                <div class="nom">Foyda</div>
+                <div class="qiymat" id="statFoyda">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Qaytarilgan</div>
+                <div class="qiymat" id="statQaytarilgan">—</div>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Vaqt</th>
+                    <th>Mahsulot</th>
+                    <th>Kodi</th>
+                    <th>Miqdor</th>
+                    <th>Birlik narxi</th>
+                    <th>Summa</th>
+                    <th>Foyda</th>
+                    <th>Mijoz</th>
+                    <th>Magazin</th>
+                    <th>Sotuvchi</th>
+                    <th>Holat</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="sotuvTbody">
+                <tr class="empty-row"><td colspan="13">Yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tbody = document.getElementById('sotuvTbody');
+    const fSanadan = document.getElementById('fSanadan');
+    const fSanagacha = document.getElementById('fSanagacha');
+    const fQidiruv = document.getElementById('fQidiruv');
+
+    let sotuvlar = [];
+    let kutish = null;
+
+    function toastKorsat(matn, ok) {
+        xabar(matn, ok ? 'ok' : 'err');
+    }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    function pul(n) {
+        return n == null ? '—' : Number(n).toLocaleString('ru-RU');
+    }
+
+    function vaqtFormat(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (isNaN(d)) return esc(iso);
+        const p = n => String(n).padStart(2, '0');
+        return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() +
+            '<br>' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
+    function sanaMatn(d) {
+        const p = n => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+
+    // ===== Statistika =====
+    function statlarniYangila(list) {
+        const sotilgan = list.filter(s => s.holat === 'SOTILDI');
+        const summa = sotilgan.reduce((a, s) => a + (s.summa || 0), 0);
+        const foyda = sotilgan.reduce((a, s) => a + (s.foyda || 0), 0);
+        const qaytarilgan = list.length - sotilgan.length;
+
+        document.getElementById('statSoni').textContent = sotilgan.length;
+        document.getElementById('statSumma').innerHTML = pul(summa) + ' <small>so\u2018m</small>';
+        document.getElementById('statFoyda').innerHTML = pul(foyda) + ' <small>so\u2018m</small>';
+        document.getElementById('statQaytarilgan').textContent = qaytarilgan;
+    }
+
+    // ===== Jadval =====
+    function jadvalniChiz() {
+        const q = fQidiruv.value.trim().toLowerCase();
+        const list = !q ? sotuvlar : sotuvlar.filter(s =>
+            (s.mahsulotNomi || '').toLowerCase().includes(q) ||
+            (s.mahsulotKod || '').toLowerCase().includes(q) ||
+            (s.mijozIsmi || '').toLowerCase().includes(q) ||
+            (s.mijozTel || '').toLowerCase().includes(q) ||
+            (s.sotganFish || '').toLowerCase().includes(q) ||
+            (s.magazinNomi || '').toLowerCase().includes(q)
+        );
+
+        statlarniYangila(list);
+        document.getElementById('jamiMatn').textContent =
+            list.length ? list.length + ' ta yozuv' : '';
+
+        if (!list.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">' +
+                (q ? 'Qidiruv bo\u2018yicha hech narsa topilmadi'
+                   : 'Bu davrda sotuv bo\u2018lmagan') + '</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(s => {
+            const qayt = s.holat === 'QAYTARILDI';
+            const mijoz = [s.mijozIsmi, s.mijozTel].filter(Boolean).map(esc).join('<br>');
+            return `
+            <tr class="${qayt ? 'qaytarilgan' : ''}">
+                <td class="muted">${s.id}</td>
+                <td class="vaqt">${vaqtFormat(s.vaqt)}</td>
+                <td><b>${esc(s.mahsulotNomi)}</b></td>
+                <td>${esc(s.mahsulotKod) || '<span class="muted">—</span>'}</td>
+                <td>${s.miqdor} <span class="muted">${esc(s.birlik)}</span></td>
+                <td>${pul(s.birlikNarxi)}</td>
+                <td class="summa">${pul(s.summa)}</td>
+                <td class="foyda ${(s.foyda || 0) < 0 ? 'manfiy' : ''}">${pul(s.foyda)}</td>
+                <td>${mijoz || '<span class="muted">—</span>'}</td>
+                <td>${esc(s.magazinNomi) || '<span class="muted">—</span>'}</td>
+                <td>${esc(s.sotganFish) || '<span class="muted">—</span>'}</td>
+                <td>
+                    <span class="holat holat-${s.holat}">${qayt ? 'Qaytarildi' : 'Sotildi'}</span>
+                    ${qayt && s.qaytarishSababi ? '<div class="muted" style="font-size:11px;margin-top:3px">' + esc(s.qaytarishSababi) + '</div>' : ''}
+                </td>
+                <td>
+                    ${qayt ? '<span class="muted">—</span>'
+                           : `<button class="qaytar-btn" data-id="${s.id}" data-name="${esc(s.mahsulotNomi)}">Qaytarish</button>`}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ===== Yuklash =====
+    async function load() {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="13">Yuklanmoqda...</td></tr>';
+
+        const p = new URLSearchParams();
+        if (fSanadan.value) p.set('sanadan', fSanadan.value);
+        if (fSanagacha.value) p.set('sanagacha', fSanagacha.value);
+
+        try {
+            const res = await fetch('/admin/get-sotuvlar?' + p.toString());
+            if (!res.ok) throw new Error();
+            sotuvlar = await res.json();
+            jadvalniChiz();
+        } catch (e) {
+            sotuvlar = [];
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    // ===== Filtrlar =====
+    fSanadan.addEventListener('change', () => { oraliqniBoshat(); load(); });
+    fSanagacha.addEventListener('change', () => { oraliqniBoshat(); load(); });
+    fQidiruv.addEventListener('input', () => {
+        clearTimeout(kutish);
+        kutish = setTimeout(jadvalniChiz, 250);
+    });
+
+    function oraliqniBoshat() {
+        document.querySelectorAll('.filtr-tugma').forEach(b => b.classList.remove('faol'));
+    }
+
+    document.querySelectorAll('.filtr-tugma').forEach(btn => {
+        btn.addEventListener('click', () => {
+            oraliqniBoshat();
+            btn.classList.add('faol');
+
+            const bugun = new Date();
+            if (btn.dataset.oraliq === 'hammasi') {
+                fSanadan.value = '';
+                fSanagacha.value = '';
+            } else {
+                const kun = btn.dataset.oraliq === 'bugun' ? 0
+                    : btn.dataset.oraliq === 'hafta' ? 6 : 29;
+                const boshi = new Date();
+                boshi.setDate(bugun.getDate() - kun);
+                fSanadan.value = sanaMatn(boshi);
+                fSanagacha.value = sanaMatn(bugun);
+            }
+            load();
+        });
+    });
+
+    // ===== Qaytarish =====
+    tbody.addEventListener('click', async e => {
+        const btn = e.target.closest('.qaytar-btn');
+        if (!btn) return;
+
+        const sabab = await tasdiq.soragich(
+            '\u201C' + btn.dataset.name + '\u201D sotuvini qaytarasizmi? ' +
+            'Mahsulot qoldig\u2018i tiklanadi.',
+            '', {
+                sarlavha: 'Sotuvni qaytarish',
+                tur: 'ogoh',
+                tugma: 'Ha, qaytaraman',
+                placeholder: 'Sabab (ixtiyoriy)'
+            });
+        if (sabab === null) return;
+
+        try {
+            const res = await fetch('/admin/sotuv-qaytarish/' + btn.dataset.id, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sabab: sabab || null })
+            });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) load();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo\u2018q', false);
+        }
+    });
+
+    // Boshlanishida — oxirgi 30 kun
+    (function boshlanish() {
+        const bugun = new Date();
+        const boshi = new Date();
+        boshi.setDate(bugun.getDate() - 29);
+        fSanadan.value = sanaMatn(boshi);
+        fSanagacha.value = sanaMatn(bugun);
+        load();
+    })();
+</script>
+
+</body>
+</html>
