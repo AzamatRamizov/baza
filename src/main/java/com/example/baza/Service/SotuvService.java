@@ -10,6 +10,7 @@ import com.example.baza.Entity.OtkazmaHolati;
 import com.example.baza.Entity.Rol;
 import com.example.baza.Entity.Sotuv;
 import com.example.baza.Entity.SotuvHolati;
+import com.example.baza.Entity.SotuvTuri;
 import com.example.baza.Entity.Users;
 import com.example.baza.Repository.MagazinRepository;
 import com.example.baza.Repository.MahsulotRepository;
@@ -31,12 +32,23 @@ import java.util.Objects;
  * ASOSIY QOIDA: hodim FAQAT o'zi mas'ul bo'lgan magazindagi mahsulotni sotadi.
  * Owner (tizim roli) barcha magazinlar bilan ishlay oladi.
  *
+ * IKKI YO'NALISH:
+ *   1) NAQD  - oddiy sotuv, holat darhol SOTILDI
+ *   2) KATM  - nasiyaga: holat KATMDA bo'ladi, mahsulot band qilinadi (qoldiqdan
+ *              chiqadi), lekin tushum/foyda KATM tasdiqlagandan keyin hisoblanadi.
+ *              KATM rad etsa - qoldiq to'liq tiklanadi.
+ *
+ * METRLAB SOTISH (metraj mahsulotlar):
+ *   Mahsulot 3 m eni x 100 m bo'yi bo'lsa, sotuvchi 20 metr sotishi mumkin:
+ *   kv = 20 x 3 = 60 kv.metr, narx ham 1 KV.METR uchun kiritiladi
+ *   => summa = 60 x narx. Eni hech qachon qirqilmaydi, faqat bo'yi.
+ *
  * Sotilganda:
  *   - mahsulot qoldig'i (miqdor) kamayadi
  *   - sotilgan qismga to'g'ri keladigan zavod narxi (tannarx) ayriladi
  *   - metr / kv.metr uchun bo'yi va kv qayta hisoblanadi (kesib berildi)
- *   - foyda = summa − tannarx
- * Qaytarilganda hammasi teskarisiga tiklanadi.
+ *   - foyda = summa - tannarx
+ * Qaytarilganda (yoki KATM rad etganda) hammasi teskarisiga tiklanadi.
  */
 @Service
 public class SotuvService {
@@ -53,6 +65,8 @@ public class SotuvService {
     private static final LocalDateTime SANA_MIN = LocalDateTime.of(1970, 1, 1, 0, 0);
     private static final LocalDateTime SANA_MAX = LocalDateTime.of(2999, 12, 31, 23, 59, 59);
     private static final LocalTime KUN_OXIRI = LocalTime.of(23, 59, 59, 999_000_000);
+
+    private static final double EPS = 0.0001;
 
     public SotuvService(SotuvRepository sotuvRepository,
                         MahsulotRepository mahsulotRepository,
@@ -73,7 +87,7 @@ public class SotuvService {
     // ================= RO'YXAT =================
 
     /**
-     * Sotuvlar ro'yxati — hodim uchun faqat o'z magazin(lar)i, Owner uchun barchasi.
+     * Sotuvlar ro'yxati - hodim uchun faqat o'z magazin(lar)i, Owner uchun barchasi.
      */
     @Transactional(readOnly = true)
     public List<SotuvDto> getSotuvlar(String username, LocalDate sanadan, LocalDate sanagacha) {
@@ -95,8 +109,22 @@ public class SotuvService {
 
     // ================= SOTISH =================
 
+    /** Oddiy (naqd) sotuv - holat darhol SOTILDI */
     @Transactional
     public ApiResponse sotish(String username, SotuvSaveDto dto) {
+        return chiqarish(username, dto, SotuvTuri.NAQD);
+    }
+
+    /** KATMga o'tkazish - mahsulot band qilinadi, javob kutiladi */
+    @Transactional
+    public ApiResponse katmgaOtkazish(String username, SotuvSaveDto dto) {
+        return chiqarish(username, dto, SotuvTuri.KATM);
+    }
+
+    /**
+     * Ikkala yo'nalish uchun umumiy mantiq - farqi faqat turi va boshlang'ich holatda.
+     */
+    private ApiResponse chiqarish(String username, SotuvSaveDto dto, SotuvTuri turi) {
         Users u = user(username);
         if (u == null) return new ApiResponse("Foydalanuvchi topilmadi", false);
         if (dto.mahsulotId() == null) {
@@ -111,36 +139,62 @@ public class SotuvService {
             return new ApiResponse("Mahsulot hech qaysi magazinga biriktirilmagan", false);
         }
         if (!mansubmi(u, magazin)) {
-            return new ApiResponse("Bu mahsulot sizning magazinigizga tegishli emas — " +
+            return new ApiResponse("Bu mahsulot sizning magazinigizga tegishli emas - " +
                     "faqat o'z magazinizdagi mahsulotni sota olasiz", false);
         }
 
         // Boshqa magazinga jo'natilib, tasdiq kutayotgan mahsulotni sotib bo'lmaydi
         if (otkazmaRepository.existsByMahsulot_IdAndHolat(mahsulot.getId(), OtkazmaHolati.KUTILMOQDA)) {
-            return new ApiResponse("Bu mahsulot boshqa magazinga jo'natilgan va tasdiq kutilmoqda — " +
+            return new ApiResponse("Bu mahsulot boshqa magazinga jo'natilgan va tasdiq kutilmoqda - " +
                     "avval o'tkazmani bekor qiling", false);
         }
 
         double bor = mahsulot.getMiqdor() == null ? 0 : mahsulot.getMiqdor();
         if (bor <= 0) {
-            return new ApiResponse("Mahsulot qoldig'i 0 — sotib bo'lmaydi", false);
+            return new ApiResponse("Mahsulot qoldig'i 0 - sotib bo'lmaydi", false);
         }
 
-        double miqdor = dto.miqdor() == null ? bor : yaxlit(dto.miqdor());
-        String xato = miqdorTekshir(miqdor, bor, mahsulot.getBirlik());
+        // ---- Miqdorni aniqlash: metrajda METR dan, aks holda to'g'ridan-to'g'ri ----
+        String birlik = mahsulot.getBirlik();
+        double miqdor;
+        Double sotilganMetr = null;
+
+        if (dto.metr() != null && dto.metr() > 0 && !MahsulotService.donami(birlik)) {
+            if ("kv.metr".equals(birlik) && (mahsulot.getEni() == null || mahsulot.getEni() <= 0)) {
+                return new ApiResponse("Mahsulotning eni kiritilmagan - " +
+                        "metrlab sotish uchun avval enini to'ldiring", false);
+            }
+            Double hisob = metrniMiqdorga(mahsulot, dto.metr(), bor);
+            if (hisob == null) return new ApiResponse("Metrni miqdorga aylantirib bo'lmadi", false);
+            miqdor = hisob;
+            sotilganMetr = yaxlit(dto.metr());
+        } else {
+            miqdor = dto.miqdor() == null ? bor : yaxlit(dto.miqdor());
+        }
+
+        String xato = miqdorTekshir(miqdor, bor, birlik);
         if (xato != null) return new ApiResponse(xato, false);
 
         Long birlikNarxi = narxniSomga(dto.birlikNarxi(), dto.valyuta());
         if (birlikNarxi == null || birlikNarxi <= 0) {
             return new ApiResponse("USD".equals(dto.valyuta())
-                    ? "Dollar kursini olib bo'lmadi — narxni so'mda kiriting"
+                    ? "Dollar kursini olib bo'lmadi - narxni so'mda kiriting"
                     : "Sotuv narxini kiriting", false);
+        }
+
+        if (turi == SotuvTuri.KATM && (dto.mijozIsmi() == null || dto.mijozIsmi().isBlank())) {
+            return new ApiResponse("KATMga o'tkazish uchun mijoz ismi kiritilishi shart", false);
         }
 
         long summa = Math.round(birlikNarxi * miqdor);
         long tannarx = tannarxUlushi(mahsulot, miqdor, bor);
 
-        // ---- Mahsulot qoldig'ini kamaytiramiz ----
+        // Sotilgan o'lchamlar (metraj uchun)
+        Double eni = MahsulotService.donami(birlik) ? null : mahsulot.getEni();
+        Double boyi = sotilganBoyi(birlik, miqdor, eni, sotilganMetr);
+        Double kv = (boyi != null && eni != null) ? yaxlit(boyi * eni) : null;
+
+        // ---- Mahsulot qoldig'ini kamaytiramiz (KATMda ham band qilinadi) ----
         kamaytir(mahsulot, miqdor, bor, tannarx);
         mahsulotRepository.save(mahsulot);
 
@@ -151,30 +205,104 @@ public class SotuvService {
         s.setMahsulotKod(mahsulot.getKod());
         s.setMagazin(magazin);
         s.setMiqdor(yaxlit(miqdor));
-        s.setBirlik(mahsulot.getBirlik());
+        s.setBirlik(birlik);
+        s.setBoyi(boyi);
+        s.setEni(eni);
+        s.setKv(kv);
         s.setBirlikNarxi(birlikNarxi);
         s.setSumma(summa);
         s.setTannarx(tannarx);
         s.setFoyda(summa - tannarx);
         s.setMijozIsmi(bosh(dto.mijozIsmi()));
         s.setMijozTel(bosh(dto.mijozTel()));
+        s.setMijozJshshir(bosh(dto.mijozJshshir()));
+        s.setMuddat(dto.muddat() != null && dto.muddat() > 0 ? dto.muddat() : null);
         s.setIzoh(bosh(dto.izoh()));
         s.setSotgan(u);
         s.setVaqt(LocalDateTime.now());
-        s.setHolat(SotuvHolati.SOTILDI);
+        s.setTuri(turi);
+        s.setHolat(turi == SotuvTuri.KATM ? SotuvHolati.KATMDA : SotuvHolati.SOTILDI);
+        if (turi == SotuvTuri.KATM) {
+            s.setKatmVaqti(LocalDateTime.now());
+        }
         sotuvRepository.save(s);
 
-        tarixService.yoz("Sotuv", "Sotildi", s.getId(), mahsulot.getNomi(),
-                magazin.getNomi() + " | " + son(miqdor) + " " + birlik(mahsulot.getBirlik()) +
-                        " × " + birlikNarxi + " so'm = " + summa + " so'm" +
-                        " | Foyda: " + (summa - tannarx) + " so'm" +
+        String olcham = olchamMatn(s);
+        tarixService.yoz("Sotuv", turi == SotuvTuri.KATM ? "KATMga o'tkazildi" : "Sotildi",
+                s.getId(), mahsulot.getNomi(),
+                magazin.getNomi() + " | " + son(miqdor) + " " + birlik(birlik) + olcham +
+                        " x " + birlikNarxi + " so'm = " + summa + " so'm" +
+                        (turi == SotuvTuri.KATM ? " | KATM javobi kutilmoqda"
+                                : " | Foyda: " + (summa - tannarx) + " so'm") +
                         " | Qoldiq: " + son(mahsulot.getMiqdor() == null ? 0 : mahsulot.getMiqdor()) +
                         (s.getMijozIsmi() == null ? "" : " | Mijoz: " + s.getMijozIsmi()));
 
         String qoldiqMatn = mahsulot.getMiqdor() != null && mahsulot.getMiqdor() > 0
-                ? "qoldiq: " + son(mahsulot.getMiqdor()) + " " + birlik(mahsulot.getBirlik())
+                ? "qoldiq: " + son(mahsulot.getMiqdor()) + " " + birlik(birlik)
                 : "mahsulot tugadi";
-        return new ApiResponse("Sotildi — " + summa + " so'm (" + qoldiqMatn + ")", true);
+
+        return turi == SotuvTuri.KATM
+                ? new ApiResponse("KATMga o'tkazildi - javob kelguncha mahsulot band (" +
+                qoldiqMatn + ")", true)
+                : new ApiResponse("Sotildi - " + summa + " so'm (" + qoldiqMatn + ")", true);
+    }
+
+    // ================= KATM JAVOBI =================
+
+    /**
+     * KATM javobi:
+     *   tasdiq = true  -> sotuv yakunlanadi (SOTILDI), tushum/foydaga tushadi
+     *   tasdiq = false -> rad etiladi (KATM_RAD), mahsulot qoldig'i tiklanadi
+     */
+    @Transactional
+    public ApiResponse katmJavobi(String username, Long sotuvId, boolean tasdiq, String izoh) {
+        Users u = user(username);
+        if (u == null) return new ApiResponse("Foydalanuvchi topilmadi", false);
+
+        Sotuv s = sotuvRepository.findById(sotuvId).orElse(null);
+        if (s == null) return new ApiResponse("Sotuv topilmadi", false);
+        if (s.getHolat() != SotuvHolati.KATMDA) {
+            return new ApiResponse("Bu sotuv KATM javobini kutmayapti", false);
+        }
+        if (!mansubmi(u, s.getMagazin())) {
+            return new ApiResponse("Bu sotuv sizning magazinigizga tegishli emas", false);
+        }
+
+        s.setKatmJavobi(bosh(izoh));
+        s.setKatmJavobBergan(u);
+        s.setKatmJavobVaqti(LocalDateTime.now());
+
+        if (tasdiq) {
+            s.setHolat(SotuvHolati.SOTILDI);
+            sotuvRepository.save(s);
+
+            tarixService.yoz("Sotuv", "KATM tasdiqladi", s.getId(), s.getMahsulotNomi(),
+                    son(s.getMiqdor()) + " " + birlik(s.getBirlik()) + olchamMatn(s) +
+                            " | " + s.getSumma() + " so'm" +
+                            (s.getMuddat() == null ? "" : " | Muddat: " + s.getMuddat() + " oy") +
+                            (s.getMijozIsmi() == null ? "" : " | Mijoz: " + s.getMijozIsmi()) +
+                            (izoh == null || izoh.isBlank() ? "" : " | Izoh: " + izoh));
+            return new ApiResponse("KATM tasdiqladi - sotuv yakunlandi", true);
+        }
+
+        // Rad etildi - qoldiq va tannarx tiklanadi
+        Mahsulot mahsulot = s.getMahsulot();
+        if (mahsulot == null) {
+            return new ApiResponse("Mahsulot o'chirilgan - qoldiqni tiklab bo'lmaydi", false);
+        }
+        kopaytir(mahsulot, s.getMiqdor() == null ? 0 : s.getMiqdor(),
+                s.getTannarx() == null ? 0 : s.getTannarx());
+        mahsulotRepository.save(mahsulot);
+
+        s.setHolat(SotuvHolati.KATM_RAD);
+        sotuvRepository.save(s);
+
+        tarixService.yoz("Sotuv", "KATM rad etdi", s.getId(), s.getMahsulotNomi(),
+                son(s.getMiqdor()) + " " + birlik(s.getBirlik()) +
+                        " qaytdi | Yangi qoldiq: " + son(mahsulot.getMiqdor()) +
+                        (izoh == null || izoh.isBlank() ? "" : " | Sabab: " + izoh));
+
+        return new ApiResponse("KATM rad etdi - mahsulot qoldig'i tiklandi", true);
     }
 
     // ================= QAYTARISH =================
@@ -189,13 +317,20 @@ public class SotuvService {
         if (s.getHolat() == SotuvHolati.QAYTARILDI) {
             return new ApiResponse("Bu sotuv allaqachon qaytarilgan", false);
         }
+        if (s.getHolat() == SotuvHolati.KATM_RAD) {
+            return new ApiResponse("KATM rad etgan - mahsulot allaqachon qaytgan", false);
+        }
+        if (s.getHolat() == SotuvHolati.KATMDA) {
+            return new ApiResponse("Bu sotuv KATM javobini kutmoqda - " +
+                    "bekor qilish uchun KATM javobini \"rad etildi\" deb belgilang", false);
+        }
         if (!mansubmi(u, s.getMagazin())) {
             return new ApiResponse("Bu sotuv sizning magazinigizga tegishli emas", false);
         }
 
         Mahsulot mahsulot = s.getMahsulot();
         if (mahsulot == null) {
-            return new ApiResponse("Mahsulot o'chirilgan — qaytarib bo'lmaydi", false);
+            return new ApiResponse("Mahsulot o'chirilgan - qaytarib bo'lmaydi", false);
         }
 
         // Qoldiq va tannarxni tiklaymiz
@@ -214,7 +349,44 @@ public class SotuvService {
                         s.getSumma() + " so'm | Yangi qoldiq: " + son(mahsulot.getMiqdor()) +
                         (sabab == null || sabab.isBlank() ? "" : " | Sabab: " + sabab));
 
-        return new ApiResponse("Sotuv qaytarildi — mahsulot qoldig'i tiklandi", true);
+        return new ApiResponse("Sotuv qaytarildi - mahsulot qoldig'i tiklandi", true);
+    }
+
+    // ================= METRAJ HISOBI =================
+
+    /**
+     * Metrajda sotuvchi METR kiritadi - uni mahsulot birligidagi miqdorga aylantiramiz:
+     *   kv.metr -> metr x eni  (masalan 20 m x 3 m eni = 60 kv.metr)
+     *   metr    -> metr
+     * Butun qoldiq olinsa - aniq qoldiq qaytariladi (yaxlitlash xatosi bo'lmasin).
+     */
+    private Double metrniMiqdorga(Mahsulot m, Double metr, double bor) {
+        if (metr == null || metr <= 0) return null;
+
+        Double borMetr = m.getBoyi();
+        if (borMetr != null && borMetr > 0 && metr >= borMetr - EPS) {
+            return yaxlit(bor);   // butun qoldiq
+        }
+        if ("metr".equals(m.getBirlik())) {
+            return yaxlit(metr);
+        }
+        Double eni = m.getEni();
+        if (eni == null || eni <= 0) return null;
+        return yaxlit(metr * eni);
+    }
+
+    /** Sotilgan bo'yi: kv.metrda miqdor/eni, metrda miqdorning o'zi */
+    private Double sotilganBoyi(String birlik, double miqdor, Double eni, Double kiritilganMetr) {
+        if (MahsulotService.donami(birlik)) return null;
+        if ("metr".equals(birlik)) return yaxlit(miqdor);
+        if (eni != null && eni > 0) return yaxlit(miqdor / eni);
+        return kiritilganMetr;
+    }
+
+    /** Tarix/xabar uchun " (3 x 20 m)" ko'rinishidagi qo'shimcha */
+    private String olchamMatn(Sotuv s) {
+        if (s.getEni() == null || s.getBoyi() == null) return "";
+        return " (" + son(s.getEni()) + " x " + son(s.getBoyi()) + " m)";
     }
 
     // ================= QOLDIQ HISOBI =================
@@ -236,7 +408,7 @@ public class SotuvService {
         olchamlarniMoslash(m, qoldiq);
     }
 
-    /** Qaytarishda qoldiqni va tannarxni tiklaydi */
+    /** Qaytarishda (yoki KATM rad etganda) qoldiqni va tannarxni tiklaydi */
     private void kopaytir(Mahsulot m, double miqdor, long tannarx) {
         double bor = m.getMiqdor() == null ? 0 : m.getMiqdor();
         double qoldiq = yaxlit(bor + miqdor);
@@ -247,7 +419,7 @@ public class SotuvService {
 
     /**
      * Metr / kv.metr mahsulotlarda qoldiq o'zgargach bo'yi va kv ham o'zgaradi
-     * (eni saqlanadi). Dona uchun o'lchamlar tegilmaydi.
+     * (eni saqlanadi - eni hech qachon qirqilmaydi). Dona uchun o'lchamlar tegilmaydi.
      */
     private void olchamlarniMoslash(Mahsulot m, double qoldiq) {
         String b = m.getBirlik();
@@ -269,10 +441,10 @@ public class SotuvService {
         if (miqdor <= 0) {
             return "Miqdor 0 dan katta bo'lishi kerak";
         }
-        if (miqdor > bor + 0.0001) {
+        if (miqdor > bor + EPS) {
             return "Mahsulotda faqat " + son(bor) + " " + birlik(birlik) + " bor";
         }
-        if (MahsulotService.donami(birlik) && Math.abs(miqdor - Math.round(miqdor)) > 0.0001) {
+        if (MahsulotService.donami(birlik) && Math.abs(miqdor - Math.round(miqdor)) > EPS) {
             return "Dona uchun miqdor butun son bo'lishi kerak";
         }
         return null;

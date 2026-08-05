@@ -2,6 +2,7 @@ package com.example.baza.Entity;
 
 import com.example.baza.Configurations.AbstractLongEntity;
 import com.example.baza.Configurations.SotuvHolatiConverter;
+import com.example.baza.Configurations.SotuvTuriConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -22,6 +23,12 @@ import java.time.LocalDateTime;
  * Sotilganda mahsulotning qoldig'i (miqdor) kamayadi, tannarxi ham
  * proporsional ravishda ayriladi — shuning uchun foydani hisoblash mumkin.
  * Qaytarilganda hammasi teskarisiga tiklanadi.
+ *
+ * METRAJ (kv.metr) mahsulotda sotuvchi METR kiritadi (eni o'zgarmaydi):
+ *   3 m eni × 20 m bo'yi -> 60 kv.metr, narx ham 1 kv.metr uchun kiritiladi.
+ *
+ * KATM: mahsulot nasiyaga chiqarilganda holat KATMDA bo'ladi — mahsulot band
+ * (qoldiqdan chiqadi), lekin tushum/foydaga KATM tasdiqlagandan keyin qo'shiladi.
  */
 @AllArgsConstructor
 @NoArgsConstructor
@@ -46,13 +53,23 @@ public class Sotuv extends AbstractLongEntity {
     @JoinColumn(name = "magazin_id")
     private Magazin magazin;
 
-    /** Sotilgan miqdor (mahsulot birligida) */
+    /** Sotilgan miqdor (mahsulot birligida: dona / metr / kv.metr) */
     private Double miqdor;
 
     @Column(length = 20)
     private String birlik;
 
-    /** 1 birlik uchun sotuv narxi (so'mda) */
+    // ---- Metrlab sotuv (metraj mahsulotlar uchun) ----
+    /** Kesib berilgan bo'yi (metr) */
+    private Double boyi;
+
+    /** Mahsulotning eni (metr) — o'zgarmaydi, faqat bo'yi qirqiladi */
+    private Double eni;
+
+    /** Sotilgan kvadrat: boyi × eni (kv.metr mahsulotlarda = miqdor) */
+    private Double kv;
+
+    /** 1 birlik uchun sotuv narxi (so'mda) — metrajda 1 KV.METR uchun */
     private Long birlikNarxi;
 
     /** Umumiy summa = miqdor × birlikNarxi (so'mda) */
@@ -70,6 +87,13 @@ public class Sotuv extends AbstractLongEntity {
     @Column(length = 40)
     private String mijozTel;
 
+    /** KATM uchun — mijozning JSHSHIR (PINFL) raqami */
+    @Column(length = 20)
+    private String mijozJshshir;
+
+    /** Nasiya muddati (oy) — KATM sotuvida */
+    private Integer muddat;
+
     @Column(length = 500)
     private String izoh;
 
@@ -80,8 +104,26 @@ public class Sotuv extends AbstractLongEntity {
     private LocalDateTime vaqt;
 
     @Column(length = 20)
+    @Convert(converter = SotuvTuriConverter.class)
+    private SotuvTuri turi = SotuvTuri.NAQD;
+
+    @Column(length = 20)
     @Convert(converter = SotuvHolatiConverter.class)
     private SotuvHolati holat = SotuvHolati.SOTILDI;
+
+    // ---- KATM ----
+    /** KATMga o'tkazilgan vaqt */
+    private LocalDateTime katmVaqti;
+
+    /** KATM javobi (izoh: tasdiq sababi yoki rad etish sababi) */
+    @Column(length = 500)
+    private String katmJavobi;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "katm_javob_bergan_id")
+    private Users katmJavobBergan;
+
+    private LocalDateTime katmJavobVaqti;
 
     // ---- Qaytarish ----
     @ManyToOne(fetch = FetchType.LAZY)

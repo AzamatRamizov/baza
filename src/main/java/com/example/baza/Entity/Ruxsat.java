@@ -30,6 +30,8 @@ public enum Ruxsat {
     SOTUV_QILISH("Mahsulot sotish", "Sotuv"),
     SOTUV_KORISH("Sotuvlarni ko'rish", "Sotuv"),
     SOTUV_QAYTARISH("Sotuvni qaytarish (bekor qilish)", "Sotuv"),
+    KATM_OTKAZISH("Mahsulotni KATMga o'tkazish (nasiyaga chiqarish)", "Sotuv"),
+    KATM_JAVOB("KATM javobini belgilash (tasdiqlash yoki rad etish)", "Sotuv"),
 
     // ===== Tarix =====
     TARIX_KORISH("Amallar tarixini ko'rish", "Tarix");
