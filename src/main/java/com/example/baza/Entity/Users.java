@@ -68,6 +68,7 @@ public class Users extends AbstractLongEntity implements UserDetails {
         // Aks holda — barcha rollar ruxsatlarining birlashmasi
         return rollar.stream()
                 .flatMap(rol -> rol.getRuxsatlar().stream())
+                .filter(java.util.Objects::nonNull)   // bazadagi noma'lum kod -> null
                 .distinct()
                 .map(r -> new SimpleGrantedAuthority(r.name()))
                 .toList();

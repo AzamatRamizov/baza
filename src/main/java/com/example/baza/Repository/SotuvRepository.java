@@ -15,14 +15,18 @@ public interface SotuvRepository extends JpaRepository<Sotuv, Long> {
             select new com.example.baza.Dto.SotuvDto(
                 s.id, m.id, s.mahsulotNomi, s.mahsulotKod,
                 mag.id, mag.nomi,
-                s.miqdor, s.birlik, s.birlikNarxi, s.summa, s.tannarx, s.foyda,
-                s.mijozIsmi, s.mijozTel, s.izoh,
-                so.fish, s.vaqt, s.holat,
+                s.miqdor, s.birlik, s.boyi, s.eni, s.kv,
+                s.birlikNarxi, s.summa, s.tannarx, s.foyda,
+                s.mijozIsmi, s.mijozTel, s.mijozJshshir, s.muddat, s.oldindanTulov, s.izoh,
+                so.fish, s.vaqt, s.turi, s.holat,
+                s.katmVaqti, s.gilamgaYuborildi, s.gilamXato,
+                s.katmJavobi, kj.fish, s.katmJavobVaqti,
                 qa.fish, s.qaytarilganVaqt, s.qaytarishSababi)
             from Sotuv s
             left join s.mahsulot m
             left join s.magazin mag
             left join s.sotgan so
+            left join s.katmJavobBergan kj
             left join s.qaytargan qa
             """;
 

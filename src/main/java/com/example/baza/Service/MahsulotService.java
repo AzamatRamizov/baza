@@ -155,30 +155,40 @@ public class MahsulotService {
         if (dto.turi() == null || dto.turi().isBlank()) {
             return "Mahsulot turi tanlanishi shart";
         }
+
+        // Narx HAR DOIM 1 kv.metr uchun olinadi -> o'lchamlar majburiy
+        if (dto.boyi() == null || dto.boyi() <= 0 || dto.eni() == null || dto.eni() <= 0) {
+            return "Bo'yi va enini kiriting \u2014 narx 1 kv.metr uchun hisoblanadi";
+        }
+
+        if (gatoviymi(dto.turi())) {
+            // Gatoviy — dona bilan sanaladi, nechtaligi majburiy
+            if (dto.miqdor() == null || dto.miqdor() <= 0) {
+                return "Gatoviy mahsulot uchun nechtaligini kiriting";
+            }
+            if (Math.abs(dto.miqdor() - Math.round(dto.miqdor())) > 0.0001) {
+                return "Dona uchun miqdor butun son bo'lishi kerak";
+            }
+        }
         if (dto.zavodNarxi() != null && dto.zavodNarxi() < 0) {
             return "Zavod narxi manfiy bo'lishi mumkin emas";
         }
         if ((dto.boyi() != null && dto.boyi() < 0) || (dto.eni() != null && dto.eni() < 0)) {
             return "O'lchamlar manfiy bo'lishi mumkin emas";
         }
-        if (dto.miqdor() != null) {
-            if (dto.miqdor() <= 0) {
-                return "Miqdor 0 dan katta bo'lishi kerak";
-            }
-            if (donami(dto.birlik()) && Math.abs(dto.miqdor() - Math.round(dto.miqdor())) > 0.0001) {
-                return "Dona uchun miqdor butun son bo'lishi kerak";
-            }
+        if (dto.miqdor() != null && dto.miqdor() <= 0) {
+            return "Miqdor 0 dan katta bo'lishi kerak";
         }
         return null;
     }
 
     /**
-     * Zavod narxi BIR BIRLIK uchun kiritiladi, umumiy narx miqdorga ko'paytiriladi:
-     *   umumiy = miqdor * 1 birlik narxi
+     * Zavod narxi HAR DOIM 1 KV.METR uchun kiritiladi — dona soniga bog'liq emas.
+     * Umumiy narx jami kvadratga ko'paytiriladi:
+     *   umumiy = jamiKv * (1 kv.metr narxi)
      * Masalan:
-     *   kv.metr, 3x4 (miqdor = 12 kv), 3.3$ dan -> 12 * 3.3 = 39.6$
-     *   dona, 5 dona, 40$ dan                   -> 5 * 40 = 200$
-     *   metr, 25 metr, 6$ dan                   -> 25 * 6 = 150$
+     *   gatoviy, 3x4 (12 kv), 5 dona, 3.3$/kv -> 5*12 = 60 kv -> 60 * 3.3 = 198$
+     *   metraj,  3x100 (300 kv),      3.3$/kv -> 300 * 3.3 = 990$
      * - valyuta "USD" bo'lsa — CBU kursi bo'yicha so'mga (kurs topilmasa null),
      * - so'm bo'lsa — so'mligicha.
      */
@@ -193,11 +203,30 @@ public class MahsulotService {
             narx *= kurs.kurs();
         }
 
-        if (miqdor != null && miqdor > 0) {
-            narx *= miqdor;
+        Double kv = jamiKv(dto, miqdor);
+        if (kv != null && kv > 0) {
+            narx *= kv;      // narx 1 kv.metr uchun -> umumiy = jami kv × narx
         }
 
         return Math.round(narx);
+    }
+
+    /**
+     * Mahsulotning JAMI kvadrati (narx shu bo'yicha hisoblanadi):
+     *   gatoviy -> dona soni * (bo'yi * eni)     (5 ta 3x4 gilam = 60 kv)
+     *   metraj  -> miqdorning o'zi (u allaqachon kv.metrda)
+     */
+    static Double jamiKv(MahsulotSaveDto dto, Double miqdor) {
+        Double birKv = (dto.boyi() == null || dto.eni() == null)
+                ? null : yaxlit(dto.boyi() * dto.eni());
+
+        if (!gatoviymi(dto.turi())) {
+            return miqdor != null && miqdor > 0 ? miqdor : birKv;
+        }
+        if (birKv == null || birKv <= 0) return null;
+
+        double dona = miqdor == null || miqdor <= 0 ? 1 : miqdor;
+        return yaxlit(birKv * dona);
     }
 
     /**
@@ -205,17 +234,38 @@ public class MahsulotService {
      *   kv.metr -> kv (boyi * eni),  metr -> bo'yi,  dona -> 1
      */
     private Double miqdorniAniqla(MahsulotSaveDto dto) {
-        if (dto.miqdor() != null && dto.miqdor() > 0) {
-            return yaxlit(dto.miqdor());
+        String birlik = birlikniAniqla(dto.turi(), dto.eni());
+
+        // Gatoviy — foydalanuvchi kiritgan dona soni
+        if (donami(birlik)) {
+            return dto.miqdor() != null && dto.miqdor() > 0
+                    ? yaxlit((double) Math.round(dto.miqdor()))
+                    : 1.0;
         }
-        if ("kv.metr".equals(dto.birlik())) {
+
+        // Metraj — HAR DOIM o'lchamlardan hisoblanadi (qo'lda kiritilmaydi)
+        if ("kv.metr".equals(birlik)) {
             Double kv = kvHisobla(dto.boyi(), dto.eni());
             if (kv != null && kv > 0) return kv;
         }
-        if ("metr".equals(dto.birlik()) && dto.boyi() != null && dto.boyi() > 0) {
+        if (dto.boyi() != null && dto.boyi() > 0) {
             return yaxlit(dto.boyi());
         }
-        return 1.0;
+        return dto.miqdor() != null && dto.miqdor() > 0 ? yaxlit(dto.miqdor()) : 1.0;
+    }
+
+    /**
+     * Birlik TURI dan kelib chiqadi (formada alohida so'ralmaydi):
+     *   gatoviy -> dona
+     *   metraj  -> kv.metr (eni bo'lsa) / metr (eni bo'lmasa)
+     */
+    static String birlikniAniqla(String turi, Double eni) {
+        if (gatoviymi(turi)) return "dona";
+        return (eni != null && eni > 0) ? "kv.metr" : "metr";
+    }
+
+    static boolean gatoviymi(String turi) {
+        return turi == null || turi.isBlank() || "gatoviy".equalsIgnoreCase(turi.trim());
     }
 
     static boolean donami(String birlik) {
@@ -233,7 +283,7 @@ public class MahsulotService {
         mahsulot.setKategoriya(dto.kategoriyaId() == null
                 ? null
                 : kategoriyaRepository.findById(dto.kategoriyaId()).orElse(null));
-        mahsulot.setBirlik(dto.birlik());
+        mahsulot.setBirlik(birlikniAniqla(dto.turi(), dto.eni()));
         mahsulot.setZavodNarxi(narxSom);
         mahsulot.setBoyi(dto.boyi());
         mahsulot.setEni(dto.eni());

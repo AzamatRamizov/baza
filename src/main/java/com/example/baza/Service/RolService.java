@@ -43,7 +43,8 @@ public class RolService {
                 .map(r -> new RolDto(
                         r.getId(),
                         r.getNomi(),
-                        r.getRuxsatlar().stream().map(Enum::name).toList(),
+                        r.getRuxsatlar().stream().filter(Objects::nonNull)
+                                .map(Enum::name).toList(),
                         usersRepository.countByRollar_Id(r.getId()),
                         r.isTizimRoli(),
                         r.isMenejerKerak()))
@@ -146,7 +147,7 @@ public class RolService {
 
     private String kodlarMatn(LinkedHashSet<Ruxsat> ruxsatlar) {
         if (ruxsatlar == null || ruxsatlar.isEmpty()) return "—";
-        return ruxsatlar.stream().map(Enum::name)
+        return ruxsatlar.stream().filter(Objects::nonNull).map(Enum::name)
                 .collect(java.util.stream.Collectors.joining(", "));
     }
 

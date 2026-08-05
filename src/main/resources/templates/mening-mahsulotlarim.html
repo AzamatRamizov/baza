@@ -179,6 +179,37 @@
         .modal-error {
             color: var(--qizil); font-size: 13px; margin-top: 10px; text-align: center; display: none;
         }
+
+        /* Sotuv yo'nalishi: naqd / KATM */
+        .turi-tabs {
+            display: flex; gap: 8px; margin-bottom: 16px;
+            background-color: var(--fon2); border: 1px solid var(--chegara);
+            border-radius: 8px; padding: 4px;
+        }
+        .turi-tab {
+            flex: 1; padding: 9px 10px; border: none; border-radius: 6px;
+            background: transparent; color: var(--matn3); cursor: pointer;
+            font-size: 13px; font-weight: 700; font-family: inherit;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .turi-tab:hover { color: var(--matn); }
+        .turi-tab.faol { background-color: var(--kok); color: var(--karta); }
+        .turi-tab.faol[data-turi="KATM"] { background-color: var(--sariq-toq2); }
+
+        /* Metraj: kv avtomatik hisoblanadigan panel */
+        .kv-panel {
+            margin-top: 8px; padding: 10px 12px; border-radius: 8px;
+            background-color: var(--fon3); border: 1px solid var(--chegara-kok);
+            font-size: 13px; color: var(--matn2); line-height: 1.6;
+        }
+        .kv-panel b { color: var(--kok-toq); font-size: 15px; }
+        .kv-panel .xato { color: var(--qizil); font-weight: 600; }
+        .katm-info {
+            padding: 10px 12px; border-radius: 8px; margin-bottom: 14px;
+            background-color: var(--sariq-fon); border: 1px solid var(--sariq-chegara);
+            color: var(--sariq-toq2); font-size: 12.5px; line-height: 1.55;
+        }
+        .modal-actions .katm-btn { background-color: var(--sariq-toq2); }
     </style>
 </head>
 <body>
@@ -277,10 +308,30 @@
 <!-- Sotish modali -->
 <div class="modal-overlay" id="sotuvOverlay">
     <div class="modal">
-        <h2>Mahsulotni sotish</h2>
+        <h2 id="sotuvSarlavha">Mahsulotni sotish</h2>
         <div class="mahsulot-nomi" id="sotuvMahsulot">—</div>
 
-        <div class="form-group">
+        <!-- Yo'nalish: naqd sotuv yoki KATMga o'tkazish -->
+        <div class="turi-tabs">
+            <button type="button" class="turi-tab faol" data-turi="NAQD">Naqd sotuv</button>
+            <button type="button" class="turi-tab" data-turi="KATM">KATMga o'tkazish</button>
+        </div>
+
+        <div class="katm-info" id="katmInfo" style="display:none">
+            So'rov <b>gilam dasturiga</b> yuboriladi — shartnoma o'sha yerda tuziladi.
+            Mahsulot javob kelguncha <b>band</b> qilinadi (qoldiqdan chiqadi).
+            Shartnoma tuzilsa — sotuv yakunlanadi, rad etilsa — qoldiq tiklanadi.
+        </div>
+
+        <!-- METRAJ: faqat bo'yi (metr) so'raladi, eni qirqilmaydi -->
+        <div class="form-group" id="metrGroup" style="display:none">
+            <label for="s_metr">Sotiladigan bo'yi (metr) *</label>
+            <input type="number" id="s_metr" min="0" step="0.01" placeholder="0">
+            <div class="kv-panel" id="kvPanel"></div>
+        </div>
+
+        <!-- DONA (yoki o'lchamsiz mahsulot) -->
+        <div class="form-group" id="miqdorGroup">
             <label for="s_miqdor" id="sotuvMiqdorLabel">Sotiladigan miqdor *</label>
             <input type="number" id="s_miqdor" min="0" step="0.01" placeholder="0">
             <div class="miqdor-hint" id="sotuvMiqdorHint"></div>
@@ -299,13 +350,30 @@
         </div>
 
         <div class="form-group">
-            <label for="s_mijoz">Mijoz (ixtiyoriy)</label>
+            <label for="s_mijoz" id="sotuvMijozLabel">Mijoz (ixtiyoriy)</label>
             <input type="text" id="s_mijoz" placeholder="Ism familiya" autocomplete="off">
         </div>
 
         <div class="form-group">
             <label for="s_tel">Telefon (ixtiyoriy)</label>
             <input type="text" id="s_tel" placeholder="+998 90 123 45 67" autocomplete="off">
+        </div>
+
+        <!-- Faqat KATM uchun -->
+        <div id="katmMaydonlar" style="display:none">
+            <div class="form-group">
+                <label for="s_jshshir">JSHSHIR (PINFL)</label>
+                <input type="text" id="s_jshshir" placeholder="14 raqam" autocomplete="off" maxlength="14">
+            </div>
+            <div class="form-group">
+                <label for="s_muddat">Nasiya muddati (oy)</label>
+                <input type="number" id="s_muddat" min="1" max="60" step="1" placeholder="Masalan: 12">
+            </div>
+            <div class="form-group">
+                <label for="s_oldindan">Oldindan to'lov (so'm)</label>
+                <input type="number" id="s_oldindan" min="0" step="1000" placeholder="0">
+                <div class="miqdor-hint">Naqd olingan boshlang'ich to'lov — gilamdagi shartnomaga o'tadi</div>
+            </div>
         </div>
 
         <div class="form-group">
@@ -568,82 +636,211 @@
         }
     });
 
-    // ===== Sotish modali =====
+    // ===== Sotish modali (naqd / KATM) =====
     const sotuvOverlay = document.getElementById('sotuvOverlay');
     const sotuvError = document.getElementById('sotuvError');
     let sotilayotgan = null;
+    let sotuvTuri = 'NAQD';           // NAQD | KATM
+
+    /** Metraj (kesib sotiladigan) mahsulotmi */
+    function metrajmi(m) {
+        return m && (m.birlik === 'kv.metr' || m.birlik === 'metr');
+    }
+
+    function yaxlit2(n) { return Math.round(n * 100) / 100; }
+
+    /**
+     * Kiritilgan METR ni mahsulot birligidagi miqdorga aylantiradi:
+     *   kv.metr -> metr * eni,   metr -> metr
+     * Butun bo'yi olinsa - aniq qoldiq (yaxlitlash xatosi bo'lmasin).
+     */
+    function metrniMiqdorga(m, metr) {
+        if (!(metr > 0)) return NaN;
+        const borMetr = m.boyi || 0;
+        if (borMetr > 0 && metr >= borMetr - 0.0001) return m.miqdor;
+        if (m.birlik === 'metr') return yaxlit2(metr);
+        const eni = m.eni || 0;
+        if (!(eni > 0)) return NaN;
+        return yaxlit2(metr * eni);
+    }
+
+    /** 1 dona/parchaning kvadrati */
+    function birKv(m) {
+        if (!m || !m.boyi || !m.eni) return null;
+        return Math.round(m.boyi * m.eni * 100) / 100;
+    }
+
+    /**
+     * Narx hisoblanadigan JAMI kvadrat (dona soniga bog'liq emas):
+     *   dona   -> dona soni × (bo'yi × eni)
+     *   metraj -> miqdor (allaqachon kv.metr)
+     */
+    function jamiKv(m, miqdor) {
+        if (!m || isNaN(miqdor) || miqdor <= 0) return null;
+        if (m.birlik === 'kv.metr') return miqdor;
+        const bir = birKv(m);
+        if (bir == null) return null;
+        return Math.round(bir * miqdor * 100) / 100;
+    }
+
+    /** Formadan sotiladigan miqdor (mahsulot birligida) */
+    function sotuvMiqdori() {
+        if (!sotilayotgan) return NaN;
+        if (metrajmi(sotilayotgan)) {
+            return metrniMiqdorga(sotilayotgan, parseFloat(document.getElementById('s_metr').value));
+        }
+        return parseFloat(document.getElementById('s_miqdor').value);
+    }
 
     function sotuvHintYangila() {
         if (!sotilayotgan) return;
 
-        const bor = sotilayotgan.miqdor || 0;
-        const birlik = sotilayotgan.birlik || 'dona';
-        const q = parseFloat(document.getElementById('s_miqdor').value);
+        const m = sotilayotgan;
+        const bor = m.miqdor || 0;
+        const birlik = m.birlik || 'dona';
         const narx = parseFloat(document.getElementById('s_narx').value);
         const valyuta = document.getElementById('s_valyuta').value;
+        const miqdor = sotuvMiqdori();
 
-        // Miqdor izohi
-        const mHint = document.getElementById('sotuvMiqdorHint');
-        if (isNaN(q) || q <= 0) {
-            mHint.innerHTML = 'Mavjud qoldiq: <b>' + bor + ' ' + esc(birlik) + '</b>';
-        } else if (q > bor + 0.0001) {
-            mHint.innerHTML = '<span class="qism">Mahsulotda faqat ' + bor + ' ' + esc(birlik) + ' bor</span>';
-        } else if (q >= bor - 0.0001) {
-            mHint.innerHTML = 'Butun qoldiq sotiladi — <b>mahsulot tugaydi</b>';
+        if (metrajmi(m)) {
+            // ---- Metraj: kv avtomatik ----
+            const panel = document.getElementById('kvPanel');
+            const metr = parseFloat(document.getElementById('s_metr').value);
+            const eni = m.eni || 0;
+            const borMetr = m.boyi || 0;
+
+            if (isNaN(metr) || metr <= 0) {
+                panel.innerHTML = 'Mavjud: <b>' + borMetr + ' m</b> bo\u2018yi' +
+                    (eni ? ', eni <b>' + eni + ' m</b>' : '') +
+                    ' \u2014 jami <b>' + bor + ' ' + esc(birlik) + '</b>';
+            } else if (metr > borMetr + 0.0001) {
+                panel.innerHTML = '<span class="xato">Mahsulotda faqat ' + borMetr + ' metr bor</span>';
+            } else if (m.birlik === 'kv.metr') {
+                panel.innerHTML = yaxlit2(metr) + ' m \u00D7 ' + eni + ' m (eni) = <b>' +
+                    miqdor + ' kv.metr</b><br>' +
+                    'Qolgan bo\u2018yi: <b>' + yaxlit2(borMetr - metr) + ' m</b> (' +
+                    yaxlit2(bor - miqdor) + ' kv.metr)';
+            } else {
+                panel.innerHTML = 'Sotiladi: <b>' + yaxlit2(metr) + ' metr</b><br>' +
+                    'Qoladi: <b>' + yaxlit2(borMetr - metr) + ' metr</b>';
+            }
         } else {
-            mHint.innerHTML = 'Sotilgach <b>' + (Math.round((bor - q) * 100) / 100) +
-                ' ' + esc(birlik) + '</b> qoladi';
+            // ---- Dona ----
+            const mHint = document.getElementById('sotuvMiqdorHint');
+            if (isNaN(miqdor) || miqdor <= 0) {
+                mHint.innerHTML = 'Mavjud qoldiq: <b>' + bor + ' ' + esc(birlik) + '</b>';
+            } else if (miqdor > bor + 0.0001) {
+                mHint.innerHTML = '<span class="qism">Mahsulotda faqat ' + bor + ' ' + esc(birlik) + ' bor</span>';
+            } else if (miqdor >= bor - 0.0001) {
+                mHint.innerHTML = 'Butun qoldiq sotiladi \u2014 <b>mahsulot tugaydi</b>';
+            } else {
+                mHint.innerHTML = 'Sotilgach <b>' + yaxlit2(bor - miqdor) + ' ' + esc(birlik) + '</b> qoladi';
+            }
         }
 
-        // Jami summa
+        // ---- Jami summa: narx HAR DOIM 1 kv.metr uchun ----
         const jHint = document.getElementById('sotuvJamiHint');
-        if (isNaN(q) || q <= 0 || isNaN(narx) || narx <= 0) {
+        if (isNaN(miqdor) || miqdor <= 0 || isNaN(narx) || narx <= 0) {
             jHint.textContent = '';
         } else {
-            const jami = Math.round(q * narx * 100) / 100;
-            jHint.innerHTML = 'Jami: <b>' + jami.toLocaleString('ru-RU') + ' ' +
+            const kv = jamiKv(m, miqdor);
+            const asos = kv != null ? kv : miqdor;
+            const jami = yaxlit2(asos * narx);
+            const chap = (kv != null && m.birlik !== 'kv.metr')
+                ? miqdor + ' ' + esc(birlik) + ' \u00D7 ' + birKv(m) + ' kv = ' + kv + ' kv.metr'
+                : asos + ' ' + (kv != null ? 'kv.metr' : esc(birlik));
+
+            jHint.innerHTML = chap + ' \u00D7 ' +
+                narx.toLocaleString('ru-RU') + ' = <b>' + jami.toLocaleString('ru-RU') + ' ' +
                 (valyuta === 'USD' ? '$' : 'so\u2018m') + '</b>' +
                 (valyuta === 'USD' ? ' <span class="qism">(kurs bo\u2018yicha so\u2018mga aylantiriladi)</span>' : '');
         }
     }
 
-    ['s_miqdor', 's_narx', 's_valyuta'].forEach(id =>
+    ['s_miqdor', 's_metr', 's_narx', 's_valyuta'].forEach(id =>
         document.getElementById(id).addEventListener('input', sotuvHintYangila));
     document.getElementById('s_valyuta').addEventListener('change', sotuvHintYangila);
+
+    // ===== Naqd / KATM almashtirish =====
+    function turiniQoy(turi) {
+        sotuvTuri = turi;
+        document.querySelectorAll('.turi-tab').forEach(b =>
+            b.classList.toggle('faol', b.dataset.turi === turi));
+
+        const katm = turi === 'KATM';
+        document.getElementById('katmInfo').style.display = katm ? 'block' : 'none';
+        document.getElementById('katmMaydonlar').style.display = katm ? 'block' : 'none';
+        document.getElementById('sotuvSarlavha').textContent =
+            katm ? 'KATMga o\u2018tkazish' : 'Mahsulotni sotish';
+        document.getElementById('sotuvMijozLabel').textContent =
+            katm ? 'Mijoz *' : 'Mijoz (ixtiyoriy)';
+
+        const btn = document.getElementById('sotuvSaveBtn');
+        btn.textContent = katm ? 'KATMga o\u2018tkazish' : 'Sotish';
+        btn.classList.toggle('katm-btn', katm);
+    }
+
+    document.querySelectorAll('.turi-tab').forEach(btn =>
+        btn.addEventListener('click', () => turiniQoy(btn.dataset.turi)));
 
     function sotuvModalOchish(mahsulot) {
         sotilayotgan = mahsulot;
         sotuvError.style.display = 'none';
+        turiniQoy('NAQD');
 
         const birlik = mahsulot.birlik || 'dona';
-        const miqdorInput = document.getElementById('s_miqdor');
-        miqdorInput.step = birlik === 'dona' ? '1' : '0.01';
-        miqdorInput.max = mahsulot.miqdor != null ? mahsulot.miqdor : '';
-        miqdorInput.value = birlik === 'dona' ? 1 : (mahsulot.miqdor != null ? mahsulot.miqdor : '');
+        const metraj = metrajmi(mahsulot);
 
-        document.getElementById('sotuvMiqdorLabel').textContent =
-            'Sotiladigan miqdor (' + birlik + ') *';
+        // Metraj bo'lsa metr maydoni, aks holda oddiy miqdor maydoni
+        document.getElementById('metrGroup').style.display = metraj ? 'block' : 'none';
+        document.getElementById('miqdorGroup').style.display = metraj ? 'none' : 'block';
+
+        const metrInput = document.getElementById('s_metr');
+        const miqdorInput = document.getElementById('s_miqdor');
+
+        if (metraj) {
+            metrInput.step = '0.01';
+            metrInput.max = mahsulot.boyi != null ? mahsulot.boyi : '';
+            metrInput.value = '';
+        } else {
+            miqdorInput.step = birlik === 'dona' ? '1' : '0.01';
+            miqdorInput.max = mahsulot.miqdor != null ? mahsulot.miqdor : '';
+            miqdorInput.value = birlik === 'dona' ? 1 : (mahsulot.miqdor != null ? mahsulot.miqdor : '');
+            document.getElementById('sotuvMiqdorLabel').textContent =
+                'Sotiladigan miqdor (' + birlik + ') *';
+        }
+
         document.getElementById('sotuvNarxLabel').textContent =
-            'Sotuv narxi (1 ' + birlik + ' uchun) *';
+            (mahsulot.boyi && mahsulot.eni)
+                ? 'Sotuv narxi (1 kv.metr uchun) *'
+                : 'Sotuv narxi (1 ' + birlik + ' uchun) *';
 
         document.getElementById('s_narx').value = '';
         document.getElementById('s_valyuta').value = 'UZS';
         document.getElementById('s_mijoz').value = '';
         document.getElementById('s_tel').value = '';
+        document.getElementById('s_jshshir').value = '';
+        document.getElementById('s_muddat').value = '';
+        document.getElementById('s_oldindan').value = '';
         document.getElementById('s_izoh').value = '';
 
-        // Tannarx — sotuvchi zarariga sotmasligi uchun ko'rsatkich
-        const tannarxBir = (mahsulot.zavodNarxi != null && mahsulot.miqdor > 0)
-            ? Math.round(mahsulot.zavodNarxi / mahsulot.miqdor) : null;
+        // Tannarx (1 kv.metr uchun) - sotuvchi zarariga sotmasligi uchun ko'rsatkich
+        const borKv = jamiKv(mahsulot, mahsulot.miqdor);
+        const tannarxBir = (mahsulot.zavodNarxi != null && borKv > 0)
+            ? Math.round(mahsulot.zavodNarxi / borKv) : null;
+        const olcham = metraj && mahsulot.eni
+            ? ' \u2014 o\u2018lcham: <b>' + mahsulot.eni + ' \u00D7 ' + (mahsulot.boyi || 0) + ' m</b>'
+            : '';
         document.getElementById('sotuvMahsulot').innerHTML =
-            '<b>' + esc(mahsulot.nomi) + '</b> (' + esc(mahsulot.kod) + ') — qoldiq: <b>' +
-            (mahsulot.miqdor != null ? mahsulot.miqdor : '—') + ' ' + esc(birlik) + '</b>' +
+            '<b>' + esc(mahsulot.nomi) + '</b> (' + esc(mahsulot.kod) + ')' + olcham +
+            ' \u2014 qoldiq: <b>' +
+            (mahsulot.miqdor != null ? mahsulot.miqdor : '\u2014') + ' ' + esc(birlik) + '</b>' +
             (tannarxBir ? ', tannarx: <b>' + tannarxBir.toLocaleString('ru-RU') +
-                ' so\u2018m</b>/' + esc(birlik) : '');
+                ' so\u2018m</b>/kv.metr' : '');
 
         sotuvHintYangila();
         sotuvOverlay.classList.add('open');
-        miqdorInput.focus();
+        (metraj ? metrInput : miqdorInput).focus();
     }
 
     function sotuvModalYopish() {
@@ -658,34 +855,58 @@
         if (!sotilayotgan) return;
         sotuvError.style.display = 'none';
 
-        const bor = sotilayotgan.miqdor || 0;
-        const birlik = sotilayotgan.birlik || 'dona';
-        const miqdor = parseFloat(document.getElementById('s_miqdor').value);
+        const m = sotilayotgan;
+        const bor = m.miqdor || 0;
+        const birlik = m.birlik || 'dona';
+        const metraj = metrajmi(m);
+        const metr = parseFloat(document.getElementById('s_metr').value);
+        const miqdor = sotuvMiqdori();
         const narx = parseFloat(document.getElementById('s_narx').value);
+        const mijoz = document.getElementById('s_mijoz').value.trim();
 
         function xato(matn) {
             sotuvError.textContent = matn;
             sotuvError.style.display = 'block';
         }
 
-        if (isNaN(miqdor) || miqdor <= 0) return xato('Sotiladigan miqdorni kiriting');
-        if (miqdor > bor + 0.0001) return xato('Mahsulotda faqat ' + bor + ' ' + birlik + ' bor');
-        if (birlik === 'dona' && !Number.isInteger(miqdor)) {
-            return xato('Dona uchun miqdor butun son bo\u2018lishi kerak');
+        if (metraj) {
+            if (isNaN(metr) || metr <= 0) return xato('Sotiladigan bo\u2018yini (metr) kiriting');
+            if (metr > (m.boyi || 0) + 0.0001) {
+                return xato('Mahsulotda faqat ' + (m.boyi || 0) + ' metr bor');
+            }
+            if (isNaN(miqdor)) return xato('Mahsulotning eni kiritilmagan \u2014 kv hisoblanmadi');
+        } else {
+            if (isNaN(miqdor) || miqdor <= 0) return xato('Sotiladigan miqdorni kiriting');
+            if (birlik === 'dona' && !Number.isInteger(miqdor)) {
+                return xato('Dona uchun miqdor butun son bo\u2018lishi kerak');
+            }
         }
+        if (miqdor > bor + 0.0001) return xato('Mahsulotda faqat ' + bor + ' ' + birlik + ' bor');
         if (isNaN(narx) || narx <= 0) return xato('Sotuv narxini kiriting');
+        if (sotuvTuri === 'KATM' && !mijoz) {
+            return xato('KATMga o\u2018tkazish uchun mijoz ismini kiriting');
+        }
+
+        const muddat = parseInt(document.getElementById('s_muddat').value, 10);
+        const oldindan = parseInt(document.getElementById('s_oldindan').value, 10);
+        const url = sotuvTuri === 'KATM' ? '/admin/katmga-otkazish' : '/admin/sotish';
 
         try {
-            const res = await fetch('/admin/sotish', {
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mahsulotId: sotilayotgan.id,
-                    miqdor: miqdor,
+                    mahsulotId: m.id,
+                    metr: metraj ? metr : null,
+                    miqdor: metraj ? null : miqdor,
                     birlikNarxi: narx,
                     valyuta: document.getElementById('s_valyuta').value,
-                    mijozIsmi: document.getElementById('s_mijoz').value.trim() || null,
+                    mijozIsmi: mijoz || null,
                     mijozTel: document.getElementById('s_tel').value.trim() || null,
+                    mijozJshshir: sotuvTuri === 'KATM'
+                        ? (document.getElementById('s_jshshir').value.trim() || null) : null,
+                    muddat: sotuvTuri === 'KATM' && !isNaN(muddat) ? muddat : null,
+                    oldindanTulov: sotuvTuri === 'KATM' && !isNaN(oldindan) ? oldindan : null,
                     izoh: document.getElementById('s_izoh').value.trim() || null
                 })
             });

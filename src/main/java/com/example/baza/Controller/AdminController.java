@@ -19,6 +19,7 @@ import com.example.baza.Dto.ProfilUpdateDto;
 import com.example.baza.Dto.RolDto;
 import com.example.baza.Dto.RolSaveDto;
 import com.example.baza.Dto.RuxsatDto;
+import com.example.baza.Dto.KatmJavobDto;
 import com.example.baza.Dto.SotuvDto;
 import com.example.baza.Dto.SotuvJavobDto;
 import com.example.baza.Dto.SotuvSaveDto;
@@ -403,6 +404,42 @@ public class AdminController {
     public ResponseEntity<ApiResponse> sotish(Authentication authentication,
                                               @RequestBody SotuvSaveDto dto) {
         ApiResponse res = sotuvService.sotish(authentication.getName(), dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /** Mahsulotni KATMga o'tkazish - mahsulot band bo'ladi, javob kutiladi */
+    @PostMapping("/katmga-otkazish")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KATM_OTKAZISH')")
+    public ResponseEntity<ApiResponse> katmgaOtkazish(Authentication authentication,
+                                                      @RequestBody SotuvSaveDto dto) {
+        ApiResponse res = sotuvService.katmgaOtkazish(authentication.getName(), dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /** Gilamga yuborilmay qolgan KATM so'rovini qayta yuborish */
+    @PostMapping("/katm-qayta-yuborish/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KATM_OTKAZISH')")
+    public ResponseEntity<ApiResponse> katmQaytaYuborish(Authentication authentication,
+                                                         @PathVariable Long id) {
+        ApiResponse res = sotuvService.qaytaYuborish(authentication.getName(), id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /**
+     * KATM javobi. Odatda javob GILAM dasturidan keladi (POST /api/katm/javob),
+     * bu endpoint esa qo'lda bekor qilish uchun: tasdiq=false -> mahsulot qaytadi.
+     */
+    @PostMapping("/katm-javob/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KATM_JAVOB')")
+    public ResponseEntity<ApiResponse> katmJavob(Authentication authentication,
+                                                 @PathVariable Long id,
+                                                 @RequestBody KatmJavobDto dto) {
+        ApiResponse res = sotuvService.katmJavobi(authentication.getName(), id,
+                dto != null && Boolean.TRUE.equals(dto.tasdiq()),
+                dto == null ? null : dto.izoh());
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 

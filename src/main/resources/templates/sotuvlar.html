@@ -99,6 +99,37 @@
             background-color: var(--fon5); color: var(--matn3);
             border: 1px solid var(--chegara);
         }
+        .holat-KATMDA {
+            background-color: var(--sariq-fon); color: var(--sariq-toq2);
+            border: 1px solid var(--sariq-chegara);
+        }
+        .holat-KATM_RAD {
+            background-color: var(--qizil-fon); color: var(--qizil);
+            border: 1px solid var(--qizil-3);
+        }
+        .turi-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 700; margin-left: 6px;
+            background-color: var(--sariq-fon); color: var(--sariq-toq2);
+            border: 1px solid var(--sariq-chegara);
+        }
+        .olcham { display: block; font-size: 11.5px; color: var(--matn4); margin-top: 2px; }
+        tr.katmda td { background-color: var(--sariq-fon2, var(--fon2)); }
+
+        .tasdiq-btn, .rad-btn {
+            padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit; margin-right: 5px;
+        }
+        .tasdiq-btn {
+            background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border: 1px solid var(--yashil-chegara);
+        }
+        .tasdiq-btn:hover { background-color: var(--yashil-chegara); }
+        .rad-btn {
+            background-color: var(--qizil-fon); color: var(--qizil);
+            border: 1px solid var(--qizil-3);
+        }
+        .rad-btn:hover { background-color: var(--qizil-2); }
 
         .qaytar-btn {
             padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 600;
@@ -137,6 +168,16 @@
                 <label for="fSanagacha">Sanagacha</label>
                 <input type="date" id="fSanagacha">
             </div>
+            <div class="filtr">
+                <label for="fHolat">Holat</label>
+                <select id="fHolat">
+                    <option value="">Barchasi</option>
+                    <option value="SOTILDI">Sotilgan</option>
+                    <option value="KATMDA">KATMda (javob kutilmoqda)</option>
+                    <option value="KATM_RAD">KATM rad etgan</option>
+                    <option value="QAYTARILDI">Qaytarilgan</option>
+                </select>
+            </div>
             <div class="filtr qidiruv">
                 <label for="fQidiruv">Qidirish</label>
                 <input type="text" id="fQidiruv" placeholder="Mahsulot, kod, mijoz, sotuvchi...">
@@ -161,6 +202,10 @@
                 <div class="qiymat" id="statFoyda">—</div>
             </div>
             <div class="stat">
+                <div class="nom">KATMda (javob kutilmoqda)</div>
+                <div class="qiymat" id="statKatm">—</div>
+            </div>
+            <div class="stat">
                 <div class="nom">Qaytarilgan</div>
                 <div class="qiymat" id="statQaytarilgan">—</div>
             </div>
@@ -175,7 +220,7 @@
                     <th>Mahsulot</th>
                     <th>Kodi</th>
                     <th>Miqdor</th>
-                    <th>Birlik narxi</th>
+                    <th>Narx (1 kv)</th>
                     <th>Summa</th>
                     <th>Foyda</th>
                     <th>Mijoz</th>
@@ -198,6 +243,7 @@
     const fSanadan = document.getElementById('fSanadan');
     const fSanagacha = document.getElementById('fSanagacha');
     const fQidiruv = document.getElementById('fQidiruv');
+    const fHolat = document.getElementById('fHolat');
 
     let sotuvlar = [];
     let kutish = null;
@@ -232,25 +278,35 @@
 
     // ===== Statistika =====
     function statlarniYangila(list) {
+        // Tushum/foyda faqat yakunlangan sotuvlardan (KATMda - hali javob yo'q)
         const sotilgan = list.filter(s => s.holat === 'SOTILDI');
+        const katmda = list.filter(s => s.holat === 'KATMDA');
+        const qaytarilgan = list.filter(s => s.holat === 'QAYTARILDI' || s.holat === 'KATM_RAD');
+
         const summa = sotilgan.reduce((a, s) => a + (s.summa || 0), 0);
         const foyda = sotilgan.reduce((a, s) => a + (s.foyda || 0), 0);
-        const qaytarilgan = list.length - sotilgan.length;
+        const katmSumma = katmda.reduce((a, s) => a + (s.summa || 0), 0);
 
         document.getElementById('statSoni').textContent = sotilgan.length;
         document.getElementById('statSumma').innerHTML = pul(summa) + ' <small>so\u2018m</small>';
         document.getElementById('statFoyda').innerHTML = pul(foyda) + ' <small>so\u2018m</small>';
-        document.getElementById('statQaytarilgan').textContent = qaytarilgan;
+        document.getElementById('statKatm').innerHTML = katmda.length +
+            ' <small>ta / ' + pul(katmSumma) + ' so\u2018m</small>';
+        document.getElementById('statQaytarilgan').textContent = qaytarilgan.length;
     }
 
     // ===== Jadval =====
     function jadvalniChiz() {
         const q = fQidiruv.value.trim().toLowerCase();
-        const list = !q ? sotuvlar : sotuvlar.filter(s =>
+        const h = fHolat.value;
+        let list = sotuvlar;
+        if (h) list = list.filter(s => s.holat === h);
+        if (q) list = list.filter(s =>
             (s.mahsulotNomi || '').toLowerCase().includes(q) ||
             (s.mahsulotKod || '').toLowerCase().includes(q) ||
             (s.mijozIsmi || '').toLowerCase().includes(q) ||
             (s.mijozTel || '').toLowerCase().includes(q) ||
+            (s.mijozJshshir || '').toLowerCase().includes(q) ||
             (s.sotganFish || '').toLowerCase().includes(q) ||
             (s.magazinNomi || '').toLowerCase().includes(q)
         );
@@ -261,35 +317,77 @@
 
         if (!list.length) {
             tbody.innerHTML = '<tr class="empty-row"><td colspan="13">' +
-                (q ? 'Qidiruv bo\u2018yicha hech narsa topilmadi'
-                   : 'Bu davrda sotuv bo\u2018lmagan') + '</td></tr>';
+                (q || h ? 'Filtr bo\u2018yicha hech narsa topilmadi'
+                       : 'Bu davrda sotuv bo\u2018lmagan') + '</td></tr>';
             return;
         }
 
+        const holatNomi = {
+            SOTILDI: 'Sotildi', KATMDA: 'KATMda',
+            KATM_RAD: 'KATM rad etdi', QAYTARILDI: 'Qaytarildi'
+        };
+
         tbody.innerHTML = list.map(s => {
-            const qayt = s.holat === 'QAYTARILDI';
-            const mijoz = [s.mijozIsmi, s.mijozTel].filter(Boolean).map(esc).join('<br>');
+            const katmda = s.holat === 'KATMDA';
+            const ochiq = s.holat === 'SOTILDI';
+            const yopiq = s.holat === 'QAYTARILDI' || s.holat === 'KATM_RAD';
+            const mijoz = [s.mijozIsmi, s.mijozTel, s.mijozJshshir].filter(Boolean).map(esc).join('<br>');
+
+            // Metrajda o'lcham: 60 kv.metr / 3 x 20 m
+            const olcham = (s.boyi != null && s.eni != null)
+                ? '<span class="olcham">' + s.eni + ' \u00D7 ' + s.boyi + ' m</span>' : '';
+
+            let izohMatn = '';
+            if (katmda) {
+                const qismlar = [];
+                if (s.muddat) qismlar.push(s.muddat + ' oy');
+                if (s.oldindanTulov) qismlar.push('oldindan ' + pul(s.oldindanTulov));
+                qismlar.push(s.gilamgaYuborildi
+                    ? 'gilamga yuborildi'
+                    : 'yuborilmadi' + (s.gilamXato ? ': ' + esc(s.gilamXato) : ''));
+                izohMatn = '<div class="muted" style="font-size:11px;margin-top:3px">' +
+                    qismlar.join(' \u00B7 ') + '</div>';
+            }
+
+            let amal;
+            if (katmda) {
+                // Tasdiqlash GILAM dasturida bo'ladi. Bu yerda faqat qayta yuborish
+                // yoki (javob kelmasa) bekor qilib mahsulotni qaytarib olish mumkin.
+                amal = (s.gilamgaYuborildi ? '' :
+                        '<button class="tasdiq-btn" data-yubor="' + s.id + '" data-name="' +
+                        esc(s.mahsulotNomi) + '">Qayta yuborish</button>') +
+                    '<button class="rad-btn" data-rad="' + s.id + '" data-name="' +
+                    esc(s.mahsulotNomi) + '">Bekor qilish</button>';
+            } else if (ochiq) {
+                amal = '<button class="qaytar-btn" data-id="' + s.id + '" data-name="' +
+                    esc(s.mahsulotNomi) + '">Qaytarish</button>';
+            } else {
+                amal = '<span class="muted">\u2014</span>';
+            }
+
             return `
-            <tr class="${qayt ? 'qaytarilgan' : ''}">
+            <tr class="${yopiq ? 'qaytarilgan' : ''} ${katmda ? 'katmda' : ''}">
                 <td class="muted">${s.id}</td>
                 <td class="vaqt">${vaqtFormat(s.vaqt)}</td>
-                <td><b>${esc(s.mahsulotNomi)}</b></td>
-                <td>${esc(s.mahsulotKod) || '<span class="muted">—</span>'}</td>
-                <td>${s.miqdor} <span class="muted">${esc(s.birlik)}</span></td>
-                <td>${pul(s.birlikNarxi)}</td>
+                <td>
+                    <b>${esc(s.mahsulotNomi)}</b>
+                    ${s.turi === 'KATM' ? '<span class="turi-badge">KATM</span>' : ''}
+                </td>
+                <td>${esc(s.mahsulotKod) || '<span class="muted">\u2014</span>'}</td>
+                <td>${s.miqdor} <span class="muted">${esc(s.birlik)}</span>${olcham}</td>
+                <td>${pul(s.birlikNarxi)}${s.kv ? '<span class="olcham">' + s.kv + ' kv.metr</span>' : ''}</td>
                 <td class="summa">${pul(s.summa)}</td>
-                <td class="foyda ${(s.foyda || 0) < 0 ? 'manfiy' : ''}">${pul(s.foyda)}</td>
-                <td>${mijoz || '<span class="muted">—</span>'}</td>
-                <td>${esc(s.magazinNomi) || '<span class="muted">—</span>'}</td>
-                <td>${esc(s.sotganFish) || '<span class="muted">—</span>'}</td>
+                <td class="foyda ${(s.foyda || 0) < 0 ? 'manfiy' : ''}">${katmda ? '<span class="muted">\u2014</span>' : pul(s.foyda)}</td>
+                <td>${mijoz || '<span class="muted">\u2014</span>'}</td>
+                <td>${esc(s.magazinNomi) || '<span class="muted">\u2014</span>'}</td>
+                <td>${esc(s.sotganFish) || '<span class="muted">\u2014</span>'}</td>
                 <td>
-                    <span class="holat holat-${s.holat}">${qayt ? 'Qaytarildi' : 'Sotildi'}</span>
-                    ${qayt && s.qaytarishSababi ? '<div class="muted" style="font-size:11px;margin-top:3px">' + esc(s.qaytarishSababi) + '</div>' : ''}
+                    <span class="holat holat-${s.holat}">${holatNomi[s.holat] || esc(s.holat)}</span>
+                    ${izohMatn}
+                    ${s.qaytarishSababi ? '<div class="muted" style="font-size:11px;margin-top:3px">' + esc(s.qaytarishSababi) + '</div>' : ''}
+                    ${s.katmJavobi ? '<div class="muted" style="font-size:11px;margin-top:3px">' + esc(s.katmJavobi) + '</div>' : ''}
                 </td>
-                <td>
-                    ${qayt ? '<span class="muted">—</span>'
-                           : `<button class="qaytar-btn" data-id="${s.id}" data-name="${esc(s.mahsulotNomi)}">Qaytarish</button>`}
-                </td>
+                <td>${amal}</td>
             </tr>`;
         }).join('');
     }
@@ -316,6 +414,7 @@
     // ===== Filtrlar =====
     fSanadan.addEventListener('change', () => { oraliqniBoshat(); load(); });
     fSanagacha.addEventListener('change', () => { oraliqniBoshat(); load(); });
+    fHolat.addEventListener('change', jadvalniChiz);
     fQidiruv.addEventListener('input', () => {
         clearTimeout(kutish);
         kutish = setTimeout(jadvalniChiz, 250);
@@ -346,8 +445,54 @@
         });
     });
 
-    // ===== Qaytarish =====
+    // ===== KATM: qayta yuborish / bekor qilish =====
+    async function katmQaytaYuborish(id) {
+        try {
+            const res = await fetch('/admin/katm-qayta-yuborish/' + id, { method: 'POST' });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) load();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo\u2018q', false);
+        }
+    }
+
+    async function katmBekor(id, nomi) {
+        const sabab = await tasdiq.soragich(
+            '\u201C' + nomi + '\u201D so\u2018rovi bekor qilinsinmi? ' +
+            'Mahsulot qoldig\u2018i tiklanadi. Shartnoma gilamda tuzilgan bo\u2018lsa, bekor qilmang.',
+            '', {
+                sarlavha: 'KATM so\u2018rovini bekor qilish',
+                tur: 'ogoh',
+                tugma: 'Ha, bekor qilinsin',
+                placeholder: 'Sabab (ixtiyoriy)'
+            });
+        if (sabab === null) return;
+        try {
+            const res = await fetch('/admin/katm-javob/' + id, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tasdiq: false, izoh: sabab || null })
+            });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) load();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo\u2018q', false);
+        }
+    }
+
+    // ===== Qaytarish / KATM =====
     tbody.addEventListener('click', async e => {
+        const yuborBtn = e.target.closest('.tasdiq-btn');
+        if (yuborBtn) {
+            return katmQaytaYuborish(yuborBtn.dataset.yubor);
+        }
+        const radBtn = e.target.closest('.rad-btn');
+        if (radBtn) {
+            return katmBekor(radBtn.dataset.rad, radBtn.dataset.name);
+        }
+
         const btn = e.target.closest('.qaytar-btn');
         if (!btn) return;
 
@@ -376,8 +521,18 @@
         }
     });
 
-    // Boshlanishida — oxirgi 30 kun
+    // Boshlanishida — oxirgi 30 kun (?holat=KATMDA bilan kelinsa — butun davr)
     (function boshlanish() {
+        const holat = new URLSearchParams(location.search).get('holat');
+        if (holat) {
+            fHolat.value = holat;
+            oraliqniBoshat();
+            document.querySelector('.filtr-tugma[data-oraliq="hammasi"]').classList.add('faol');
+            fSanadan.value = '';
+            fSanagacha.value = '';
+            load();
+            return;
+        }
         const bugun = new Date();
         const boshi = new Date();
         boshi.setDate(bugun.getDate() - 29);
