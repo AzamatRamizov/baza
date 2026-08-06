@@ -30,9 +30,17 @@ public enum Ruxsat {
     SOTUV_QILISH("Mahsulot sotish", "Sotuv"),
     SOTUV_KORISH("Sotuvlarni ko'rish", "Sotuv"),
     SOTUV_QAYTARISH("Sotuvni qaytarish (bekor qilish)", "Sotuv"),
+    KATM_OTKAZISH("Mahsulotni KATMga o'tkazish (nasiyaga chiqarish)", "Sotuv"),
+    KATM_JAVOB("KATM javobini belgilash (tasdiqlash yoki rad etish)", "Sotuv"),
 
     // ===== Tarix =====
-    TARIX_KORISH("Amallar tarixini ko'rish", "Tarix");
+    TARIX_KORISH("Amallar tarixini ko'rish", "Tarix"),
+
+    // ===== Statistika =====
+    STATISTIKA_KORISH("Statistikani ko'rish", "Statistika"),
+
+    // ===== Kassa =====
+    KASSA_KORISH("Kassani ko'rish (barcha magazinlar tushumi va KATMlari)", "Kassa");
 
     private final String nomi;
     private final String bolim;

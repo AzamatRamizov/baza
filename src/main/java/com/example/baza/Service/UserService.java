@@ -5,9 +5,15 @@ import com.example.baza.Dto.ParolUpdateDto;
 import com.example.baza.Dto.ProfilUpdateDto;
 import com.example.baza.Dto.UserAddDto;
 import com.example.baza.Dto.UserDto;
+import com.example.baza.Entity.Magazin;
 import com.example.baza.Entity.Rol;
 import com.example.baza.Entity.Users;
+import com.example.baza.Repository.MagazinRepository;
+import com.example.baza.Repository.MahsulotRepository;
+import com.example.baza.Repository.OtkazmaRepository;
 import com.example.baza.Repository.RolRepository;
+import com.example.baza.Repository.SotuvRepository;
+import com.example.baza.Repository.TarixRepository;
 import com.example.baza.Repository.UsersRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,15 +32,30 @@ import com.example.baza.Dto.RolQisqaDto;
 public class UserService implements UserDetailsService {
     private final UsersRepository usersRepository;
     private final RolRepository rolRepository;
+    private final MagazinRepository magazinRepository;
+    private final MahsulotRepository mahsulotRepository;
+    private final OtkazmaRepository otkazmaRepository;
+    private final SotuvRepository sotuvRepository;
+    private final TarixRepository tarixRepository;
     private final PasswordEncoder passwordEncoder;
     private final TarixService tarixService;
 
     public UserService(UsersRepository usersRepository,
                        RolRepository rolRepository,
+                       MagazinRepository magazinRepository,
+                       MahsulotRepository mahsulotRepository,
+                       OtkazmaRepository otkazmaRepository,
+                       SotuvRepository sotuvRepository,
+                       TarixRepository tarixRepository,
                        PasswordEncoder passwordEncoder,
                        TarixService tarixService) {
         this.usersRepository = usersRepository;
         this.rolRepository = rolRepository;
+        this.magazinRepository = magazinRepository;
+        this.mahsulotRepository = mahsulotRepository;
+        this.otkazmaRepository = otkazmaRepository;
+        this.sotuvRepository = sotuvRepository;
+        this.tarixRepository = tarixRepository;
         this.passwordEncoder = passwordEncoder;
         this.tarixService = tarixService;
     }
@@ -217,6 +238,23 @@ public class UserService implements UserDetailsService {
 
         String nomi = kim(user);
         String username = user.getUsername();
+
+        // Boshqa jadvallardagi FK izlarini bo'shatamiz — tarix/sotuv/o'tkazma
+        // yozuvlarining o'zi qoladi (ular username/nom nusxasini alohida saqlaydi),
+        // faqat "kim qildi" bog'lanishi bo'sh qoladi.
+        user.getRollar().clear();
+        for (Magazin m : magazinRepository.findByHodimlar_Id(id)) {
+            m.getHodimlar().remove(user);
+        }
+        usersRepository.menejerlikniTozalash(id);
+        mahsulotRepository.yaratganUserniTozalash(id);
+        otkazmaRepository.yuborganniTozalash(id);
+        otkazmaRepository.halQilganniTozalash(id);
+        sotuvRepository.sotganniTozalash(id);
+        sotuvRepository.qaytarganniTozalash(id);
+        sotuvRepository.katmJavobBerganniTozalash(id);
+        tarixRepository.userniTozalash(id);
+
         usersRepository.delete(user);
 
         tarixService.yoz("Hodim", "O'chirildi", id, nomi, "Username: " + username);

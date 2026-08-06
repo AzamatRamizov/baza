@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mahsulot kamchiliklari</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 90%; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .card-header .jami { font-size: 13px; color: var(--matn3); font-weight: 600; }
+        .izoh {
+            font-size: 13px; color: var(--matn3); margin-bottom: 18px; line-height: 1.55;
+        }
+
+        .search-input {
+            margin-left: auto;
+            flex: 1; min-width: 200px; max-width: 340px;
+            padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2);
+            outline: none; font-family: inherit;
+        }
+        .search-input:focus { border-color: var(--kok); background-color: var(--karta); }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2); white-space: nowrap;
+        }
+        tr:hover td { background-color: var(--fon4); }
+        .kamchilik-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0;
+            background-color: var(--qizil-fon); color: var(--qizil);
+            border: 1px solid var(--qizil-3);
+        }
+        .muted { color: var(--matn4); }
+        .edit-btn {
+            padding: 6px 12px; background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok);
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s; white-space: nowrap; text-decoration: none; display: inline-block;
+        }
+        .edit-btn:hover { background-color: var(--chegara3); }
+        .empty-row td { text-align: center; color: var(--matn4); padding: 30px 16px; white-space: normal; }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Mahsulot kamchiliklari</h1>
+            <span class="jami" id="jamiMatn"></span>
+            <input type="text" class="search-input" id="searchInput"
+                   placeholder="Qidirish: nomi, kodi, kategoriya...">
+        </div>
+        <div class="izoh">
+            Nomi, kodi, zavod narxi, kategoriyasi, magazini yoki o'lchami yetishmayotgan
+            mahsulotlar shu yerda ko'rinadi. "Tahrirlash" bosib to'g'ridan-to'g'ri to'ldiring.
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Kodi</th>
+                    <th>Nomi</th>
+                    <th>Kategoriya</th>
+                    <th>Magazin</th>
+                    <th>Kamchiliklar</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="tbody">
+                <tr class="empty-row"><td colspan="7">Yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tbody = document.getElementById('tbody');
+    const searchInput = document.getElementById('searchInput');
+    let mahsulotlar = [];
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    /** Bitta mahsulotning kamchiliklari ro'yxati (bo'sh bo'lsa — muammo yo'q) */
+    function kamchiliklarniTop(m) {
+        const sabablar = [];
+        if (!m.nomi || !m.nomi.trim()) sabablar.push('Nomi yo‘q');
+        if (!m.kod || !m.kod.trim()) sabablar.push('Kodi yo‘q');
+        if (m.zavodNarxi == null) sabablar.push('Zavod narxi yo‘q');
+        if (!m.kategoriyaId) sabablar.push('Kategoriya tanlanmagan');
+        if (!m.magazinId) sabablar.push('Magazin biriktirilmagan');
+        if (m.boyi == null || m.boyi <= 0 || m.eni == null || m.eni <= 0) sabablar.push('Bo‘yi/eni yo‘q');
+        return sabablar;
+    }
+
+    function jadvalniChiz() {
+        const q = searchInput.value.trim().toLowerCase();
+        let list = mahsulotlar
+            .map(m => ({ m, sabablar: kamchiliklarniTop(m) }))
+            .filter(x => x.sabablar.length > 0);
+
+        if (q) {
+            list = list.filter(({ m }) =>
+                (m.nomi || '').toLowerCase().includes(q) ||
+                (m.kod || '').toLowerCase().includes(q) ||
+                (m.kategoriyaNomi || '').toLowerCase().includes(q)
+            );
+        }
+
+        document.getElementById('jamiMatn').textContent = list.length ? list.length + ' ta' : '';
+
+        if (!list.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="7">' +
+                (q ? 'Qidiruv bo‘yicha hech narsa topilmadi' : 'Kamchiliklar yo‘q — barcha mahsulotlar to‘liq') +
+                '</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(({ m, sabablar }) => `
+            <tr>
+                <td class="muted">${m.id}</td>
+                <td>${esc(m.kod) || '<span class="muted">—</span>'}</td>
+                <td><b>${esc(m.nomi) || '<span class="muted">—</span>'}</b></td>
+                <td>${esc(m.kategoriyaNomi) || '<span class="muted">—</span>'}</td>
+                <td>${esc(m.magazinNomi) || '<span class="muted">—</span>'}</td>
+                <td>${sabablar.map(s => '<span class="kamchilik-badge">' + esc(s) + '</span>').join('')}</td>
+                <td><a class="edit-btn" href="/admin/mahsulotlar?tahrir=${m.id}">Tahrirlash</a></td>
+            </tr>
+        `).join('');
+    }
+
+    searchInput.addEventListener('input', jadvalniChiz);
+
+    async function load() {
+        try {
+            const res = await fetch('/admin/get-mahsulotlar');
+            if (!res.ok) throw new Error();
+            mahsulotlar = await res.json();
+            jadvalniChiz();
+        } catch (e) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    load();
+</script>
+
+</body>
+</html>

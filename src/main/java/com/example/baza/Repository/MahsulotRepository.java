@@ -3,6 +3,7 @@ package com.example.baza.Repository;
 import com.example.baza.Dto.MahsulotDto;
 import com.example.baza.Entity.Mahsulot;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -52,4 +53,13 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
 
     /** Kod takrorlanmasligini tekshirish uchun */
     Optional<Mahsulot> findByKodIgnoreCase(String kod);
+
+    /** Ommaviy import vaqtida takroriy kodlarni tekshirish uchun — to'liq entity yuklanmaydi */
+    @Query("select m.kod from Mahsulot m where m.kod is not null")
+    List<String> findAllKodlar();
+
+    /** Hodim o'chirilganda — "kim yaratgan" izini bog'lanishdan bo'shatadi */
+    @Modifying
+    @Query("update Mahsulot m set m.yaratganUser = null where m.yaratganUser.id = :userId")
+    void yaratganUserniTozalash(@Param("userId") Long userId);
 }

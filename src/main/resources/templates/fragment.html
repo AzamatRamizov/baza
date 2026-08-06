@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<html lang="uz" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <title>Fragmentlar</title>
@@ -271,9 +271,15 @@
             <a class="sb-link" href="/admin/dashboard"
                th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
 
+            <a class="sb-link" href="/admin/statistika" sec:authorize="hasAuthority('STATISTIKA_KORISH')"
+               th:classappend="${page == 'statistika'} ? 'active'">Statistika</a>
+
+            <a class="sb-link" href="/admin/kassa" sec:authorize="hasAuthority('KASSA_KORISH')"
+               th:classappend="${page == 'kassa'} ? 'active'">Kassa</a>
+
             <!-- ===== Mahsulotlar guruhi ===== -->
             <div class="sb-guruh"
-                 th:classappend="${#lists.contains({'mahsulotlar','mening-mahsulotlarim','otkazmalar','sotuvlar','kategoriyalar'}, page)} ? 'ochiq ichida'">
+                 th:classappend="${#lists.contains({'mahsulotlar','mening-mahsulotlarim','otkazmalar','sotuvlar','kategoriyalar','mahsulot-kamchiliklari'}, page)} ? 'ochiq ichida'">
                 <button class="sb-guruh-btn" type="button">
                     <span>Mahsulotlar</span>
                     <span class="chevron">&#9660;</span>
@@ -285,34 +291,37 @@
                        th:classappend="${page == 'mening-mahsulotlarim'} ? 'active'">Mening mahsulotlarim</a>
                     <a href="/admin/otkazmalar"
                        th:classappend="${page == 'otkazmalar'} ? 'active'">O'tkazmalar</a>
-                    <a href="/admin/sotuvlar"
+                    <a href="/admin/sotuvlar" sec:authorize="hasAuthority('SOTUV_KORISH')"
                        th:classappend="${page == 'sotuvlar'} ? 'active'">Sotuvlar</a>
+                    <a href="/admin/sotuvlar?holat=KATMDA" sec:authorize="hasAuthority('SOTUV_KORISH')">KATM (javob kutilmoqda)</a>
                     <a href="/admin/kategoriyalar"
                        th:classappend="${page == 'kategoriyalar'} ? 'active'">Kategoriyalar</a>
+                    <a href="/admin/mahsulot-kamchiliklari" sec:authorize="hasAuthority('MAHSULOT_QOSHISH')"
+                       th:classappend="${page == 'mahsulot-kamchiliklari'} ? 'active'">Mahsulot kamchiliklari</a>
                 </div>
             </div>
 
-            <a class="sb-link" href="/admin/magazinlar"
+            <a class="sb-link" href="/admin/magazinlar" sec:authorize="hasAuthority('MAGAZIN_BOSHQARISH')"
                th:classappend="${page == 'magazinlar'} ? 'active'">Magazinlar</a>
 
             <!-- ===== Hodimlar va ruxsatlar guruhi ===== -->
-            <div class="sb-guruh"
+            <div class="sb-guruh" sec:authorize="hasAnyAuthority('HODIM_BOSHQARISH', 'ROL_BOSHQARISH')"
                  th:classappend="${#lists.contains({'users','rollar','ruxsatlar'}, page)} ? 'ochiq ichida'">
                 <button class="sb-guruh-btn" type="button">
                     <span>Hodimlar</span>
                     <span class="chevron">&#9660;</span>
                 </button>
                 <div class="sb-ichki">
-                    <a href="/admin/users"
+                    <a href="/admin/users" sec:authorize="hasAuthority('HODIM_BOSHQARISH')"
                        th:classappend="${page == 'users'} ? 'active'">Hodimlar</a>
-                    <a href="/admin/rollar"
+                    <a href="/admin/rollar" sec:authorize="hasAuthority('ROL_BOSHQARISH')"
                        th:classappend="${page == 'rollar'} ? 'active'">Rollar</a>
-                    <a href="/admin/ruxsatlar"
+                    <a href="/admin/ruxsatlar" sec:authorize="hasAuthority('ROL_BOSHQARISH')"
                        th:classappend="${page == 'ruxsatlar'} ? 'active'">Ruxsatlar</a>
                 </div>
             </div>
 
-            <a class="sb-link" href="/admin/tarix"
+            <a class="sb-link" href="/admin/tarix" sec:authorize="hasAuthority('TARIX_KORISH')"
                th:classappend="${page == 'tarix'} ? 'active'">Tarix</a>
         </nav>
     </div>

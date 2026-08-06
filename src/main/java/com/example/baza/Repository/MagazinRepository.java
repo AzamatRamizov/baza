@@ -13,4 +13,7 @@ public interface MagazinRepository extends JpaRepository<Magazin, Long> {
     List<Magazin> findAllWithHodimlar();
 
     Optional<Magazin> findByNomiIgnoreCase(String nomi);
+
+    /** Hodim o'chirilishidan oldin — u mas'ul bo'lgan magazinlarni topish uchun */
+    List<Magazin> findByHodimlar_Id(Long hodimId);
 }

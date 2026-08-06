@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistika</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 90%; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+            margin-bottom: 22px;
+        }
+        .card-header {
+            display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .card-header .izoh { font-size: 13px; color: var(--matn3); }
+
+        .bolim-nom {
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; color: var(--kok-och);
+            margin: 22px 0 10px;
+        }
+        .bolim-nom:first-of-type { margin-top: 18px; }
+
+        /* ---- Statistika kartalari ---- */
+        .statlar {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 14px;
+        }
+        .stat {
+            background-color: var(--fon2); border: 1px solid var(--chegara);
+            border-radius: 10px; padding: 14px 16px;
+        }
+        .stat .nom {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; color: var(--kok-och); margin-bottom: 6px;
+        }
+        .stat .qiymat { font-size: 21px; font-weight: 700; color: var(--matn); }
+        .stat .qiymat small { font-size: 13px; font-weight: 600; color: var(--matn3); }
+        .stat.foyda .qiymat { color: var(--yashil-toq); }
+        .stat.ogoh .qiymat { color: var(--sariq-toq2); }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); white-space: nowrap; }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2);
+        }
+        tr:hover td { background-color: var(--fon4); }
+        td.summa { font-weight: 700; }
+        td.foyda { font-weight: 700; color: var(--yashil-toq); }
+        td.foyda.manfiy { color: var(--qizil); }
+        .muted { color: var(--matn4); }
+
+        .empty-row td {
+            text-align: center; color: var(--matn4); padding: 30px 16px;
+        }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Statistika</h1>
+            <span class="izoh" id="rejimIzoh"></span>
+        </div>
+
+        <div class="bolim-nom">Mahsulotlar va tashkilot</div>
+        <div class="statlar" id="statlarUmumiy">
+            <div class="stat">
+                <div class="nom">Mahsulotlar soni</div>
+                <div class="qiymat" id="statMahsulot">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Umumiy kvadrat</div>
+                <div class="qiymat" id="statKv">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Umumiy zavod qiymati</div>
+                <div class="qiymat" id="statZavod">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom" id="statMagazinNom">Magazinlar</div>
+                <div class="qiymat" id="statMagazin">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Kategoriyalar</div>
+                <div class="qiymat" id="statKategoriya">—</div>
+            </div>
+            <div class="stat" id="statHodimKarta" style="display:none">
+                <div class="nom">Hodimlar</div>
+                <div class="qiymat" id="statHodim">—</div>
+            </div>
+        </div>
+
+        <div class="bolim-nom">Sotuv</div>
+        <div class="statlar">
+            <div class="stat">
+                <div class="nom">Sotuvlar soni</div>
+                <div class="qiymat" id="statSotuvSoni">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Umumiy tushum</div>
+                <div class="qiymat" id="statTushum">—</div>
+            </div>
+            <div class="stat foyda">
+                <div class="nom">Umumiy foyda</div>
+                <div class="qiymat" id="statFoyda">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Bugungi sotuvlar</div>
+                <div class="qiymat" id="statBugungiSoni">—</div>
+            </div>
+            <div class="stat">
+                <div class="nom">Bugungi tushum</div>
+                <div class="qiymat" id="statBugungiSumma">—</div>
+            </div>
+            <div class="stat ogoh">
+                <div class="nom">KATMda (javob kutilmoqda)</div>
+                <div class="qiymat" id="statKatm">—</div>
+            </div>
+            <div class="stat ogoh">
+                <div class="nom">O'tkazma (javob kutilmoqda)</div>
+                <div class="qiymat" id="statOtkazma">—</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>Magazinlar bo'yicha</h1>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Magazin</th>
+                    <th>Mahsulot soni</th>
+                    <th>Kvadrat</th>
+                    <th>Zavod qiymati</th>
+                    <th>Sotuvlar soni</th>
+                    <th>Tushum</th>
+                    <th>Foyda</th>
+                </tr>
+                </thead>
+                <tbody id="magazinTbody">
+                <tr class="empty-row"><td colspan="7">Yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function pul(n) {
+        return n == null ? '—' : Number(n).toLocaleString('ru-RU');
+    }
+
+    function son(n) {
+        if (n == null) return '—';
+        const r = Math.round(n * 100) / 100;
+        return r.toLocaleString('ru-RU');
+    }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    async function load() {
+        try {
+            const res = await fetch('/admin/get-statistika');
+            if (!res.ok) throw new Error();
+            const s = await res.json();
+            chiz(s);
+        } catch (e) {
+            document.getElementById('magazinTbody').innerHTML =
+                '<tr class="empty-row"><td colspan="7">Statistikani yuklashda xatolik</td></tr>';
+        }
+    }
+
+    function chiz(s) {
+        document.getElementById('rejimIzoh').textContent = s.owner
+            ? 'Butun tizim bo‘yicha'
+            : 'Sizning magazin(lar)ingiz bo‘yicha';
+
+        document.getElementById('statMahsulot').textContent = s.mahsulotSoni;
+        document.getElementById('statKv').innerHTML = son(s.umumiyKv) + ' <small>kv.metr</small>';
+        document.getElementById('statZavod').innerHTML = pul(s.umumiyZavodQiymati) + ' <small>so‘m</small>';
+        document.getElementById('statMagazinNom').textContent = s.owner ? 'Magazinlar' : 'Mening magazin(lar)im';
+        document.getElementById('statMagazin').textContent = s.magazinSoni;
+        document.getElementById('statKategoriya').textContent = s.kategoriyaSoni;
+
+        if (s.hodimSoni != null) {
+            document.getElementById('statHodimKarta').style.display = '';
+            document.getElementById('statHodim').textContent = s.hodimSoni;
+        }
+
+        document.getElementById('statSotuvSoni').textContent = s.sotuvSoni;
+        document.getElementById('statTushum').innerHTML = pul(s.sotuvSummasi) + ' <small>so‘m</small>';
+        document.getElementById('statFoyda').innerHTML = pul(s.sotuvFoyda) + ' <small>so‘m</small>';
+        document.getElementById('statBugungiSoni').textContent = s.bugungiSotuvSoni;
+        document.getElementById('statBugungiSumma').innerHTML = pul(s.bugungiSotuvSummasi) + ' <small>so‘m</small>';
+        document.getElementById('statKatm').innerHTML = s.katmSoni +
+            ' <small>ta / ' + pul(s.katmSummasi) + ' so‘m</small>';
+        document.getElementById('statOtkazma').textContent = s.otkazmaKutilmoqda;
+
+        const tbody = document.getElementById('magazinTbody');
+        if (!s.magazinlar || !s.magazinlar.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Ma‘lumot yo‘q</td></tr>';
+            return;
+        }
+        tbody.innerHTML = s.magazinlar.map(m => `
+            <tr>
+                <td><b>${esc(m.nomi)}</b></td>
+                <td>${m.mahsulotSoni}</td>
+                <td>${son(m.umumiyKv)} <span class="muted">kv.metr</span></td>
+                <td>${pul(m.zavodQiymati)}</td>
+                <td>${m.sotuvSoni}</td>
+                <td class="summa">${pul(m.sotuvSummasi)}</td>
+                <td class="foyda ${(m.foyda || 0) < 0 ? 'manfiy' : ''}">${pul(m.foyda)}</td>
+            </tr>`).join('');
+    }
+
+    load();
+</script>
+
+</body>
+</html>

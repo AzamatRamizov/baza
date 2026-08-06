@@ -10,6 +10,7 @@ import com.example.baza.Dto.MagazinDto;
 import com.example.baza.Dto.MagazinQisqaDto;
 import com.example.baza.Dto.MagazinSaveDto;
 import com.example.baza.Dto.MahsulotDto;
+import com.example.baza.Dto.MahsulotImportNatijaDto;
 import com.example.baza.Dto.MahsulotSaveDto;
 import com.example.baza.Dto.OtkazmaDto;
 import com.example.baza.Dto.OtkazmaJavobDto;
@@ -19,19 +20,23 @@ import com.example.baza.Dto.ProfilUpdateDto;
 import com.example.baza.Dto.RolDto;
 import com.example.baza.Dto.RolSaveDto;
 import com.example.baza.Dto.RuxsatDto;
+import com.example.baza.Dto.KatmJavobDto;
 import com.example.baza.Dto.SotuvDto;
 import com.example.baza.Dto.SotuvJavobDto;
 import com.example.baza.Dto.SotuvSaveDto;
+import com.example.baza.Dto.StatistikaDto;
 import com.example.baza.Dto.TarixSahifaDto;
 import com.example.baza.Dto.UsdKursDto;
 import com.example.baza.Dto.UserAddDto;
 import com.example.baza.Dto.UserDto;
 import com.example.baza.Service.KategoriyaService;
 import com.example.baza.Service.MagazinService;
+import com.example.baza.Service.MahsulotImportService;
 import com.example.baza.Service.MahsulotService;
 import com.example.baza.Service.OtkazmaService;
 import com.example.baza.Service.RolService;
 import com.example.baza.Service.SotuvService;
+import com.example.baza.Service.StatistikaService;
 import com.example.baza.Service.TarixService;
 import com.example.baza.Service.ValyutaService;
 import com.example.baza.Service.UserService;
@@ -73,6 +78,8 @@ public class AdminController {
     private final OtkazmaService otkazmaService;
     private final SotuvService sotuvService;
     private final TarixService tarixService;
+    private final StatistikaService statistikaService;
+    private final MahsulotImportService mahsulotImportService;
 
     public AdminController(AuthenticationManager authenticationManager,
                            TokenGenerator tokenGenerator,
@@ -84,7 +91,9 @@ public class AdminController {
                            RolService rolService,
                            OtkazmaService otkazmaService,
                            SotuvService sotuvService,
-                           TarixService tarixService) {
+                           TarixService tarixService,
+                           StatistikaService statistikaService,
+                           MahsulotImportService mahsulotImportService) {
         this.authenticationManager = authenticationManager;
         this.tokenGenerator = tokenGenerator;
         this.userService = userService;
@@ -96,6 +105,8 @@ public class AdminController {
         this.otkazmaService = otkazmaService;
         this.sotuvService = sotuvService;
         this.tarixService = tarixService;
+        this.statistikaService = statistikaService;
+        this.mahsulotImportService = mahsulotImportService;
     }
 
     // ================= LOGIN =================
@@ -297,6 +308,34 @@ public class AdminController {
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 
+    /**
+     * Mahsulotlarni Excel (POS eksporti) fayldan ommaviy qo'shish.
+     * Ustunlar: Товар, Категория, Остаток, Единица по умолчанию (Метр/Штук).
+     */
+    @PostMapping("/import-mahsulot")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<MahsulotImportNatijaDto> importMahsulot(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(name = "magazinId", required = false) Long magazinId) {
+        MahsulotImportNatijaDto res = mahsulotImportService.importQil(file, magazinId);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /**
+     * Mahsulot kamchiliklari — mavjud mahsulotlardan nomi, kodi, zavod narxi,
+     * kategoriyasi, magazini yoki o'lchami yetishmayotganlari. Ro'yxat
+     * "/admin/get-mahsulotlar"dan olib, brauzerda filtrlanadi (backend
+     * o'zgarishi shart emas); shu sahifa faqat marshrut sifatida kerak.
+     */
+    @GetMapping("/mahsulot-kamchiliklari")
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public String mahsulotKamchiliklariPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "mahsulot-kamchiliklari");
+        return "mahsulot-kamchiliklari";
+    }
+
     // ================= O'TKAZMALAR =================
     @GetMapping("/otkazmalar")
     public String otkazmalarPage(Authentication authentication, Model model) {
@@ -406,6 +445,42 @@ public class AdminController {
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 
+    /** Mahsulotni KATMga o'tkazish - mahsulot band bo'ladi, javob kutiladi */
+    @PostMapping("/katmga-otkazish")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KATM_OTKAZISH')")
+    public ResponseEntity<ApiResponse> katmgaOtkazish(Authentication authentication,
+                                                      @RequestBody SotuvSaveDto dto) {
+        ApiResponse res = sotuvService.katmgaOtkazish(authentication.getName(), dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /** Gilamga yuborilmay qolgan KATM so'rovini qayta yuborish */
+    @PostMapping("/katm-qayta-yuborish/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KATM_OTKAZISH')")
+    public ResponseEntity<ApiResponse> katmQaytaYuborish(Authentication authentication,
+                                                         @PathVariable Long id) {
+        ApiResponse res = sotuvService.qaytaYuborish(authentication.getName(), id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /**
+     * KATM javobi. Odatda javob GILAM dasturidan keladi (POST /api/katm/javob),
+     * bu endpoint esa qo'lda bekor qilish uchun: tasdiq=false -> mahsulot qaytadi.
+     */
+    @PostMapping("/katm-javob/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KATM_JAVOB')")
+    public ResponseEntity<ApiResponse> katmJavob(Authentication authentication,
+                                                 @PathVariable Long id,
+                                                 @RequestBody KatmJavobDto dto) {
+        ApiResponse res = sotuvService.katmJavobi(authentication.getName(), id,
+                dto != null && Boolean.TRUE.equals(dto.tasdiq()),
+                dto == null ? null : dto.izoh());
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
     @PostMapping("/sotuv-qaytarish/{id}")
     @ResponseBody
     @PreAuthorize("hasAuthority('SOTUV_QAYTARISH')")
@@ -415,6 +490,27 @@ public class AdminController {
         ApiResponse res = sotuvService.qaytarish(authentication.getName(), id,
                 dto == null ? null : dto.sabab());
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= KASSA =================
+    @GetMapping("/kassa")
+    @PreAuthorize("hasAuthority('KASSA_KORISH')")
+    public String kassaPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "kassa");
+        return "kassa";
+    }
+
+    /** Barcha magazinlardagi sotuvlar (tushum + KATM) — magazin mansubligidan qat'i nazar */
+    @GetMapping("/get-kassa")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KASSA_KORISH')")
+    public ResponseEntity<List<SotuvDto>> getKassa(
+            @RequestParam(name = "sanadan", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sanadan,
+            @RequestParam(name = "sanagacha", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sanagacha) {
+        return ResponseEntity.ok(sotuvService.getKassa(sanadan, sanagacha));
     }
 
     // ================= TARIX =================
@@ -447,6 +543,22 @@ public class AdminController {
     @PreAuthorize("hasAuthority('TARIX_KORISH')")
     public ResponseEntity<List<String>> getTarixBolimlar() {
         return ResponseEntity.ok(tarixService.getBolimlar());
+    }
+
+    // ================= STATISTIKA =================
+    @GetMapping("/statistika")
+    @PreAuthorize("hasAuthority('STATISTIKA_KORISH')")
+    public String statistikaPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "statistika");
+        return "statistika";
+    }
+
+    @GetMapping("/get-statistika")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('STATISTIKA_KORISH')")
+    public ResponseEntity<StatistikaDto> getStatistika(Authentication authentication) {
+        return ResponseEntity.ok(statistikaService.hisobla(authentication.getName()));
     }
 
     // ================= KATEGORIYALAR =================

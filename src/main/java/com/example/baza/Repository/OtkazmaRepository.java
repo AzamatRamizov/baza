@@ -4,6 +4,7 @@ import com.example.baza.Dto.OtkazmaDto;
 import com.example.baza.Entity.Otkazma;
 import com.example.baza.Entity.OtkazmaHolati;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -55,4 +56,13 @@ public interface OtkazmaRepository extends JpaRepository<Otkazma, Long> {
 
     /** Shu mahsulot bo'yicha tasdiqlanmagan o'tkazma bormi */
     boolean existsByMahsulot_IdAndHolat(Long mahsulotId, OtkazmaHolati holat);
+
+    /** Hodim o'chirilganda — o'tkazmalardagi izlarini bog'lanishdan bo'shatadi */
+    @Modifying
+    @Query("update Otkazma o set o.yuborgan = null where o.yuborgan.id = :userId")
+    void yuborganniTozalash(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("update Otkazma o set o.halQilgan = null where o.halQilgan.id = :userId")
+    void halQilganniTozalash(@Param("userId") Long userId);
 }

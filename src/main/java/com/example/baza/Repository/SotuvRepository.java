@@ -3,6 +3,7 @@ package com.example.baza.Repository;
 import com.example.baza.Dto.SotuvDto;
 import com.example.baza.Entity.Sotuv;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,14 +16,18 @@ public interface SotuvRepository extends JpaRepository<Sotuv, Long> {
             select new com.example.baza.Dto.SotuvDto(
                 s.id, m.id, s.mahsulotNomi, s.mahsulotKod,
                 mag.id, mag.nomi,
-                s.miqdor, s.birlik, s.birlikNarxi, s.summa, s.tannarx, s.foyda,
-                s.mijozIsmi, s.mijozTel, s.izoh,
-                so.fish, s.vaqt, s.holat,
+                s.miqdor, s.birlik, s.boyi, s.eni, s.kv,
+                s.birlikNarxi, s.summa, s.tannarx, s.foyda,
+                s.mijozIsmi, s.mijozTel, s.muddat, s.oldindanTulov, s.izoh,
+                so.fish, s.vaqt, s.turi, s.holat,
+                s.katmVaqti, s.gilamgaYuborildi, s.gilamXato,
+                s.katmJavobi, kj.fish, s.katmJavobVaqti,
                 qa.fish, s.qaytarilganVaqt, s.qaytarishSababi)
             from Sotuv s
             left join s.mahsulot m
             left join s.magazin mag
             left join s.sotgan so
+            left join s.katmJavobBergan kj
             left join s.qaytargan qa
             """;
 
@@ -48,4 +53,20 @@ public interface SotuvRepository extends JpaRepository<Sotuv, Long> {
     /** Bitta mahsulotning sotuv tarixi */
     @Query(SELECT + " where m.id = :mahsulotId order by s.id desc")
     List<SotuvDto> findMahsulotBoyicha(@Param("mahsulotId") Long mahsulotId);
+
+    /**
+     * Hodim o'chirilganda — uning sotuvlardagi izlarini bog'lanishdan bo'shatadi
+     * (yozuvning o'zi qoladi, faqat "kim" ma'lumoti bo'sh qoladi).
+     */
+    @Modifying
+    @Query("update Sotuv s set s.sotgan = null where s.sotgan.id = :userId")
+    void sotganniTozalash(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("update Sotuv s set s.qaytargan = null where s.qaytargan.id = :userId")
+    void qaytarganniTozalash(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("update Sotuv s set s.katmJavobBergan = null where s.katmJavobBergan.id = :userId")
+    void katmJavobBerganniTozalash(@Param("userId") Long userId);
 }

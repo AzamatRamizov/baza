@@ -30,13 +30,74 @@
             font-size: 14px; background-color: var(--fon2); outline: none; font-family: inherit;
         }
         .search-input:focus { border-color: var(--kok); background-color: var(--karta); }
+        .stok-tugmalar {
+            display: flex; gap: 6px; background-color: var(--fon2); border: 1px solid var(--chegara);
+            border-radius: 8px; padding: 3px;
+        }
+        .stok-tugma {
+            padding: 7px 12px; border: none; border-radius: 6px; background: transparent;
+            color: var(--matn3); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+            white-space: nowrap; transition: background-color 0.15s, color 0.15s;
+        }
+        .stok-tugma:hover { color: var(--matn); }
+        .stok-tugma.faol { background-color: var(--kok); color: var(--karta); }
+        .tugagan-izoh { font-size: 12.5px; color: var(--matn3); margin: -10px 0 14px; }
         .add-btn {
-            margin-left: auto;
             padding: 9px 18px; background-color: var(--kok); color: var(--karta); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
             transition: background-color 0.2s;
         }
         .add-btn:hover { background-color: var(--kok-hover); }
+        .import-btn {
+            margin-left: auto;
+            padding: 9px 18px; background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border: 1.5px solid var(--yashil-chegara); border-radius: 6px;
+            font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: background-color 0.2s;
+        }
+        .import-btn:hover { background-color: var(--yashil-chegara); }
+
+        /* ---- Excel import modali ---- */
+        .drop-zone {
+            border: 2px dashed var(--chegara-kok); border-radius: 10px;
+            padding: 26px 20px; text-align: center; cursor: pointer;
+            background-color: var(--fon2); transition: background-color 0.2s, border-color 0.2s;
+        }
+        .drop-zone:hover, .drop-zone.ustida {
+            border-color: var(--kok); background-color: var(--fon3);
+        }
+        .drop-zone .belgi { font-size: 28px; line-height: 1; margin-bottom: 8px; }
+        .drop-zone .asosiy { font-size: 15px; font-weight: 600; color: var(--matn); }
+        .drop-zone .qosh {
+            font-size: 12px; color: var(--matn3); margin-top: 6px; line-height: 1.5;
+        }
+        .drop-zone.tanlangan { border-style: solid; border-color: var(--yashil-toq); }
+        .drop-zone.tanlangan .asosiy { color: var(--yashil-toq); }
+
+        .import-yordam {
+            font-size: 12px; color: var(--matn3); line-height: 1.65;
+            background-color: var(--fon2); border-left: 3px solid var(--chegara-kok);
+            border-radius: 0 6px 6px 0; padding: 10px 14px; margin-top: 14px;
+        }
+        .import-yordam code {
+            background-color: var(--fon5); padding: 1px 5px; border-radius: 4px;
+            font-size: 11.5px;
+        }
+        .import-natija { margin-top: 16px; display: none; }
+        .natija-satr {
+            display: flex; justify-content: space-between; gap: 12px;
+            padding: 7px 0; font-size: 14px; border-bottom: 1px solid var(--chegara);
+        }
+        .natija-satr b { font-weight: 700; }
+        .natija-satr.ok b { color: var(--yashil-toq); }
+        .natija-satr.otkaz b { color: var(--sariq-toq2); }
+        .natija-royxat {
+            max-height: 220px; overflow-y: auto; margin-top: 12px;
+            font-size: 12.5px; color: var(--matn2); line-height: 1.7;
+        }
+        .natija-royxat div { padding: 2px 0; }
+        .natija-royxat .qisqartirilgan { color: var(--matn4); font-style: italic; margin-top: 6px; }
+        .yuklanmoqda { text-align: center; color: var(--matn3); font-size: 14px; padding: 14px 0; }
 
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -112,6 +173,11 @@
             padding: 10px 18px; background-color: var(--fon5); color: var(--kok-och); border: none;
             border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
         }
+        .miqdor-hint {
+            font-size: 12px; color: var(--matn3); margin-top: 6px; line-height: 1.5;
+        }
+        .miqdor-hint b { color: var(--kok-toq); }
+
         .modal-error {
             color: var(--qizil); font-size: 13px; margin-top: 10px; text-align: center; display: none;
         }
@@ -127,10 +193,16 @@
     <div class="card">
         <div class="card-header">
             <h1>Mahsulotlar</h1>
+            <div class="stok-tugmalar">
+                <button class="stok-tugma faol" id="borlarBtn" type="button">Faqat borlar</button>
+                <button class="stok-tugma" id="barchaBtn" type="button">Barcha mahsulotlar</button>
+            </div>
             <input type="text" class="search-input" id="searchInput"
                    placeholder="Qidirish: nomi, kodi, kategoriya, magazin...">
+            <button class="import-btn" id="openImportBtn">Exceldan yuklash</button>
             <button class="add-btn" id="openModalBtn">+ Yangi mahsulot</button>
         </div>
+        <div class="tugagan-izoh" id="tuganganIzoh" style="display:none"></div>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -191,18 +263,11 @@
             </div>
         </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label for="mh_birlik">Birlik</label>
-                <select id="mh_birlik">
-                    <option value="dona">Dona</option>
-                    <option value="metr">Metr</option>
-                    <option value="kv.metr">Kv.metr</option>
-                </select>
-            </div>
+        <div class="form-row" id="miqdorRow">
             <div class="form-group">
                 <label for="mh_miqdor" id="miqdorLabel">Nechta (dona) *</label>
                 <input type="number" id="mh_miqdor" min="0" step="1" placeholder="1">
+                <div class="miqdor-hint" id="miqdorHint"></div>
             </div>
         </div>
 
@@ -234,6 +299,7 @@
                 <input type="text" id="mh_kv" readonly value="—" tabindex="-1">
             </div>
         </div>
+        <div class="miqdor-hint" id="metrajHint" style="display:none; margin:-8px 0 14px"></div>
 
         <div class="form-group">
             <label for="mh_magazin">Magazin</label>
@@ -250,6 +316,45 @@
     </div>
 </div>
 
+<!-- Exceldan yuklash modali -->
+<div class="modal-overlay" id="importOverlay">
+    <div class="modal">
+        <h2>Exceldan mahsulot yuklash</h2>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="belgi">&#128196;</div>
+            <div class="asosiy" id="dropMatn">Faylni bu yerga tashlang yoki bosing</div>
+            <div class="qosh">.xlsx yoki .xls &middot; eng ko'pi 15 MB</div>
+        </div>
+        <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none">
+
+        <div class="form-group" style="margin-top:14px">
+            <label for="im_magazin">Qaysi magazinga qo'shilsin? (ixtiyoriy)</label>
+            <select id="im_magazin">
+                <option value="">— Tanlanmagan (keyin taqsimlanadi) —</option>
+            </select>
+        </div>
+
+        <div class="import-yordam">
+            Fayl ustunlari: <code>Товар</code>, <code>Категория</code>, <code>Остаток</code>,
+            <code>Единица по умолчанию</code>. "Единица" — <code>Метр</code> bo'lsa turi
+            <b>Metraj</b>, <code>Штук</code> bo'lsa <b>Gatoviy</b> bo'ladi.
+            "Товар" dagi qavs/o'lcham (masalan <code>NOMI KOD (ENI)</code> yoki
+            <code>NOMI ENIxBOYI KOD</code>) dan nomi, kodi va o'lcham avtomatik ajratiladi.
+            Kod yoki o'lcham aniqlanmagan / band bo'lgan qatorlar o'tkazib yuboriladi —
+            natijada sababi bilan ko'rsatiladi.
+        </div>
+
+        <div class="yuklanmoqda" id="importYuklanmoqda" style="display:none">Yuklanmoqda... (katta fayllar bir necha soniya olishi mumkin)</div>
+        <div class="import-natija" id="importNatija"></div>
+
+        <p class="modal-error" id="importError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="importSaveBtn">Yuklash</button>
+            <button class="cancel-btn" id="importCancelBtn">Yopish</button>
+        </div>
+    </div>
+</div>
 
 <script>
     const tbody = document.getElementById('mahsulotTbody');
@@ -260,6 +365,7 @@
 
     let mahsulotlar = [];
     let editingId = null;
+    let faqatBorlar = true;   // sotib tugagan (miqdor 0/bo'sh) mahsulotlar "Barcha mahsulotlar"da ko'rinadi
 
     // Xabar fragment.html :: xabar dan keladi (global notification)
     function toastKorsat(matn, ok) {
@@ -277,14 +383,30 @@
     }
 
     // ===== Jadval =====
+    function borMi(m) {
+        return m.miqdor != null && m.miqdor > 0;
+    }
+
     function jadvalniChiz() {
         const q = searchInput.value.trim().toLowerCase();
-        const list = !q ? mahsulotlar : mahsulotlar.filter(m =>
-            (m.nomi || '').toLowerCase().includes(q) ||
-            (m.kod || '').toLowerCase().includes(q) ||
-            (m.kategoriyaNomi || '').toLowerCase().includes(q) ||
-            (m.magazinNomi || '').toLowerCase().includes(q)
-        );
+        let list = faqatBorlar ? mahsulotlar.filter(borMi) : mahsulotlar;
+        if (q) {
+            list = list.filter(m =>
+                (m.nomi || '').toLowerCase().includes(q) ||
+                (m.kod || '').toLowerCase().includes(q) ||
+                (m.kategoriyaNomi || '').toLowerCase().includes(q) ||
+                (m.magazinNomi || '').toLowerCase().includes(q)
+            );
+        }
+
+        const tuganganSoni = mahsulotlar.length - mahsulotlar.filter(borMi).length;
+        const izoh = document.getElementById('tuganganIzoh');
+        if (faqatBorlar && tuganganSoni > 0) {
+            izoh.textContent = tuganganSoni + ' ta mahsulot sotib tugagan — "Barcha mahsulotlar"da ko‘rinadi';
+            izoh.style.display = 'block';
+        } else {
+            izoh.style.display = 'none';
+        }
 
         if (!list.length) {
             tbody.innerHTML = '<tr class="empty-row"><td colspan="14">' +
@@ -317,6 +439,15 @@
     }
 
     searchInput.addEventListener('input', jadvalniChiz);
+
+    function stokToggle(borlar) {
+        faqatBorlar = borlar;
+        document.getElementById('borlarBtn').classList.toggle('faol', borlar);
+        document.getElementById('barchaBtn').classList.toggle('faol', !borlar);
+        jadvalniChiz();
+    }
+    document.getElementById('borlarBtn').addEventListener('click', () => stokToggle(true));
+    document.getElementById('barchaBtn').addEventListener('click', () => stokToggle(false));
 
     async function loadMahsulotlar() {
         try {
@@ -382,10 +513,39 @@
     }
 
     // ===== Birlik / miqdor =====
+    // Birlik alohida so'ralmaydi — TURI dan kelib chiqadi:
+    //   gatoviy -> dona (nechtaligi kiritiladi)
+    //   metraj  -> kv.metr (eni bo'lsa) yoki metr (eni bo'lmasa)
     const BIRLIK_MATN = { 'dona': 'dona', 'metr': 'metr', 'kv.metr': 'kv.metr' };
 
+    function gatoviymi() {
+        return document.getElementById('mh_turi').value !== 'metraj';
+    }
+
     function joriyBirlik() {
-        return document.getElementById('mh_birlik').value || 'dona';
+        if (gatoviymi()) return 'dona';
+        const eni = parseFloat(document.getElementById('mh_eni').value);
+        return (!isNaN(eni) && eni > 0) ? 'kv.metr' : 'metr';
+    }
+
+    /**
+     * JAMI kvadrat — narx shu bo'yicha hisoblanadi (dona soniga bog'liq emas):
+     *   gatoviy -> dona soni × (bo'yi × eni)
+     *   metraj  -> bo'yi × eni (miqdorning o'zi)
+     */
+    function birKv() {
+        const boyi = parseFloat(document.getElementById('mh_boyi').value);
+        const eni = parseFloat(document.getElementById('mh_eni').value);
+        if (isNaN(boyi) || isNaN(eni) || boyi <= 0 || eni <= 0) return null;
+        return Math.round(boyi * eni * 100) / 100;
+    }
+
+    function jamiKv() {
+        const bir = birKv();
+        if (bir == null) return null;
+        if (!gatoviymi()) return bir;
+        const dona = joriyMiqdor();
+        return dona == null ? null : Math.round(bir * dona * 100) / 100;
     }
 
     function joriyMiqdor() {
@@ -393,21 +553,59 @@
         return isNaN(q) || q <= 0 ? null : q;
     }
 
-    /** Birlikka qarab miqdor maydonining nomi, qadami va narx yorlig'i o'zgaradi */
+    /** Turga qarab: gatoviyda "nechta", metrajda miqdor o'lchamlardan hisoblanadi */
     function birlikYangila() {
         const b = joriyBirlik();
+        const gatoviy = gatoviymi();
         const miqdorInput = document.getElementById('mh_miqdor');
 
-        document.getElementById('miqdorLabel').textContent =
-            b === 'dona' ? 'Nechta (dona) *'
-                : b === 'metr' ? 'Necha metr *' : 'Necha kv.metr *';
-        document.getElementById('narxLabel').textContent =
-            'Zavod narxi (1 ' + BIRLIK_MATN[b] + ' uchun)';
+        // Nechtaligi faqat GATOVIY uchun so'raladi
+        document.getElementById('miqdorRow').style.display = gatoviy ? '' : 'none';
+        document.getElementById('miqdorLabel').textContent = 'Nechta (dona) *';
+        miqdorInput.step = '1';
+        miqdorInput.placeholder = '1';
 
-        miqdorInput.step = b === 'dona' ? '1' : '0.01';
-        miqdorInput.placeholder = b === 'dona' ? '1' : '0.00';
+        // Narx HAR DOIM 1 kv.metr uchun — dona soniga bog'liq emas
+        document.getElementById('narxLabel').textContent = 'Zavod narxi (1 kv.metr uchun)';
+
+        const hint = document.getElementById('miqdorHint');
+        if (gatoviy) {
+            const bir = birKv();
+            const dona = joriyMiqdor();
+            hint.innerHTML = (bir != null && dona != null)
+                ? dona + ' dona \u00D7 ' + bir + ' kv = <b>' + jamiKv() + ' kv.metr</b> ' +
+                  '\u2014 narx shu kvadratga hisoblanadi'
+                : "Nechtaligi \u2014 sotuv dona bilan bo'ladi, narx esa kv.metr bo'yicha";
+        } else {
+            hint.textContent = '';
+        }
 
         miqdorniAvtoTuldir();
+        metrajHint();
+    }
+
+    /** Metrajda qancha kv/metr chiqishini ko'rsatib turamiz */
+    function metrajHint() {
+        const el = document.getElementById('metrajHint');
+        if (!el) return;
+        if (gatoviymi()) {
+            const jami = jamiKv();
+            if (jami == null) { el.style.display = 'none'; return; }
+            el.innerHTML = 'Jami kvadrat: <b>' + jami + ' kv.metr</b>';
+            el.style.display = 'block';
+            return;
+        }
+
+        const boyi = parseFloat(document.getElementById('mh_boyi').value);
+        const eni = parseFloat(document.getElementById('mh_eni').value);
+
+        if (isNaN(boyi) || boyi <= 0 || isNaN(eni) || eni <= 0) {
+            el.innerHTML = "Metraj: bo\u2018yi va enini kiriting \u2014 kv avtomatik hisoblanadi";
+        } else {
+            const kv = Math.round(boyi * eni * 100) / 100;
+            el.innerHTML = 'Qoldiq: <b>' + kv + ' kv.metr</b> (' + boyi + ' m \u00D7 ' + eni + ' m eni)';
+        }
+        el.style.display = 'block';
     }
 
     /**
@@ -431,12 +629,15 @@
         }
     }
 
-    document.getElementById('mh_birlik').addEventListener('change', () => {
+    document.getElementById('mh_turi').addEventListener('change', () => {
+        // Turi almashganda miqdor qaytadan hisoblansin
+        document.getElementById('mh_miqdor').dataset.qolda = '';
         birlikYangila();
         kursHintYangila();
     });
     document.getElementById('mh_miqdor').addEventListener('input', e => {
         e.target.dataset.qolda = '1';   // qo'lda kiritildi — endi avto to'ldirilmaydi
+        birlikYangila();                // jami kv qayta hisoblanadi
         kursHintYangila();
     });
 
@@ -451,11 +652,10 @@
             return;
         }
 
-        const b = joriyBirlik();
-        const miqdor = joriyMiqdor();
-        const umumiy = miqdor != null ? narx * miqdor : narx;
-        const kvMatn = miqdor != null
-            ? miqdor + ' ' + BIRLIK_MATN[b] + ' × ' + narx + (valyuta === 'USD' ? '$' : ' so‘m') + ' = '
+        const kv = jamiKv();
+        const umumiy = kv != null ? narx * kv : narx;
+        const kvMatn = kv != null
+            ? kv + ' kv.metr × ' + narx + (valyuta === 'USD' ? '$' : ' so‘m') + ' = '
             : '';
 
         if (valyuta === 'USD') {
@@ -487,9 +687,9 @@
             : '—';
     }
     document.getElementById('mh_boyi').addEventListener('input',
-        () => { kvYangila(); miqdorniAvtoTuldir(); kursHintYangila(); });
+        () => { kvYangila(); birlikYangila(); kursHintYangila(); });
     document.getElementById('mh_eni').addEventListener('input',
-        () => { kvYangila(); miqdorniAvtoTuldir(); kursHintYangila(); });
+        () => { kvYangila(); birlikYangila(); kursHintYangila(); });
 
     // ===== Modal ochish/yopish =====
     async function modalOchish(mahsulot) {
@@ -500,7 +700,6 @@
         document.getElementById('mh_nomi').value = mahsulot ? (mahsulot.nomi || '') : '';
         document.getElementById('mh_kod').value = mahsulot ? (mahsulot.kod || '') : '';
         document.getElementById('mh_turi').value = mahsulot ? (mahsulot.turi || 'gatoviy') : 'gatoviy';
-        document.getElementById('mh_birlik').value = mahsulot ? (mahsulot.birlik || 'dona') : 'dona';
         // Miqdor: tahrirlashda bazadagi qiymat, yangi mahsulotda avto to'ldiriladi
         const miqdorInput = document.getElementById('mh_miqdor');
         miqdorInput.value = mahsulot && mahsulot.miqdor != null ? mahsulot.miqdor : '';
@@ -510,8 +709,14 @@
         // shuning uchun tahrirlashda umumiyni miqdorga bo'lib ko'rsatamiz
         let narxBirlik = '';
         if (mahsulot && mahsulot.zavodNarxi != null) {
-            narxBirlik = (mahsulot.miqdor != null && mahsulot.miqdor > 0)
-                ? Math.round(mahsulot.zavodNarxi / mahsulot.miqdor * 100) / 100
+            // Bazada UMUMIY narx, formada esa 1 KV.METR narxi turadi
+            const bir = (mahsulot.boyi && mahsulot.eni)
+                ? Math.round(mahsulot.boyi * mahsulot.eni * 100) / 100 : null;
+            const jami = (mahsulot.turi === 'metraj')
+                ? (mahsulot.miqdor != null ? mahsulot.miqdor : bir)
+                : (bir != null && mahsulot.miqdor != null ? bir * mahsulot.miqdor : null);
+            narxBirlik = (jami != null && jami > 0)
+                ? Math.round(mahsulot.zavodNarxi / jami * 100) / 100
                 : mahsulot.zavodNarxi;
         }
         document.getElementById('mh_zavod').value = narxBirlik;
@@ -552,16 +757,27 @@
             return;
         }
 
+        const boyiVal = parseFloat(document.getElementById('mh_boyi').value);
+        const eniVal = parseFloat(document.getElementById('mh_eni').value);
         const miqdor = joriyMiqdor();
-        if (miqdor == null) {
-            modalError.textContent = 'Miqdorni kiriting (0 dan katta)';
+
+        if (isNaN(boyiVal) || boyiVal <= 0 || isNaN(eniVal) || eniVal <= 0) {
+            modalError.textContent = 'Bo\u2018yi va enini kiriting \u2014 narx 1 kv.metr uchun hisoblanadi';
             modalError.style.display = 'block';
             return;
         }
-        if (joriyBirlik() === 'dona' && !Number.isInteger(miqdor)) {
-            modalError.textContent = 'Dona uchun miqdor butun son bo\u2018lishi kerak';
-            modalError.style.display = 'block';
-            return;
+
+        if (gatoviymi()) {
+            if (miqdor == null) {
+                modalError.textContent = 'Nechtaligini kiriting (0 dan katta)';
+                modalError.style.display = 'block';
+                return;
+            }
+            if (!Number.isInteger(miqdor)) {
+                modalError.textContent = 'Dona uchun miqdor butun son bo\u2018lishi kerak';
+                modalError.style.display = 'block';
+                return;
+            }
         }
 
         const zavod = document.getElementById('mh_zavod').value;
@@ -576,8 +792,7 @@
             kod: kod,
             kategoriyaId: kategoriyaVal === '' ? null : Number(kategoriyaVal),
             turi: document.getElementById('mh_turi').value,
-            birlik: document.getElementById('mh_birlik').value,
-            miqdor: miqdor,
+            miqdor: gatoviymi() ? miqdor : null,
             zavodNarxi: zavod === '' ? null : Number(zavod),
             valyuta: document.getElementById('mh_valyuta').value,
             boyi: boyi === '' ? null : Number(boyi),
@@ -630,6 +845,154 @@
             } catch (e) {
                 toastKorsat('Server bilan aloqa yo\u2018q', false);
             }
+        }
+    });
+
+    // ===== Exceldan yuklash =====
+    const importOverlay = document.getElementById('importOverlay');
+    const importFile = document.getElementById('importFile');
+    const dropZone = document.getElementById('dropZone');
+    const dropMatn = document.getElementById('dropMatn');
+    const importError = document.getElementById('importError');
+    const importNatija = document.getElementById('importNatija');
+    const importYuklanmoqda = document.getElementById('importYuklanmoqda');
+    const importSaveBtn = document.getElementById('importSaveBtn');
+
+    let tanlanganFayl = null;
+
+    async function importMagazinSelectYukla() {
+        const select = document.getElementById('im_magazin');
+        try {
+            const res = await fetch('/admin/get-magazin-nomlar');
+            if (!res.ok) throw new Error();
+            const magazinlar = await res.json();
+            select.innerHTML = '<option value="">— Tanlanmagan (keyin taqsimlanadi) —</option>' +
+                magazinlar.map(m => `<option value="${m.id}">${esc(m.nomi)}</option>`).join('');
+        } catch (e) {
+            select.innerHTML = '<option value="">— Yuklashda xatolik —</option>';
+        }
+    }
+
+    function importModalOchish() {
+        faylniTozala();
+        importError.style.display = 'none';
+        importNatija.style.display = 'none';
+        importNatija.innerHTML = '';
+        importSaveBtn.style.display = '';
+        document.getElementById('im_magazin').value = '';
+        importMagazinSelectYukla();
+        importOverlay.classList.add('open');
+    }
+
+    function importModalYopish() {
+        importOverlay.classList.remove('open');
+    }
+
+    function faylniTozala() {
+        tanlanganFayl = null;
+        importFile.value = '';
+        dropZone.classList.remove('tanlangan');
+        dropMatn.textContent = 'Faylni bu yerga tashlang yoki bosing';
+    }
+
+    function faylniOl(fayl) {
+        if (!fayl) return;
+        const nom = fayl.name.toLowerCase();
+        if (!/\.(xlsx|xls)$/.test(nom)) {
+            importError.textContent = 'Faqat .xlsx yoki .xls fayl yuklash mumkin';
+            importError.style.display = 'block';
+            return;
+        }
+        if (fayl.size > 15 * 1024 * 1024) {
+            importError.textContent = 'Fayl hajmi 15 MB dan oshmasligi kerak';
+            importError.style.display = 'block';
+            return;
+        }
+        tanlanganFayl = fayl;
+        importError.style.display = 'none';
+        dropZone.classList.add('tanlangan');
+        dropMatn.textContent = fayl.name;
+    }
+
+    document.getElementById('openImportBtn').addEventListener('click', importModalOchish);
+    document.getElementById('importCancelBtn').addEventListener('click', importModalYopish);
+    importOverlay.addEventListener('click', e => { if (e.target === importOverlay) importModalYopish(); });
+
+    dropZone.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', () => faylniOl(importFile.files[0]));
+
+    ['dragenter', 'dragover'].forEach(nom =>
+        dropZone.addEventListener(nom, e => {
+            e.preventDefault();
+            dropZone.classList.add('ustida');
+        }));
+    ['dragleave', 'drop'].forEach(nom =>
+        dropZone.addEventListener(nom, e => {
+            e.preventDefault();
+            dropZone.classList.remove('ustida');
+        }));
+    dropZone.addEventListener('drop', e => faylniOl(e.dataTransfer.files[0]));
+
+    function natijaniChiz(data) {
+        let html =
+            `<div class="natija-satr"><span>Fayldan o'qildi</span><b>${data.oqildi}</b></div>` +
+            `<div class="natija-satr ok"><span>Qo'shildi</span><b>${data.qoshildi}</b></div>`;
+
+        if (data.otkazibYuborildi) {
+            html += `<div class="natija-satr otkaz"><span>O'tkazib yuborildi</span><b>${data.otkazibYuborildi}</b></div>`;
+        }
+
+        if (data.xatolar && data.xatolar.length) {
+            html += '<div class="natija-royxat">' +
+                data.xatolar.map(x => '<div>— ' + esc(x) + '</div>').join('');
+            if (data.qisqartirilgan) {
+                html += '<div class="qisqartirilgan">... va yana ' +
+                    (data.otkazibYuborildi - data.xatolar.length) + ' ta (ro‘yxat qisqartirildi)</div>';
+            }
+            html += '</div>';
+        }
+
+        importNatija.innerHTML = html;
+        importNatija.style.display = 'block';
+    }
+
+    importSaveBtn.addEventListener('click', async () => {
+        importError.style.display = 'none';
+        if (!tanlanganFayl) {
+            importError.textContent = 'Avval faylni tanlang';
+            importError.style.display = 'block';
+            return;
+        }
+
+        const form = new FormData();
+        form.append('file', tanlanganFayl);
+        const magazinVal = document.getElementById('im_magazin').value;
+        if (magazinVal) form.append('magazinId', magazinVal);
+
+        importSaveBtn.disabled = true;
+        importYuklanmoqda.style.display = 'block';
+        importNatija.style.display = 'none';
+
+        try {
+            const res = await fetch('/admin/import-mahsulot', { method: 'POST', body: form });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                natijaniChiz(data);
+                toastKorsat(data.message, data.qoshildi > 0);
+                faylniTozala();
+                importSaveBtn.style.display = 'none';   // natija ko'rinib tursin
+                loadMahsulotlar();
+            } else {
+                importError.textContent = data.message || 'Xatolik yuz berdi';
+                importError.style.display = 'block';
+            }
+        } catch (e) {
+            importError.textContent = 'Server bilan aloqa yo‘q';
+            importError.style.display = 'block';
+        } finally {
+            importSaveBtn.disabled = false;
+            importYuklanmoqda.style.display = 'none';
         }
     });
 

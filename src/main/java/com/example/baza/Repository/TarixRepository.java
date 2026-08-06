@@ -5,6 +5,7 @@ import com.example.baza.Entity.Tarix;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -64,4 +65,12 @@ public interface TarixRepository extends JpaRepository<Tarix, Long> {
     /** Filtr select'i uchun — tarixda uchraydigan bo'limlar */
     @Query("select distinct t.bolim from Tarix t where t.bolim is not null order by t.bolim")
     List<String> findBolimlar();
+
+    /**
+     * Hodim o'chirilganda — tarix yozuvlari o'zi qoladi (faqat FK bo'shatiladi),
+     * chunki username nusxasi allaqachon saqlangan (Tarix.username).
+     */
+    @Modifying
+    @Query("update Tarix t set t.user = null where t.user.id = :userId")
+    void userniTozalash(@Param("userId") Long userId);
 }

@@ -1,11 +1,11 @@
 package com.example.baza.Entity;
 
 import com.example.baza.Configurations.AbstractLongEntity;
+import com.example.baza.Configurations.RuxsatConverter;
 import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Convert;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import lombok.AllArgsConstructor;
@@ -41,6 +41,6 @@ public class Rol extends AbstractLongEntity {
      */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "rol_ruxsatlar", joinColumns = @JoinColumn(name = "rol_id"))
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = RuxsatConverter.class)   // @Enumerated EMAS — CHECK constraint muammosi
     private Set<Ruxsat> ruxsatlar = new LinkedHashSet<>();
 }

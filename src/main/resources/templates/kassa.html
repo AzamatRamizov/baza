@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sotuvlar</title>
+    <title>Kassa</title>
     <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
     <link rel="stylesheet" href="/tema.css">
     <script src="/tema.js"></script>
@@ -19,6 +19,7 @@
         .card {
             background-color: var(--karta); border-radius: 10px;
             box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+            margin-bottom: 22px;
         }
         .card-header {
             display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px;
@@ -55,10 +56,10 @@
             background-color: var(--fon3); color: var(--kok-toq); border-color: var(--kok);
         }
 
-        /* Statistika */
+        /* ---- Statistika kartalari ---- */
         .statlar {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 14px; margin-bottom: 20px;
+            gap: 14px; margin-bottom: 22px;
         }
         .stat {
             background-color: var(--fon2); border: 1px solid var(--chegara);
@@ -71,6 +72,7 @@
         .stat .qiymat { font-size: 21px; font-weight: 700; color: var(--matn); }
         .stat .qiymat small { font-size: 13px; font-weight: 600; color: var(--matn3); }
         .stat.foyda .qiymat { color: var(--yashil-toq); }
+        .stat.ogoh .qiymat { color: var(--sariq-toq2); }
 
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -116,30 +118,6 @@
         .olcham { display: block; font-size: 11.5px; color: var(--matn4); margin-top: 2px; }
         tr.katmda td { background-color: var(--sariq-fon2, var(--fon2)); }
 
-        .tasdiq-btn, .rad-btn {
-            padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
-            cursor: pointer; font-family: inherit; margin-right: 5px;
-        }
-        .tasdiq-btn {
-            background-color: var(--yashil-fon); color: var(--yashil-toq);
-            border: 1px solid var(--yashil-chegara);
-        }
-        .tasdiq-btn:hover { background-color: var(--yashil-chegara); }
-        .rad-btn {
-            background-color: var(--qizil-fon); color: var(--qizil);
-            border: 1px solid var(--qizil-3);
-        }
-        .rad-btn:hover { background-color: var(--qizil-2); }
-
-        .qaytar-btn {
-            padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 600;
-            cursor: pointer; font-family: inherit;
-            background-color: var(--qizil-fon); color: var(--qizil);
-            border: 1px solid var(--qizil-3);
-            transition: background-color 0.2s;
-        }
-        .qaytar-btn:hover { background-color: var(--qizil-2); }
-
         .empty-row td {
             text-align: center; color: var(--matn4); padding: 34px 16px;
             white-space: normal; line-height: 1.6;
@@ -155,7 +133,7 @@
 <div class="container">
     <div class="card">
         <div class="card-header">
-            <h1>Sotuvlar</h1>
+            <h1>Kassa</h1>
             <span class="jami" id="jamiMatn"></span>
         </div>
 
@@ -169,18 +147,24 @@
                 <input type="date" id="fSanagacha">
             </div>
             <div class="filtr">
+                <label for="fMagazin">Magazin</label>
+                <select id="fMagazin">
+                    <option value="">Barchasi</option>
+                </select>
+            </div>
+            <div class="filtr">
                 <label for="fHolat">Holat</label>
                 <select id="fHolat">
                     <option value="">Barchasi</option>
                     <option value="SOTILDI">Sotilgan</option>
                     <option value="KATMDA">KATMda (javob kutilmoqda)</option>
-                    <option value="KATM_RAD">KATM rad etgan</option>
+                    <option value="KATM_RAD">KATM rad etdi</option>
                     <option value="QAYTARILDI">Qaytarilgan</option>
                 </select>
             </div>
             <div class="filtr qidiruv">
                 <label for="fQidiruv">Qidirish</label>
-                <input type="text" id="fQidiruv" placeholder="Mahsulot, kod, mijoz, sotuvchi...">
+                <input type="text" id="fQidiruv" placeholder="Mahsulot, kod, mijoz, sotuvchi, magazin...">
             </div>
             <button class="filtr-tugma" data-oraliq="bugun">Bugun</button>
             <button class="filtr-tugma" data-oraliq="hafta">7 kun</button>
@@ -201,7 +185,7 @@
                 <div class="nom">Foyda</div>
                 <div class="qiymat" id="statFoyda">—</div>
             </div>
-            <div class="stat">
+            <div class="stat ogoh">
                 <div class="nom">KATMda (javob kutilmoqda)</div>
                 <div class="qiymat" id="statKatm">—</div>
             </div>
@@ -210,7 +194,35 @@
                 <div class="qiymat" id="statQaytarilgan">—</div>
             </div>
         </div>
+    </div>
 
+    <div class="card">
+        <div class="card-header">
+            <h1>Magazinlar bo'yicha tushum</h1>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Magazin</th>
+                    <th>Sotuvlar soni</th>
+                    <th>Tushum</th>
+                    <th>Foyda</th>
+                    <th>KATMda</th>
+                    <th>KATM summasi</th>
+                </tr>
+                </thead>
+                <tbody id="magazinTbody">
+                <tr class="empty-row"><td colspan="6">Yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>Barcha sotuvlar</h1>
+        </div>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -218,20 +230,17 @@
                     <th>#</th>
                     <th>Vaqt</th>
                     <th>Mahsulot</th>
-                    <th>Kodi</th>
                     <th>Miqdor</th>
-                    <th>Narx (1 kv)</th>
                     <th>Summa</th>
                     <th>Foyda</th>
                     <th>Mijoz</th>
                     <th>Magazin</th>
                     <th>Sotuvchi</th>
                     <th>Holat</th>
-                    <th></th>
                 </tr>
                 </thead>
                 <tbody id="sotuvTbody">
-                <tr class="empty-row"><td colspan="13">Yuklanmoqda...</td></tr>
+                <tr class="empty-row"><td colspan="10">Yuklanmoqda...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -240,17 +249,15 @@
 
 <script>
     const tbody = document.getElementById('sotuvTbody');
+    const magazinTbody = document.getElementById('magazinTbody');
     const fSanadan = document.getElementById('fSanadan');
     const fSanagacha = document.getElementById('fSanagacha');
     const fQidiruv = document.getElementById('fQidiruv');
     const fHolat = document.getElementById('fHolat');
+    const fMagazin = document.getElementById('fMagazin');
 
     let sotuvlar = [];
     let kutish = null;
-
-    function toastKorsat(matn, ok) {
-        xabar(matn, ok ? 'ok' : 'err');
-    }
 
     function esc(s) {
         return (s == null ? '' : String(s))
@@ -276,9 +283,18 @@
         return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
     }
 
-    // ===== Statistika =====
+    // ===== Magazin filtri =====
+    async function magazinlarniYukla() {
+        try {
+            const res = await fetch('/admin/get-magazin-nomlar');
+            const list = await res.json();
+            fMagazin.innerHTML = '<option value="">Barchasi</option>' +
+                list.map(m => `<option value="${m.id}">${esc(m.nomi)}</option>`).join('');
+        } catch (e) { /* filtr bo'lmasa ham jadval ishlayveradi */ }
+    }
+
+    // ===== Umumiy statistika =====
     function statlarniYangila(list) {
-        // Tushum/foyda faqat yakunlangan sotuvlardan (KATMda - hali javob yo'q)
         const sotilgan = list.filter(s => s.holat === 'SOTILDI');
         const katmda = list.filter(s => s.holat === 'KATMDA');
         const qaytarilgan = list.filter(s => s.holat === 'QAYTARILDI' || s.holat === 'KATM_RAD');
@@ -288,18 +304,56 @@
         const katmSumma = katmda.reduce((a, s) => a + (s.summa || 0), 0);
 
         document.getElementById('statSoni').textContent = sotilgan.length;
-        document.getElementById('statSumma').innerHTML = pul(summa) + ' <small>so\u2018m</small>';
-        document.getElementById('statFoyda').innerHTML = pul(foyda) + ' <small>so\u2018m</small>';
+        document.getElementById('statSumma').innerHTML = pul(summa) + ' <small>so‘m</small>';
+        document.getElementById('statFoyda').innerHTML = pul(foyda) + ' <small>so‘m</small>';
         document.getElementById('statKatm').innerHTML = katmda.length +
-            ' <small>ta / ' + pul(katmSumma) + ' so\u2018m</small>';
+            ' <small>ta / ' + pul(katmSumma) + ' so‘m</small>';
         document.getElementById('statQaytarilgan').textContent = qaytarilgan.length;
+    }
+
+    // ===== Magazin bo'yicha taqsimot (joriy filtrlangan ro'yxatdan emas —
+    // har doim TO'LIQ ro'yxatdan hisoblanadi, magazin filtri bilan chalkashmasin) =====
+    function magazinlarBoyichaChiz(list) {
+        const guruh = new Map();
+        list.forEach(s => {
+            const id = s.magazinId || 0;
+            if (!guruh.has(id)) {
+                guruh.set(id, { nomi: s.magazinNomi || 'Magazinsiz', soni: 0, summa: 0, foyda: 0, katmSoni: 0, katmSumma: 0 });
+            }
+            const g = guruh.get(id);
+            if (s.holat === 'SOTILDI') {
+                g.soni++; g.summa += (s.summa || 0); g.foyda += (s.foyda || 0);
+            } else if (s.holat === 'KATMDA') {
+                g.katmSoni++; g.katmSumma += (s.summa || 0);
+            }
+        });
+
+        const qatorlar = Array.from(guruh.values()).sort((a, b) => b.summa - a.summa);
+        if (!qatorlar.length) {
+            magazinTbody.innerHTML = '<tr class="empty-row"><td colspan="6">Bu davrda sotuv bo‘lmagan</td></tr>';
+            return;
+        }
+        magazinTbody.innerHTML = qatorlar.map(g => `
+            <tr>
+                <td><b>${esc(g.nomi)}</b></td>
+                <td>${g.soni}</td>
+                <td class="summa">${pul(g.summa)}</td>
+                <td class="foyda ${g.foyda < 0 ? 'manfiy' : ''}">${pul(g.foyda)}</td>
+                <td>${g.katmSoni}</td>
+                <td>${pul(g.katmSumma)}</td>
+            </tr>`).join('');
     }
 
     // ===== Jadval =====
     function jadvalniChiz() {
         const q = fQidiruv.value.trim().toLowerCase();
         const h = fHolat.value;
+        const magazinId = fMagazin.value;
+
         let list = sotuvlar;
+        if (magazinId) list = list.filter(s => String(s.magazinId) === magazinId);
+        magazinlarBoyichaChiz(list);
+
         if (h) list = list.filter(s => s.holat === h);
         if (q) list = list.filter(s =>
             (s.mahsulotNomi || '').toLowerCase().includes(q) ||
@@ -315,9 +369,9 @@
             list.length ? list.length + ' ta yozuv' : '';
 
         if (!list.length) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">' +
-                (q || h ? 'Filtr bo\u2018yicha hech narsa topilmadi'
-                       : 'Bu davrda sotuv bo\u2018lmagan') + '</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="10">' +
+                (q || h || magazinId ? 'Filtr bo‘yicha hech narsa topilmadi'
+                       : 'Bu davrda sotuv bo‘lmagan') + '</td></tr>';
             return;
         }
 
@@ -328,41 +382,10 @@
 
         tbody.innerHTML = list.map(s => {
             const katmda = s.holat === 'KATMDA';
-            const ochiq = s.holat === 'SOTILDI';
             const yopiq = s.holat === 'QAYTARILDI' || s.holat === 'KATM_RAD';
             const mijoz = [s.mijozIsmi, s.mijozTel].filter(Boolean).map(esc).join('<br>');
-
-            // Metrajda o'lcham: 60 kv.metr / 3 x 20 m
             const olcham = (s.boyi != null && s.eni != null)
-                ? '<span class="olcham">' + s.eni + ' \u00D7 ' + s.boyi + ' m</span>' : '';
-
-            let izohMatn = '';
-            if (katmda) {
-                const qismlar = [];
-                if (s.muddat) qismlar.push(s.muddat + ' oy');
-                if (s.oldindanTulov) qismlar.push('oldindan ' + pul(s.oldindanTulov));
-                qismlar.push(s.gilamgaYuborildi
-                    ? 'gilamga yuborildi'
-                    : 'yuborilmadi' + (s.gilamXato ? ': ' + esc(s.gilamXato) : ''));
-                izohMatn = '<div class="muted" style="font-size:11px;margin-top:3px">' +
-                    qismlar.join(' \u00B7 ') + '</div>';
-            }
-
-            let amal;
-            if (katmda) {
-                // Tasdiqlash GILAM dasturida bo'ladi. Bu yerda faqat qayta yuborish
-                // yoki (javob kelmasa) bekor qilib mahsulotni qaytarib olish mumkin.
-                amal = (s.gilamgaYuborildi ? '' :
-                        '<button class="tasdiq-btn" data-yubor="' + s.id + '" data-name="' +
-                        esc(s.mahsulotNomi) + '">Qayta yuborish</button>') +
-                    '<button class="rad-btn" data-rad="' + s.id + '" data-name="' +
-                    esc(s.mahsulotNomi) + '">Bekor qilish</button>';
-            } else if (ochiq) {
-                amal = '<button class="qaytar-btn" data-id="' + s.id + '" data-name="' +
-                    esc(s.mahsulotNomi) + '">Qaytarish</button>';
-            } else {
-                amal = '<span class="muted">\u2014</span>';
-            }
+                ? '<span class="olcham">' + s.eni + ' × ' + s.boyi + ' m</span>' : '';
 
             return `
             <tr class="${yopiq ? 'qaytarilgan' : ''} ${katmda ? 'katmda' : ''}">
@@ -372,41 +395,35 @@
                     <b>${esc(s.mahsulotNomi)}</b>
                     ${s.turi === 'KATM' ? '<span class="turi-badge">KATM</span>' : ''}
                 </td>
-                <td>${esc(s.mahsulotKod) || '<span class="muted">\u2014</span>'}</td>
                 <td>${s.miqdor} <span class="muted">${esc(s.birlik)}</span>${olcham}</td>
-                <td>${pul(s.birlikNarxi)}${s.kv ? '<span class="olcham">' + s.kv + ' kv.metr</span>' : ''}</td>
                 <td class="summa">${pul(s.summa)}</td>
-                <td class="foyda ${(s.foyda || 0) < 0 ? 'manfiy' : ''}">${katmda ? '<span class="muted">\u2014</span>' : pul(s.foyda)}</td>
-                <td>${mijoz || '<span class="muted">\u2014</span>'}</td>
-                <td>${esc(s.magazinNomi) || '<span class="muted">\u2014</span>'}</td>
-                <td>${esc(s.sotganFish) || '<span class="muted">\u2014</span>'}</td>
-                <td>
-                    <span class="holat holat-${s.holat}">${holatNomi[s.holat] || esc(s.holat)}</span>
-                    ${izohMatn}
-                    ${s.qaytarishSababi ? '<div class="muted" style="font-size:11px;margin-top:3px">' + esc(s.qaytarishSababi) + '</div>' : ''}
-                    ${s.katmJavobi ? '<div class="muted" style="font-size:11px;margin-top:3px">' + esc(s.katmJavobi) + '</div>' : ''}
-                </td>
-                <td>${amal}</td>
+                <td class="foyda ${(s.foyda || 0) < 0 ? 'manfiy' : ''}">${katmda ? '<span class="muted">—</span>' : pul(s.foyda)}</td>
+                <td>${mijoz || '<span class="muted">—</span>'}</td>
+                <td>${esc(s.magazinNomi) || '<span class="muted">—</span>'}</td>
+                <td>${esc(s.sotganFish) || '<span class="muted">—</span>'}</td>
+                <td><span class="holat holat-${s.holat}">${holatNomi[s.holat] || esc(s.holat)}</span></td>
             </tr>`;
         }).join('');
     }
 
     // ===== Yuklash =====
     async function load() {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="13">Yuklanmoqda...</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Yuklanmoqda...</td></tr>';
+        magazinTbody.innerHTML = '<tr class="empty-row"><td colspan="6">Yuklanmoqda...</td></tr>';
 
         const p = new URLSearchParams();
         if (fSanadan.value) p.set('sanadan', fSanadan.value);
         if (fSanagacha.value) p.set('sanagacha', fSanagacha.value);
 
         try {
-            const res = await fetch('/admin/get-sotuvlar?' + p.toString());
+            const res = await fetch('/admin/get-kassa?' + p.toString());
             if (!res.ok) throw new Error();
             sotuvlar = await res.json();
             jadvalniChiz();
         } catch (e) {
             sotuvlar = [];
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">Yuklashda xatolik</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Yuklashda xatolik</td></tr>';
+            magazinTbody.innerHTML = '<tr class="empty-row"><td colspan="6">Yuklashda xatolik</td></tr>';
         }
     }
 
@@ -414,6 +431,7 @@
     fSanadan.addEventListener('change', () => { oraliqniBoshat(); load(); });
     fSanagacha.addEventListener('change', () => { oraliqniBoshat(); load(); });
     fHolat.addEventListener('change', jadvalniChiz);
+    fMagazin.addEventListener('change', jadvalniChiz);
     fQidiruv.addEventListener('input', () => {
         clearTimeout(kutish);
         kutish = setTimeout(jadvalniChiz, 250);
@@ -444,94 +462,9 @@
         });
     });
 
-    // ===== KATM: qayta yuborish / bekor qilish =====
-    async function katmQaytaYuborish(id) {
-        try {
-            const res = await fetch('/admin/katm-qayta-yuborish/' + id, { method: 'POST' });
-            const data = await res.json();
-            toastKorsat(data.message, data.holat);
-            if (data.holat) load();
-        } catch (e) {
-            toastKorsat('Server bilan aloqa yo\u2018q', false);
-        }
-    }
-
-    async function katmBekor(id, nomi) {
-        const sabab = await tasdiq.soragich(
-            '\u201C' + nomi + '\u201D so\u2018rovi bekor qilinsinmi? ' +
-            'Mahsulot qoldig\u2018i tiklanadi. Shartnoma gilamda tuzilgan bo\u2018lsa, bekor qilmang.',
-            '', {
-                sarlavha: 'KATM so\u2018rovini bekor qilish',
-                tur: 'ogoh',
-                tugma: 'Ha, bekor qilinsin',
-                placeholder: 'Sabab (ixtiyoriy)'
-            });
-        if (sabab === null) return;
-        try {
-            const res = await fetch('/admin/katm-javob/' + id, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tasdiq: false, izoh: sabab || null })
-            });
-            const data = await res.json();
-            toastKorsat(data.message, data.holat);
-            if (data.holat) load();
-        } catch (e) {
-            toastKorsat('Server bilan aloqa yo\u2018q', false);
-        }
-    }
-
-    // ===== Qaytarish / KATM =====
-    tbody.addEventListener('click', async e => {
-        const yuborBtn = e.target.closest('.tasdiq-btn');
-        if (yuborBtn) {
-            return katmQaytaYuborish(yuborBtn.dataset.yubor);
-        }
-        const radBtn = e.target.closest('.rad-btn');
-        if (radBtn) {
-            return katmBekor(radBtn.dataset.rad, radBtn.dataset.name);
-        }
-
-        const btn = e.target.closest('.qaytar-btn');
-        if (!btn) return;
-
-        const sabab = await tasdiq.soragich(
-            '\u201C' + btn.dataset.name + '\u201D sotuvini qaytarasizmi? ' +
-            'Mahsulot qoldig\u2018i tiklanadi.',
-            '', {
-                sarlavha: 'Sotuvni qaytarish',
-                tur: 'ogoh',
-                tugma: 'Ha, qaytaraman',
-                placeholder: 'Sabab (ixtiyoriy)'
-            });
-        if (sabab === null) return;
-
-        try {
-            const res = await fetch('/admin/sotuv-qaytarish/' + btn.dataset.id, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sabab: sabab || null })
-            });
-            const data = await res.json();
-            toastKorsat(data.message, data.holat);
-            if (data.holat) load();
-        } catch (e) {
-            toastKorsat('Server bilan aloqa yo\u2018q', false);
-        }
-    });
-
-    // Boshlanishida — oxirgi 30 kun (?holat=KATMDA bilan kelinsa — butun davr)
+    // ===== Boshlanishi — oxirgi 30 kun =====
     (function boshlanish() {
-        const holat = new URLSearchParams(location.search).get('holat');
-        if (holat) {
-            fHolat.value = holat;
-            oraliqniBoshat();
-            document.querySelector('.filtr-tugma[data-oraliq="hammasi"]').classList.add('faol');
-            fSanadan.value = '';
-            fSanagacha.value = '';
-            load();
-            return;
-        }
+        magazinlarniYukla();
         const bugun = new Date();
         const boshi = new Date();
         boshi.setDate(bugun.getDate() - 29);
