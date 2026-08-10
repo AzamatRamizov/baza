@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arizalar</title>
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 1150px; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 12px;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .card-sub { color: var(--matn3); font-size: 13px; margin-bottom: 18px; }
+
+        .add-btn {
+            padding: 9px 18px; background-color: var(--kok); color: var(--karta); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+        .add-btn:hover { background-color: var(--kok-hover); }
+
+        /* ---- Boshqaruv panel: filter tablar + saralash ---- */
+        .toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
+        }
+        .filter-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+        .filter-tab {
+            padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--chegara);
+            background-color: var(--fon2); color: var(--matn2);
+            font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+            display: flex; align-items: center; gap: 6px;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .filter-tab:hover { border-color: var(--chegara-kok); }
+        .filter-tab .son {
+            background-color: var(--fon4); color: var(--matn3);
+            border-radius: 10px; padding: 1px 7px; font-size: 11.5px;
+        }
+        .filter-tab.active { background-color: var(--kok); border-color: var(--kok); color: #ffffff; }
+        .filter-tab.active .son { background-color: rgba(255,255,255,0.25); color: #ffffff; }
+
+        .saralash select {
+            padding: 7px 12px; border-radius: 6px; border: 1.5px solid var(--chegara-kok);
+            background-color: var(--fon2); color: var(--matn); font-size: 13px; font-family: inherit;
+            cursor: pointer;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); vertical-align: top; }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2);
+        }
+        tr:hover td { background-color: var(--fon4); }
+        .empty-row td { text-align: center; color: var(--matn4); padding: 24px; }
+
+        .tel { font-weight: 700; }
+        .sana { color: var(--matn3); font-size: 12.5px; white-space: nowrap; }
+        .manba { color: var(--matn4); font-size: 11.5px; }
+
+        select.holat-select {
+            padding: 6px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 700;
+            border: 1.5px solid transparent; font-family: inherit; cursor: pointer;
+        }
+        select.holat-select:disabled { cursor: default; opacity: 0.75; }
+
+        .izoh-input {
+            width: 100%; min-width: 160px; padding: 6px 8px; margin-top: 6px;
+            border: 1.5px solid var(--chegara); border-radius: 6px;
+            font-size: 12.5px; font-family: inherit; color: var(--matn); background-color: var(--fon2);
+        }
+        .izoh-input:focus { border-color: var(--kok); background-color: var(--karta); outline: none; }
+
+        /* ---- Holat ranglari: YANGI yorqin/diqqat tortadigan bo'lsin ---- */
+        .badge-YANGI {
+            background-color: var(--sariq); color: #ffffff; border-color: var(--sariq);
+            box-shadow: 0 0 0 3px var(--sariq-fon);
+            animation: yangiUrish 1.8s ease-in-out infinite;
+        }
+        @keyframes yangiUrish {
+            0%, 100% { box-shadow: 0 0 0 3px var(--sariq-fon); }
+            50% { box-shadow: 0 0 0 6px var(--sariq-fon2); }
+        }
+        .badge-BOGLANILDI { background-color: var(--fon3); color: var(--kok-toq); border-color: var(--chegara-kok); }
+        .badge-MIJOZGA_AYLANDI { background-color: var(--yashil-fon); color: var(--yashil-toq); border-color: var(--yashil-chegara); }
+        .badge-RAD_ETILDI { background-color: var(--qizil-fon); color: var(--qizil); border-color: var(--qizil-3); }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: var(--parda);
+            display: none; align-items: center; justify-content: center; z-index: 100;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--karta); border-radius: 10px; padding: 28px 32px;
+            width: 100%; max-width: 440px;
+            box-shadow: 0 8px 32px var(--soya3);
+        }
+        .modal h2 { color: var(--kok); font-size: 18px; margin-bottom: 18px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: var(--kok-och);
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
+            transition: border-color 0.2s; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--kok); background-color: var(--karta);
+        }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .modal-actions .save-btn {
+            flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-actions .save-btn:hover { background-color: var(--kok-hover); }
+        .modal-actions .cancel-btn {
+            padding: 10px 18px; background-color: var(--fon5); color: var(--kok-och); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-error {
+            color: var(--qizil); font-size: 13px; margin-top: 10px; text-align: center; display: none;
+        }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Arizalar (Instagram)</h1>
+            <button class="add-btn" id="openModalBtn">+ Yangi ariza</button>
+        </div>
+        <div class="card-sub">
+            Instagram reklama videosidagi formadan telefon raqamini qoldirgan foydalanuvchilar
+            shu yerda avtomatik to'planadi — kerak bo'lsa qo'lda ham qo'shishingiz mumkin.
+        </div>
+
+        <div class="toolbar">
+            <div class="filter-tabs" id="filterTabs"></div>
+            <div class="saralash">
+                <select id="saralashSelect">
+                    <option value="yangi-birinchi">Sana: yangi birinchi</option>
+                    <option value="eski-birinchi">Sana: eski birinchi</option>
+                </select>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+            <tr>
+                <th style="width:60px">#</th>
+                <th>Ism</th>
+                <th>Telefon</th>
+                <th>Akkaunt</th>
+                <th style="width:150px">Sana</th>
+                <th style="width:170px">Holat</th>
+                <th>Izoh</th>
+            </tr>
+            </thead>
+            <tbody id="arizaTbody">
+            <tr class="empty-row"><td colspan="7">Yuklanmoqda...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Qo'lda ariza qo'shish modali -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2>Yangi ariza qo'shish</h2>
+        <div class="form-group">
+            <label for="m_telefon">Telefon raqami *</label>
+            <input type="text" id="m_telefon" placeholder="+998 90 123 45 67" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="m_ism">Ism familiya</label>
+            <input type="text" id="m_ism" placeholder="Masalan: Aziz Ramizov" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="m_akkaunt">Instagram akkaunt</label>
+            <select id="m_akkaunt">
+                <option value="">— Belgilanmagan —</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="m_izoh">Izoh</label>
+            <textarea id="m_izoh" rows="2" placeholder="Ixtiyoriy"></textarea>
+        </div>
+        <p class="modal-error" id="modalError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="saveBtn">Saqlash</button>
+            <button class="cancel-btn" id="cancelBtn">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tbody = document.getElementById('arizaTbody');
+    const filterTabsEl = document.getElementById('filterTabs');
+    const saralashSelect = document.getElementById('saralashSelect');
+    const overlay = document.getElementById('modalOverlay');
+    const modalError = document.getElementById('modalError');
+
+    let arizalar = [];
+    let joriyFiltr = 'BARCHASI';
+    let joriySaralash = 'yangi-birinchi';
+
+    const HOLATLAR = [
+        ['YANGI', 'Yangi'],
+        ['BOGLANILDI', "Bog'lanildi"],
+        ['MIJOZGA_AYLANDI', 'Mijozga aylandi'],
+        ['RAD_ETILDI', 'Rad etildi']
+    ];
+
+    function toastKorsat(matn, ok) { xabar(matn, ok ? 'ok' : 'err'); }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    function sanaFormat(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleString('uz-UZ', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function holatSelect(ariza) {
+        const options = HOLATLAR.map(([kod, nomi]) =>
+            `<option value="${kod}" ${ariza.holat === kod ? 'selected' : ''}>${nomi}</option>`
+        ).join('');
+        return `<select class="holat-select badge-${ariza.holat}" data-id="${ariza.id}">${options}</select>`;
+    }
+
+    function renderFilterTabs() {
+        const guruhlar = HOLATLAR.slice();
+        guruhlar.unshift(['BARCHASI', 'Barchasi']);
+        filterTabsEl.innerHTML = guruhlar.map(([kod, nomi]) => {
+            const son = kod === 'BARCHASI' ? arizalar.length : arizalar.filter(a => a.holat === kod).length;
+            return `<button type="button" class="filter-tab ${joriyFiltr === kod ? 'active' : ''}" data-kod="${kod}">
+                        ${nomi} <span class="son">${son}</span>
+                    </button>`;
+        }).join('');
+    }
+
+    function korsatilganlarniChiz() {
+        let royxat = joriyFiltr === 'BARCHASI' ? arizalar : arizalar.filter(a => a.holat === joriyFiltr);
+
+        royxat = royxat.slice().sort((a, b) => {
+            const t1 = new Date(a.createdTime).getTime();
+            const t2 = new Date(b.createdTime).getTime();
+            return joriySaralash === 'yangi-birinchi' ? t2 - t1 : t1 - t2;
+        });
+
+        if (!royxat.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Bu holatda ariza yo‘q</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = royxat.map((a, i) => `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${esc(a.ismFamiliya) || '<span style="color:var(--matn4)">—</span>'}</td>
+                <td class="tel">${esc(a.telefon) || '<span style="color:var(--matn4)">—</span>'}</td>
+                <td>${esc(a.akkauntNomi) || '<span style="color:var(--matn4)">—</span>'}<br><span class="manba">${esc(a.manba)}</span></td>
+                <td class="sana">${sanaFormat(a.createdTime)}</td>
+                <td>${holatSelect(a)}</td>
+                <td>
+                    <input type="text" class="izoh-input" data-id="${a.id}"
+                           placeholder="Izoh..." value="${esc(a.izoh)}">
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadArizalar() {
+        try {
+            const res = await fetch('/admin/get-arizalar');
+            if (!res.ok) throw new Error();
+            arizalar = await res.json();
+            renderFilterTabs();
+            korsatilganlarniChiz();
+        } catch (e) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    filterTabsEl.addEventListener('click', e => {
+        const btn = e.target.closest('.filter-tab');
+        if (!btn) return;
+        joriyFiltr = btn.dataset.kod;
+        renderFilterTabs();
+        korsatilganlarniChiz();
+    });
+
+    saralashSelect.addEventListener('change', () => {
+        joriySaralash = saralashSelect.value;
+        korsatilganlarniChiz();
+    });
+
+    async function holatniSaqlash(id, holat, izoh) {
+        try {
+            const res = await fetch('/admin/update-ariza-holati/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ holat: holat, izoh: izoh })
+            });
+            const data = await res.json();
+            xabar(data.message, data.holat ? 'ok' : 'err');
+            if (data.holat) loadArizalar();
+        } catch (e) {
+            xabar('Server bilan aloqa yo‘q', 'err');
+        }
+    }
+
+    tbody.addEventListener('change', e => {
+        const select = e.target.closest('.holat-select');
+        if (!select) return;
+        const izohInput = select.closest('tr').querySelector('.izoh-input');
+        holatniSaqlash(select.dataset.id, select.value, izohInput ? izohInput.value.trim() : '');
+    });
+
+    tbody.addEventListener('keydown', e => {
+        const input = e.target.closest('.izoh-input');
+        if (!input || e.key !== 'Enter') return;
+        const select = input.closest('tr').querySelector('.holat-select');
+        holatniSaqlash(input.dataset.id, select.value, input.value.trim());
+    });
+
+    // ===== Qo'lda qo'shish modali =====
+    async function loadAkkauntlarSelect() {
+        try {
+            const res = await fetch('/admin/get-instagram-akkauntlar');
+            if (!res.ok) return;
+            const akkauntlar = await res.json();
+            const select = document.getElementById('m_akkaunt');
+            select.innerHTML = '<option value="">— Belgilanmagan —</option>' +
+                akkauntlar.map(a => `<option value="${a.id}">${esc(a.nomi)}</option>`).join('');
+        } catch (e) { /* akkaunt tanlash ixtiyoriy, xato bo'lsa ham modal ishlayveradi */ }
+    }
+
+    function modalOchish() {
+        modalError.style.display = 'none';
+        document.getElementById('m_telefon').value = '';
+        document.getElementById('m_ism').value = '';
+        document.getElementById('m_izoh').value = '';
+        document.getElementById('m_akkaunt').value = '';
+        overlay.classList.add('open');
+        document.getElementById('m_telefon').focus();
+    }
+
+    function modalYopish() { overlay.classList.remove('open'); }
+
+    document.getElementById('openModalBtn').addEventListener('click', () => { loadAkkauntlarSelect(); modalOchish(); });
+    document.getElementById('cancelBtn').addEventListener('click', modalYopish);
+    overlay.addEventListener('click', e => { if (e.target === overlay) modalYopish(); });
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+        modalError.style.display = 'none';
+
+        const telefon = document.getElementById('m_telefon').value.trim();
+        if (!telefon) {
+            modalError.textContent = 'Telefon raqami kiritilishi shart';
+            modalError.style.display = 'block';
+            return;
+        }
+
+        const body = {
+            telefon: telefon,
+            ismFamiliya: document.getElementById('m_ism').value.trim() || null,
+            izoh: document.getElementById('m_izoh').value.trim() || null,
+            instagramAkkauntId: document.getElementById('m_akkaunt').value || null
+        };
+
+        try {
+            const res = await fetch('/admin/add-ariza', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                modalYopish();
+                toastKorsat(data.message, true);
+                loadArizalar();
+            } else {
+                modalError.textContent = data.message || 'Xatolik yuz berdi';
+                modalError.style.display = 'block';
+            }
+        } catch (e) {
+            modalError.textContent = 'Server bilan aloqa yo‘q';
+            modalError.style.display = 'block';
+        }
+    });
+
+    loadArizalar();
+</script>
+
+</body>
+</html>

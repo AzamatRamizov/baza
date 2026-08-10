@@ -40,7 +40,12 @@ public enum Ruxsat {
     STATISTIKA_KORISH("Statistikani ko'rish", "Statistika"),
 
     // ===== Kassa =====
-    KASSA_KORISH("Kassani ko'rish (barcha magazinlar tushumi va KATMlari)", "Kassa");
+    KASSA_KORISH("Kassani ko'rish (barcha magazinlar tushumi va KATMlari)", "Kassa"),
+
+    // ===== Arizalar (Instagram) =====
+    ARIZA_KORISH("Instagramdan kelgan arizalarni ko'rish", "Arizalar"),
+    ARIZA_BOSHQARISH("Ariza holatini o'zgartirish (bog'lanildi, mijozga aylandi va h.k.)", "Arizalar"),
+    INSTAGRAM_AKKAUNT_BOSHQARISH("Instagram akkauntlarini boshqarish (qo'shish, tahrirlash, o'chirish, mas'ul belgilash)", "Arizalar");
 
     private final String nomi;
     private final String bolim;

@@ -2,6 +2,11 @@ package com.example.baza.Controller;
 
 import com.example.baza.Configurations.TokenGenerator;
 import com.example.baza.Dto.ApiResponse;
+import com.example.baza.Dto.ArizaDto;
+import com.example.baza.Dto.ArizaHolatiSaveDto;
+import com.example.baza.Dto.ArizaSaveDto;
+import com.example.baza.Dto.InstagramAkkauntDto;
+import com.example.baza.Dto.InstagramAkkauntSaveDto;
 import com.example.baza.Dto.KategoriyaDto;
 import com.example.baza.Dto.ImportNatijaDto;
 import com.example.baza.Dto.KategoriyaSaveDto;
@@ -29,6 +34,9 @@ import com.example.baza.Dto.TarixSahifaDto;
 import com.example.baza.Dto.UsdKursDto;
 import com.example.baza.Dto.UserAddDto;
 import com.example.baza.Dto.UserDto;
+import com.example.baza.Entity.Users;
+import com.example.baza.Service.ArizaService;
+import com.example.baza.Service.InstagramAkkauntService;
 import com.example.baza.Service.KategoriyaService;
 import com.example.baza.Service.MagazinService;
 import com.example.baza.Service.MahsulotImportService;
@@ -80,6 +88,8 @@ public class AdminController {
     private final TarixService tarixService;
     private final StatistikaService statistikaService;
     private final MahsulotImportService mahsulotImportService;
+    private final ArizaService arizaService;
+    private final InstagramAkkauntService instagramAkkauntService;
 
     public AdminController(AuthenticationManager authenticationManager,
                            TokenGenerator tokenGenerator,
@@ -93,7 +103,9 @@ public class AdminController {
                            SotuvService sotuvService,
                            TarixService tarixService,
                            StatistikaService statistikaService,
-                           MahsulotImportService mahsulotImportService) {
+                           MahsulotImportService mahsulotImportService,
+                           ArizaService arizaService,
+                           InstagramAkkauntService instagramAkkauntService) {
         this.authenticationManager = authenticationManager;
         this.tokenGenerator = tokenGenerator;
         this.userService = userService;
@@ -107,6 +119,8 @@ public class AdminController {
         this.tarixService = tarixService;
         this.statistikaService = statistikaService;
         this.mahsulotImportService = mahsulotImportService;
+        this.arizaService = arizaService;
+        this.instagramAkkauntService = instagramAkkauntService;
     }
 
     // ================= LOGIN =================
@@ -156,7 +170,7 @@ public class AdminController {
 
     @GetMapping("/get-users")
     @ResponseBody
-    @PreAuthorize("hasAnyAuthority('HODIM_BOSHQARISH', 'MAGAZIN_BOSHQARISH')")
+    @PreAuthorize("hasAnyAuthority('HODIM_BOSHQARISH', 'MAGAZIN_BOSHQARISH', 'INSTAGRAM_AKKAUNT_BOSHQARISH')")
     public ResponseEntity<List<UserDto>> getUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
@@ -610,6 +624,88 @@ public class AdminController {
     @PreAuthorize("hasAuthority('KATEGORIYA_BOSHQARISH')")
     public ResponseEntity<ApiResponse> deleteKategoriya(@PathVariable Long id) {
         ApiResponse res = kategoriyaService.deleteKategoriya(id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= ARIZALAR (Instagram) =================
+    @GetMapping("/arizalar")
+    @PreAuthorize("hasAuthority('ARIZA_KORISH')")
+    public String arizalarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "arizalar");
+        return "arizalar";
+    }
+
+    @GetMapping("/get-arizalar")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ARIZA_KORISH')")
+    public ResponseEntity<List<ArizaDto>> getArizalar(Authentication authentication) {
+        return ResponseEntity.ok(arizaService.getAllArizalar(authentication.getName()));
+    }
+
+    @PostMapping("/add-ariza")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ARIZA_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> addAriza(@RequestBody ArizaSaveDto dto, Authentication authentication) {
+        Users joriy = (Users) authentication.getPrincipal();
+        ApiResponse res = arizaService.qoshish(dto, joriy);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PutMapping("/update-ariza-holati/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('ARIZA_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> updateArizaHolati(@PathVariable Long id,
+                                                         @RequestBody ArizaHolatiSaveDto dto,
+                                                         Authentication authentication) {
+        Users joriy = (Users) authentication.getPrincipal();
+        ApiResponse res = arizaService.holatniYangilash(id, dto, joriy);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= INSTAGRAM AKKAUNTLAR =================
+    @GetMapping("/instagram-akkauntlar")
+    @PreAuthorize("hasAuthority('INSTAGRAM_AKKAUNT_BOSHQARISH')")
+    public String instagramAkkauntlarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "instagram-akkauntlar");
+        return "instagram-akkauntlar";
+    }
+
+    @GetMapping("/get-instagram-akkauntlar")
+    @ResponseBody
+    @PreAuthorize("hasAnyAuthority('INSTAGRAM_AKKAUNT_BOSHQARISH', 'ARIZA_BOSHQARISH')")
+    public ResponseEntity<List<InstagramAkkauntDto>> getInstagramAkkauntlar(Authentication authentication) {
+        boolean boshqarishHuquqi = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("INSTAGRAM_AKKAUNT_BOSHQARISH"));
+        List<InstagramAkkauntDto> natija = boshqarishHuquqi
+                ? instagramAkkauntService.getAllAkkauntlar()
+                : instagramAkkauntService.getMeningAkkauntlarim(authentication.getName());
+        return ResponseEntity.ok(natija);
+    }
+
+    @PostMapping("/add-instagram-akkaunt")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('INSTAGRAM_AKKAUNT_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> addInstagramAkkaunt(@RequestBody InstagramAkkauntSaveDto dto) {
+        ApiResponse res = instagramAkkauntService.addAkkaunt(dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @PutMapping("/update-instagram-akkaunt/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('INSTAGRAM_AKKAUNT_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> updateInstagramAkkaunt(@PathVariable Long id,
+                                                              @RequestBody InstagramAkkauntSaveDto dto) {
+        ApiResponse res = instagramAkkauntService.updateAkkaunt(id, dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @DeleteMapping("/delete-instagram-akkaunt/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('INSTAGRAM_AKKAUNT_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> deleteInstagramAkkaunt(@PathVariable Long id) {
+        ApiResponse res = instagramAkkauntService.deleteAkkaunt(id);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 

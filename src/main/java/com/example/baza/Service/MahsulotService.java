@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 @Service
 public class MahsulotService {
@@ -57,7 +56,7 @@ public class MahsulotService {
 
     @Transactional
     public ApiResponse addMahsulot(MahsulotSaveDto dto) {
-        String xato = tekshir(dto, null);
+        String xato = tekshir(dto, null, null);
         if (xato != null) return new ApiResponse(xato, false);
 
         Double miqdor = miqdorniAniqla(dto);
@@ -91,7 +90,7 @@ public class MahsulotService {
             return new ApiResponse("Mahsulot topilmadi", false);
         }
 
-        String xato = tekshir(dto, id);
+        String xato = tekshir(dto, id, mahsulot.getKod());
         if (xato != null) return new ApiResponse(xato, false);
 
         Double miqdor = miqdorniAniqla(dto);
@@ -141,16 +140,31 @@ public class MahsulotService {
 
     // ================= YORDAMCHI =================
 
-    private String tekshir(MahsulotSaveDto dto, Long ozId) {
+    /**
+     * @param ozId    tahrirlanayotgan mahsulot id'si (yangi qo'shishda null)
+     * @param eskiKod tahrirlanayotgan mahsulotning HOZIRGI kodi (yangi qo'shishda null) —
+     *                agar dto.kod() shu bilan bir xil bo'lsa (kod o'zgarmagan), takrorlanish
+     *                tekshiruvi o'tkazib yuboriladi. Bu — ommaviy import bir xil kodni
+     *                bir necha marta qo'shishi mumkinligi uchun kerak: aks holda allaqachon
+     *                takrorlangan kod bilan mahsulotni (hech narsa o'zgartirmasdan ham)
+     *                saqlab bo'lmay qoladi.
+     */
+    private String tekshir(MahsulotSaveDto dto, Long ozId, String eskiKod) {
         if (dto.nomi() == null || dto.nomi().isBlank()) {
             return "Mahsulot nomi kiritilishi shart";
         }
         if (dto.kod() == null || dto.kod().isBlank()) {
             return "Mahsulot kodi kiritilishi shart";
         }
-        Optional<Mahsulot> kodMavjud = mahsulotRepository.findByKodIgnoreCase(dto.kod().trim());
-        if (kodMavjud.isPresent() && !Objects.equals(kodMavjud.get().getId(), ozId)) {
-            return "Bu kod bilan mahsulot allaqachon mavjud: " + kodMavjud.get().getNomi();
+        String yangiKod = dto.kod().trim();
+        boolean kodOzgardi = eskiKod == null || !yangiKod.equalsIgnoreCase(eskiKod);
+        if (kodOzgardi) {
+            Mahsulot boshqasi = mahsulotRepository.findByKodIgnoreCase(yangiKod).stream()
+                    .filter(m -> !Objects.equals(m.getId(), ozId))
+                    .findFirst().orElse(null);
+            if (boshqasi != null) {
+                return "Bu kod bilan mahsulot allaqachon mavjud: " + boshqasi.getNomi();
+            }
         }
         if (dto.turi() == null || dto.turi().isBlank()) {
             return "Mahsulot turi tanlanishi shart";

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram akkauntlar</title>
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 900px; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+        }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .add-btn {
+            padding: 9px 18px; background-color: var(--kok); color: var(--karta); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .add-btn:hover { background-color: var(--kok-hover); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); }
+        th {
+            color: var(--kok-och); font-size: 12px; text-transform: uppercase;
+            background-color: var(--fon2);
+        }
+        tr:hover td { background-color: var(--fon4); }
+        .edit-btn {
+            padding: 6px 12px; background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok);
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px;
+            transition: background-color 0.2s;
+        }
+        .edit-btn:hover { background-color: var(--chegara3); }
+        .del-btn {
+            padding: 6px 12px; background-color: var(--qizil-fon); color: var(--qizil); border: 1px solid var(--qizil-3);
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .del-btn:hover { background-color: var(--qizil-2); }
+        .empty-row td { text-align: center; color: var(--matn4); padding: 24px; }
+
+        .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 700; }
+        .badge-faol { background-color: var(--yashil-fon); color: var(--yashil-toq); }
+        .badge-nofaol { background-color: var(--fon3); color: var(--matn3); }
+        .badge-token-bor { background-color: var(--yashil-fon); color: var(--yashil-toq); }
+        .badge-token-yoq { background-color: var(--qizil-fon); color: var(--qizil); }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: var(--parda);
+            display: none; align-items: center; justify-content: center; z-index: 100;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--karta); border-radius: 10px; padding: 28px 32px;
+            width: 100%; max-width: 460px;
+            box-shadow: 0 8px 32px var(--soya3);
+        }
+        .modal h2 { color: var(--kok); font-size: 18px; margin-bottom: 18px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: var(--kok-och);
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+        }
+        .form-group input, .form-group select {
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
+            transition: border-color 0.2s; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--kok); background-color: var(--karta); }
+        .form-group .qosh { font-size: 11.5px; color: var(--matn3); margin-top: 4px; }
+        .form-group.checkbox { display: flex; align-items: center; gap: 8px; }
+        .form-group.checkbox input { width: auto; }
+        .form-group.checkbox label { margin-bottom: 0; text-transform: none; font-size: 14px; color: var(--matn); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .modal-actions .save-btn {
+            flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-actions .save-btn:hover { background-color: var(--kok-hover); }
+        .modal-actions .cancel-btn {
+            padding: 10px 18px; background-color: var(--fon5); color: var(--kok-och); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-error {
+            color: var(--qizil); font-size: 13px; margin-top: 10px; text-align: center; display: none;
+        }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Instagram akkauntlar</h1>
+            <button class="add-btn" id="openModalBtn">+ Yangi akkaunt</button>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>Nomi</th>
+                <th>Page ID</th>
+                <th>Token</th>
+                <th>Mas'ul</th>
+                <th>Holat</th>
+                <th style="width:170px"></th>
+            </tr>
+            </thead>
+            <tbody id="akkauntTbody">
+            <tr class="empty-row"><td colspan="6">Yuklanmoqda...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2 id="modalTitle">Yangi Instagram akkaunt</h2>
+        <div class="form-group">
+            <label for="a_nomi">Akkaunt nomi *</label>
+            <input type="text" id="a_nomi" placeholder="Masalan: Asosiy do'kon" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="a_pageId">Facebook Page ID *</label>
+            <input type="text" id="a_pageId" placeholder="Masalan: 1237096332824688" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="a_token">Page Access Token</label>
+            <input type="text" id="a_token" placeholder="Yangi token kiriting" autocomplete="off">
+            <div class="qosh" id="tokenQosh">Meta Graph API'dan olingan uzoq muddatli Page tokeni</div>
+        </div>
+        <div class="form-group">
+            <label for="a_masul">Mas'ul xodim</label>
+            <select id="a_masul">
+                <option value="">— Belgilanmagan —</option>
+            </select>
+        </div>
+        <div class="form-group checkbox">
+            <input type="checkbox" id="a_faol" checked>
+            <label for="a_faol">Faol (arizalarni qabul qiladi)</label>
+        </div>
+        <p class="modal-error" id="modalError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="saveBtn">Saqlash</button>
+            <button class="cancel-btn" id="cancelBtn">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tbody = document.getElementById('akkauntTbody');
+    const overlay = document.getElementById('modalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalError = document.getElementById('modalError');
+    const tokenQosh = document.getElementById('tokenQosh');
+
+    let akkauntlar = [];
+    let userlar = [];
+    let editingId = null;
+
+    function toastKorsat(matn, ok) { xabar(matn, ok ? 'ok' : 'err'); }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    async function loadUserlar() {
+        try {
+            const res = await fetch('/admin/get-users');
+            if (!res.ok) return;
+            userlar = await res.json();
+            const select = document.getElementById('a_masul');
+            select.innerHTML = '<option value="">— Belgilanmagan —</option>' +
+                userlar.map(u => `<option value="${u.id}">${esc(u.fish || u.username)}</option>`).join('');
+        } catch (e) { /* ruxsat yo'q bo'lsa ham akkauntlar ro'yxati ishlayversin */ }
+    }
+
+    async function loadAkkauntlar() {
+        try {
+            const res = await fetch('/admin/get-instagram-akkauntlar');
+            if (!res.ok) throw new Error();
+            akkauntlar = await res.json();
+
+            if (!akkauntlar.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Akkauntlar yo‘q</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = akkauntlar.map(a => `
+                <tr>
+                    <td><b>${esc(a.nomi)}</b></td>
+                    <td>${esc(a.pageId)}</td>
+                    <td><span class="badge ${a.tokenBormi ? 'badge-token-bor' : 'badge-token-yoq'}">${a.tokenBormi ? 'Bor' : 'Yo‘q'}</span></td>
+                    <td>${esc(a.masulUserFish) || '<span style="color:var(--matn4)">—</span>'}</td>
+                    <td><span class="badge ${a.faol ? 'badge-faol' : 'badge-nofaol'}">${a.faol ? 'Faol' : 'Nofaol'}</span></td>
+                    <td>
+                        <button class="edit-btn" data-id="${a.id}">Tahrirlash</button>
+                        <button class="del-btn" data-id="${a.id}" data-name="${esc(a.nomi)}">O'chirish</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    function modalOchish(akkaunt) {
+        modalError.style.display = 'none';
+        editingId = akkaunt ? akkaunt.id : null;
+        modalTitle.textContent = akkaunt ? 'Akkauntni tahrirlash' : 'Yangi Instagram akkaunt';
+        document.getElementById('a_nomi').value = akkaunt ? akkaunt.nomi : '';
+        document.getElementById('a_pageId').value = akkaunt ? akkaunt.pageId : '';
+        document.getElementById('a_token').value = '';
+        tokenQosh.textContent = akkaunt && akkaunt.tokenBormi
+            ? "Token allaqachon saqlangan — o'zgartirmoqchi bo'lmasangiz bo'sh qoldiring"
+            : "Meta Graph API'dan olingan uzoq muddatli Page tokeni";
+        document.getElementById('a_masul').value = akkaunt && akkaunt.masulUserId ? akkaunt.masulUserId : '';
+        document.getElementById('a_faol').checked = akkaunt ? akkaunt.faol : true;
+        overlay.classList.add('open');
+        document.getElementById('a_nomi').focus();
+    }
+
+    function modalYopish() {
+        overlay.classList.remove('open');
+        editingId = null;
+    }
+
+    document.getElementById('openModalBtn').addEventListener('click', () => modalOchish(null));
+    document.getElementById('cancelBtn').addEventListener('click', modalYopish);
+    overlay.addEventListener('click', e => { if (e.target === overlay) modalYopish(); });
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+        modalError.style.display = 'none';
+
+        const nomi = document.getElementById('a_nomi').value.trim();
+        const pageId = document.getElementById('a_pageId').value.trim();
+        if (!nomi || !pageId) {
+            modalError.textContent = 'Nomi va Page ID kiritilishi shart';
+            modalError.style.display = 'block';
+            return;
+        }
+
+        const body = {
+            nomi: nomi,
+            pageId: pageId,
+            pageAccessToken: document.getElementById('a_token').value.trim() || null,
+            masulUserId: document.getElementById('a_masul').value || null,
+            faol: document.getElementById('a_faol').checked
+        };
+
+        const url = editingId ? '/admin/update-instagram-akkaunt/' + editingId : '/admin/add-instagram-akkaunt';
+        const method = editingId ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                modalYopish();
+                toastKorsat(data.message, true);
+                loadAkkauntlar();
+            } else {
+                modalError.textContent = data.message || 'Xatolik yuz berdi';
+                modalError.style.display = 'block';
+            }
+        } catch (e) {
+            modalError.textContent = 'Server bilan aloqa yo‘q';
+            modalError.style.display = 'block';
+        }
+    });
+
+    tbody.addEventListener('click', async e => {
+        const editBtn = e.target.closest('.edit-btn');
+        if (editBtn) {
+            const akkaunt = akkauntlar.find(a => a.id === Number(editBtn.dataset.id));
+            if (akkaunt) modalOchish(akkaunt);
+            return;
+        }
+
+        const delBtn = e.target.closest('.del-btn');
+        if (delBtn) {
+            if (!await tasdiq.ochirish(delBtn.dataset.name, 'akkauntini')) return;
+            try {
+                const res = await fetch('/admin/delete-instagram-akkaunt/' + delBtn.dataset.id, { method: 'DELETE' });
+                const data = await res.json();
+                toastKorsat(data.message, data.holat);
+                if (data.holat) loadAkkauntlar();
+            } catch (e) {
+                toastKorsat('Server bilan aloqa yo‘q', false);
+            }
+        }
+    });
+
+    loadUserlar();
+    loadAkkauntlar();
+</script>
+
+</body>
+</html>

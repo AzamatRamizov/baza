@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
 
@@ -51,8 +50,12 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
     /** Kategoriya o'chirilishidan oldin tekshirish uchun */
     long countByKategoriya_Id(Long kategoriyaId);
 
-    /** Kod takrorlanmasligini tekshirish uchun */
-    Optional<Mahsulot> findByKodIgnoreCase(String kod);
+    /**
+     * Bitta kod bilan bir nechta mahsulot bo'lishi mumkin (ommaviy import bir xil
+     * dizayn kodini turli o'lchamlarda ataylab takrorlaydi) — shuning uchun List,
+     * Optional/single-result EMAS (aks holda NonUniqueResultException beradi).
+     */
+    List<Mahsulot> findByKodIgnoreCase(String kod);
 
     /** Ommaviy import vaqtida takroriy kodlarni tekshirish uchun — to'liq entity yuklanmaydi */
     @Query("select m.kod from Mahsulot m where m.kod is not null")

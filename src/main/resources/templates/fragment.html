@@ -277,6 +277,21 @@
             <a class="sb-link" href="/admin/kassa" sec:authorize="hasAuthority('KASSA_KORISH')"
                th:classappend="${page == 'kassa'} ? 'active'">Kassa</a>
 
+            <!-- ===== Arizalar (Instagram) guruhi ===== -->
+            <div class="sb-guruh" sec:authorize="hasAnyAuthority('ARIZA_KORISH', 'INSTAGRAM_AKKAUNT_BOSHQARISH')"
+                 th:classappend="${#lists.contains({'arizalar','instagram-akkauntlar'}, page)} ? 'ochiq ichida'">
+                <button class="sb-guruh-btn" type="button">
+                    <span>Arizalar (Instagram)</span>
+                    <span class="chevron">&#9660;</span>
+                </button>
+                <div class="sb-ichki">
+                    <a href="/admin/arizalar" sec:authorize="hasAuthority('ARIZA_KORISH')"
+                       th:classappend="${page == 'arizalar'} ? 'active'">Arizalar</a>
+                    <a href="/admin/instagram-akkauntlar" sec:authorize="hasAuthority('INSTAGRAM_AKKAUNT_BOSHQARISH')"
+                       th:classappend="${page == 'instagram-akkauntlar'} ? 'active'">Instagram akkauntlar</a>
+                </div>
+            </div>
+
             <!-- ===== Mahsulotlar guruhi ===== -->
             <div class="sb-guruh"
                  th:classappend="${#lists.contains({'mahsulotlar','mening-mahsulotlarim','otkazmalar','sotuvlar','kategoriyalar','mahsulot-kamchiliklari'}, page)} ? 'ochiq ichida'">
