@@ -48,9 +48,12 @@ import com.example.baza.Service.StatistikaService;
 import com.example.baza.Service.TarixService;
 import com.example.baza.Service.ValyutaService;
 import com.example.baza.Service.UserService;
+import com.example.baza.Service.BarkodService;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -90,6 +93,7 @@ public class AdminController {
     private final MahsulotImportService mahsulotImportService;
     private final ArizaService arizaService;
     private final InstagramAkkauntService instagramAkkauntService;
+    private final BarkodService barkodService;
 
     public AdminController(AuthenticationManager authenticationManager,
                            TokenGenerator tokenGenerator,
@@ -105,7 +109,8 @@ public class AdminController {
                            StatistikaService statistikaService,
                            MahsulotImportService mahsulotImportService,
                            ArizaService arizaService,
-                           InstagramAkkauntService instagramAkkauntService) {
+                           InstagramAkkauntService instagramAkkauntService,
+                           BarkodService barkodService) {
         this.authenticationManager = authenticationManager;
         this.tokenGenerator = tokenGenerator;
         this.userService = userService;
@@ -121,6 +126,7 @@ public class AdminController {
         this.mahsulotImportService = mahsulotImportService;
         this.arizaService = arizaService;
         this.instagramAkkauntService = instagramAkkauntService;
+        this.barkodService = barkodService;
     }
 
     // ================= LOGIN =================
@@ -348,6 +354,77 @@ public class AdminController {
         model.addAttribute("username", authentication.getName());
         model.addAttribute("page", "mahsulot-kamchiliklari");
         return "mahsulot-kamchiliklari";
+    }
+
+    /** Bitta mahsulotning to'liq ma'lumoti — rasm, QR kod, shtrix-kod shu yerda */
+    @GetMapping("/mahsulot/{id}")
+    public String mahsulotDetailPage(@PathVariable Long id, Authentication authentication, Model model) {
+        if (mahsulotService.getMahsulotDto(id).isEmpty()) {
+            return "redirect:/admin/mahsulotlar";
+        }
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "mahsulot-detail");
+        model.addAttribute("mahsulotId", id);
+        return "mahsulot-detail";
+    }
+
+    @GetMapping("/get-mahsulot/{id}")
+    @ResponseBody
+    public ResponseEntity<MahsulotDto> getMahsulot(@PathVariable Long id) {
+        return mahsulotService.getMahsulotDto(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/mahsulot/{id}/rasm")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<ApiResponse> mahsulotRasmYuklash(@PathVariable Long id,
+                                                            @RequestParam("file") MultipartFile file) {
+        ApiResponse res = mahsulotService.rasmniYuklash(id, file);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @DeleteMapping("/mahsulot/{id}/rasm")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<ApiResponse> mahsulotRasmOchirish(@PathVariable Long id) {
+        ApiResponse res = mahsulotService.rasmniOchirish(id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /** QR kod — skaner qilinsa shu mahsulotning detail sahifasiga olib boradi */
+    @GetMapping(value = "/mahsulot/{id}/qr-kod", produces = MediaType.IMAGE_PNG_VALUE)
+    @ResponseBody
+    public ResponseEntity<byte[]> mahsulotQrKod(@PathVariable Long id, HttpServletRequest request) {
+        if (mahsulotService.getMahsulotDto(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String port = (request.getServerPort() == 80 || request.getServerPort() == 443)
+                ? "" : ":" + request.getServerPort();
+        String url = request.getScheme() + "://" + request.getServerName() + port + "/admin/mahsulot/" + id;
+        try {
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
+                    .body(barkodService.qrKod(url, 300));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /** Shtrix-kod (Code128) — mahsulot kodini kodlaydi */
+    @GetMapping(value = "/mahsulot/{id}/shtrix-kod", produces = MediaType.IMAGE_PNG_VALUE)
+    @ResponseBody
+    public ResponseEntity<byte[]> mahsulotShtrixKod(@PathVariable Long id) {
+        MahsulotDto mahsulot = mahsulotService.getMahsulotDto(id).orElse(null);
+        if (mahsulot == null || mahsulot.kod() == null || mahsulot.kod().isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
+                    .body(barkodService.shtrixKod(mahsulot.kod(), 300, 100));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     // ================= O'TKAZMALAR =================

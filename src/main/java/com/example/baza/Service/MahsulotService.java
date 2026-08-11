@@ -9,12 +9,22 @@ import com.example.baza.Repository.KategoriyaRepository;
 import com.example.baza.Repository.MagazinRepository;
 import com.example.baza.Repository.MahsulotRepository;
 import com.example.baza.Repository.UsersRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class MahsulotService {
@@ -25,6 +35,11 @@ public class MahsulotService {
     private final KategoriyaRepository kategoriyaRepository;
     private final ValyutaService valyutaService;
     private final TarixService tarixService;
+
+    @Value("${app.upload-dir}")
+    private String uploadDir;
+
+    private static final Set<String> RUXSAT_ETILGAN_KENGAYTMALAR = Set.of("jpg", "jpeg", "png", "webp");
 
     public MahsulotService(MahsulotRepository mahsulotRepository,
                            MagazinRepository magazinRepository,
@@ -122,6 +137,82 @@ public class MahsulotService {
 
         tarixService.yoz("Mahsulot", "O'chirildi", id, nomi, "Kod: " + kod);
         return new ApiResponse("Mahsulot o'chirildi", true);
+    }
+
+    public Optional<MahsulotDto> getMahsulotDto(Long id) {
+        return mahsulotRepository.findDtoById(id);
+    }
+
+    /**
+     * Mahsulot rasmini yuklash — diskka {app.upload-dir}/mahsulot/ ostiga saqlaydi,
+     * eski rasm bo'lsa uni o'chiradi. DBda faqat fayl nomi saqlanadi.
+     */
+    @Transactional
+    public ApiResponse rasmniYuklash(Long id, MultipartFile file) {
+        Mahsulot mahsulot = mahsulotRepository.findById(id).orElse(null);
+        if (mahsulot == null) {
+            return new ApiResponse("Mahsulot topilmadi", false);
+        }
+        if (file == null || file.isEmpty()) {
+            return new ApiResponse("Rasm tanlanmagan", false);
+        }
+
+        String kengaytma = kengaytmaniOl(file.getOriginalFilename());
+        if (kengaytma == null || !RUXSAT_ETILGAN_KENGAYTMALAR.contains(kengaytma)) {
+            return new ApiResponse("Faqat JPG, PNG yoki WEBP formatdagi rasm yuklash mumkin", false);
+        }
+
+        try {
+            Path papka = Path.of(uploadDir, "mahsulot");
+            Files.createDirectories(papka);
+
+            String yangiNom = UUID.randomUUID() + "." + kengaytma;
+            Files.copy(file.getInputStream(), papka.resolve(yangiNom), StandardCopyOption.REPLACE_EXISTING);
+
+            String eskiRasm = mahsulot.getRasm();
+            mahsulot.setRasm(yangiNom);
+            mahsulotRepository.save(mahsulot);
+            rasmniDiskdanOchirish(eskiRasm);
+
+            tarixService.yoz("Mahsulot", "Rasm yuklandi", mahsulot.getId(), mahsulot.getNomi(), null);
+            return new ApiResponse("Rasm yuklandi", true);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Rasmni saqlab bo'lmadi", e);
+        }
+    }
+
+    @Transactional
+    public ApiResponse rasmniOchirish(Long id) {
+        Mahsulot mahsulot = mahsulotRepository.findById(id).orElse(null);
+        if (mahsulot == null) {
+            return new ApiResponse("Mahsulot topilmadi", false);
+        }
+        String eskiRasm = mahsulot.getRasm();
+        if (eskiRasm == null) {
+            return new ApiResponse("Mahsulotda rasm yo'q", false);
+        }
+        mahsulot.setRasm(null);
+        mahsulotRepository.save(mahsulot);
+        rasmniDiskdanOchirish(eskiRasm);
+
+        tarixService.yoz("Mahsulot", "Rasm o'chirildi", mahsulot.getId(), mahsulot.getNomi(), null);
+        return new ApiResponse("Rasm o'chirildi", true);
+    }
+
+    private void rasmniDiskdanOchirish(String rasmNomi) {
+        if (rasmNomi == null) return;
+        try {
+            Files.deleteIfExists(Path.of(uploadDir, "mahsulot", rasmNomi));
+        } catch (IOException ignored) {
+            // eski rasmni o'chirib bo'lmasa ham davom etamiz — yangi rasm baribir saqlangan
+        }
+    }
+
+    private String kengaytmaniOl(String faylNomi) {
+        if (faylNomi == null) return null;
+        int nuqta = faylNomi.lastIndexOf('.');
+        if (nuqta < 0 || nuqta == faylNomi.length() - 1) return null;
+        return faylNomi.substring(nuqta + 1).toLowerCase();
     }
 
     /** Tarix uchun mahsulotning qisqacha holati */

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
 
@@ -19,7 +20,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
             select new com.example.baza.Dto.MahsulotDto(
                 m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
-                mag.id, mag.nomi, u.fish)
+                mag.id, mag.nomi, u.fish, m.rasm)
             from Mahsulot m
             left join m.kategoriya k
             left join m.magazin mag
@@ -27,6 +28,20 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
             order by m.id desc
             """)
     List<MahsulotDto> findAllDto();
+
+    /** Bitta mahsulot — detail sahifasi uchun (o'chirilib bo'lmaydigan lazy bog'lanishlarsiz) */
+    @Query("""
+            select new com.example.baza.Dto.MahsulotDto(
+                m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
+                m.boyi, m.eni, m.kv, m.miqdor, m.turi,
+                mag.id, mag.nomi, u.fish, m.rasm)
+            from Mahsulot m
+            left join m.kategoriya k
+            left join m.magazin mag
+            left join m.yaratganUser u
+            where m.id = :id
+            """)
+    Optional<MahsulotDto> findDtoById(@Param("id") Long id);
 
     /**
      * "Mening mahsulotlarim" — men mas'ul bo'lgan magazin(lar)dagi mahsulotlar.
@@ -36,7 +51,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
             select distinct new com.example.baza.Dto.MahsulotDto(
                 m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
-                mag.id, mag.nomi, u.fish)
+                mag.id, mag.nomi, u.fish, m.rasm)
             from Mahsulot m
             left join m.kategoriya k
             join m.magazin mag

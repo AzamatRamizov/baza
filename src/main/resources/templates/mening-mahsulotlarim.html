@@ -93,6 +93,11 @@
             border: 1px solid var(--yashil-chegara);
         }
         .send-btn:hover { background-color: var(--yashil-chegara); }
+        .korish-btn {
+            background-color: var(--kok); color: var(--karta);
+            border: 1px solid var(--kok);
+        }
+        .korish-btn:hover { background-color: var(--kok-hover); }
         .edit-btn {
             background-color: var(--fon3); color: var(--kok-toq);
             border: 1px solid var(--chegara-kok);
@@ -484,6 +489,7 @@
                 <td>${m.zavodNarxi != null ? sonFormat(m.zavodNarxi) : '<span class="muted">—</span>'}</td>
                 <td>${esc(m.magazinNomi) || '<span class="muted">—</span>'}</td>
                 <td>
+                    <a class="amal-btn korish-btn" href="/admin/mahsulot/${m.id}">Ko'rish</a>
                     <button class="amal-btn sot-btn" data-sot="${m.id}" ${sotibBolmaydi ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Sotish</button>
                     <button class="amal-btn send-btn" data-id="${m.id}" ${kutmoqda ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Jo'natish</button>
                     <a class="amal-btn edit-btn" href="/admin/mahsulotlar?tahrir=${m.id}">Tahrirlash</a>

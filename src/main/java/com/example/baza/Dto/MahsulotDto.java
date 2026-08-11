@@ -14,5 +14,6 @@ public record MahsulotDto(Long id,
                           String turi,
                           Long magazinId,
                           String magazinNomi,
-                          String yaratganFish) {
+                          String yaratganFish,
+                          String rasm) {
 }

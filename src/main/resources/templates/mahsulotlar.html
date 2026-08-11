@@ -119,6 +119,13 @@
             background-color: var(--fon3); color: var(--kok-toq);
         }
         .muted { color: var(--matn4); }
+        .korish-btn {
+            padding: 6px 12px; background-color: var(--kok); color: var(--karta); border: 1px solid var(--kok);
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px;
+            text-decoration: none; display: inline-block;
+            transition: background-color 0.2s;
+        }
+        .korish-btn:hover { background-color: var(--kok-hover); }
         .edit-btn {
             padding: 6px 12px; background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok);
             border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px;
@@ -431,6 +438,7 @@
                 <td>${esc(m.magazinNomi) || '<span class="muted">—</span>'}</td>
                 <td>${esc(m.yaratganFish) || '<span class="muted">—</span>'}</td>
                 <td>
+                    <a class="korish-btn" href="/admin/mahsulot/${m.id}">Ko'rish</a>
                     <button class="edit-btn" data-id="${m.id}">Tahrirlash</button>
                     <button class="del-btn" data-id="${m.id}" data-name="${esc(m.nomi)}">O'chirish</button>
                 </td>

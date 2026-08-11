@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mahsulot</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+            margin-bottom: 20px;
+        }
+        .orqaga {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--kok-och); font-size: 13px; font-weight: 600;
+            text-decoration: none; margin-bottom: 14px;
+        }
+        .orqaga:hover { color: var(--kok); }
+        .bosh-qator {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 14px; flex-wrap: wrap;
+        }
+        .bosh-qator h1 { color: var(--kok); font-size: 22px; margin-bottom: 4px; }
+        .bosh-qator .kod-matn { font-size: 14px; color: var(--matn3); font-weight: 600; }
+        .amal-tugmalar { display: flex; gap: 8px; flex-wrap: wrap; }
+        .amal-tugmalar a, .amal-tugmalar button {
+            padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+            cursor: pointer; text-decoration: none; font-family: inherit;
+            transition: background-color 0.2s; display: inline-block;
+        }
+        .edit-btn { background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok); }
+        .edit-btn:hover { background-color: var(--chegara3); }
+        .del-btn { background-color: var(--qizil-fon); color: var(--qizil); border: 1px solid var(--qizil-3); }
+        .del-btn:hover { background-color: var(--qizil-2); }
+
+        .detail-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+        @media (max-width: 820px) { .detail-grid { grid-template-columns: 1fr; } }
+
+        .rasm-blok h2, .kod-blok h2, .maydon-blok h2 {
+            font-size: 14px; color: var(--kok-och); text-transform: uppercase;
+            letter-spacing: 0.4px; margin-bottom: 14px;
+        }
+        .rasm-wrap {
+            width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden;
+            background-color: var(--fon2); border: 1.5px dashed var(--chegara-kok);
+            display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+        }
+        .rasm-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .rasm-placeholder { color: var(--matn4); font-size: 13px; text-align: center; padding: 20px; }
+        .rasm-tugmalar { display: flex; gap: 8px; flex-wrap: wrap; }
+        .rasm-tugmalar button {
+            flex: 1; padding: 9px 10px; border-radius: 6px; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: background-color 0.2s;
+        }
+        .add-btn { background-color: var(--kok); color: var(--karta); border: none; }
+        .add-btn:hover { background-color: var(--kok-hover); }
+
+        .maydonlar {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px 22px;
+        }
+        .maydon .nom {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; color: var(--kok-och); margin-bottom: 5px;
+        }
+        .maydon .qiymat { font-size: 16px; font-weight: 600; color: var(--matn); }
+        .maydon .qiymat.muted { color: var(--matn4); font-weight: 500; }
+        .narx-qator { display: flex; align-items: center; gap: 8px; }
+        .narx-qator .qiymat.narx-yashirin { filter: blur(6px); user-select: none; }
+        .koz-btn {
+            background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1;
+            color: var(--matn4); padding: 3px 5px; border-radius: 4px;
+            transition: color 0.2s, background-color 0.2s;
+        }
+        .koz-btn:hover { color: var(--kok); background-color: var(--fon3); }
+        .turi-badge, .kategoriya-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 600;
+        }
+        .turi-gatoviy { background-color: var(--yashil-fon); color: var(--yashil-toq); }
+        .turi-metraj { background-color: var(--sariq-fon); color: var(--sariq-toq2); }
+        .kategoriya-badge { background-color: var(--fon3); color: var(--kok-toq); }
+
+        .kod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+        .kod-blok { text-align: center; }
+        .kod-blok h3 {
+            font-size: 12px; color: var(--kok-och); text-transform: uppercase;
+            letter-spacing: 0.4px; margin-bottom: 10px;
+        }
+        .kod-blok .kod-img-wrap {
+            background-color: var(--fon2); border: 1px solid var(--chegara);
+            border-radius: 10px; padding: 18px; margin-bottom: 12px;
+            display: flex; align-items: center; justify-content: center; min-height: 140px;
+        }
+        .kod-blok img { max-width: 100%; }
+        .kod-blok .kod-izoh { font-size: 12px; color: var(--matn3); margin-bottom: 12px; }
+        .kod-tugmalar { display: flex; gap: 8px; justify-content: center; }
+        .kod-tugmalar a {
+            padding: 7px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600;
+            text-decoration: none; background-color: var(--fon3); color: var(--kok-toq);
+            border: 1px solid var(--chegara-kok); transition: background-color 0.2s;
+        }
+        .kod-tugmalar a:hover { background-color: var(--chegara3); }
+
+        .yuklanmoqda { text-align: center; color: var(--matn3); font-size: 14px; padding: 30px 0; }
+
+        /* ---- Sotish / Kod yaratish tugmalari ---- */
+        .sot-btn { background-color: var(--kok); color: var(--karta); border: none; }
+        .sot-btn:hover { background-color: var(--kok-hover); }
+        .sot-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .kod-btn { background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok); }
+        .kod-btn:hover { background-color: var(--chegara3); }
+        .modal-overlay {
+            position: fixed; inset: 0; background: var(--parda);
+            display: none; align-items: center; justify-content: center; z-index: 100;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--karta); border-radius: 10px; padding: 28px 32px;
+            width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto;
+            box-shadow: 0 8px 32px var(--soya3);
+        }
+        .modal h2 { color: var(--kok); font-size: 18px; margin-bottom: 4px; }
+        .modal .modal-sub { font-size: 13px; color: var(--matn3); margin-bottom: 18px; }
+        .kod-info-qator { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; }
+        .kod-info-qator .maydon .nom {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; color: var(--kok-och); margin-bottom: 4px;
+        }
+        .kod-info-qator .maydon .qiymat { font-size: 15px; font-weight: 600; color: var(--matn); }
+        .havola-blok { margin-bottom: 20px; }
+        .havola-blok label {
+            display: block; margin-bottom: 6px; color: var(--kok-och);
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+        }
+        .havola-qator { display: flex; gap: 8px; }
+        .havola-qator input {
+            flex: 1; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 13px; color: var(--matn2); background-color: var(--fon2); outline: none;
+            font-family: inherit;
+        }
+        .havola-qator button {
+            padding: 9px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600;
+            cursor: pointer; font-family: inherit; background-color: var(--fon3); color: var(--kok-toq);
+            border: 1px solid var(--chegara-kok); transition: background-color 0.2s; white-space: nowrap;
+        }
+        .havola-qator button:hover { background-color: var(--chegara3); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions .cancel-btn {
+            flex: 1; padding: 10px; background-color: var(--fon5); color: var(--kok-och);
+            border: none; border-radius: 6px; font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+        }
+        .modal-actions .save-btn {
+            flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta);
+            border: none; border-radius: 6px; font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+        }
+        .modal-actions .save-btn:hover { background-color: var(--kok-hover); }
+        .modal-actions .katm-btn { background-color: var(--sariq-toq2); }
+        .modal.kichik { max-width: 460px; }
+        .modal .mahsulot-nomi { font-size: 14px; color: var(--matn2); margin-bottom: 18px; }
+
+        /* ---- Sotish modali: forma elementlari ---- */
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: var(--kok-och);
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+        }
+        .form-group select, .form-group textarea {
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok);
+            border-radius: 6px; font-size: 14px; color: var(--matn);
+            background-color: var(--fon2); outline: none; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group input[type="text"], .form-group input[type="number"] {
+            width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok);
+            border-radius: 6px; font-size: 14px; color: var(--matn);
+            background-color: var(--fon2); outline: none; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group input[type="text"]:focus, .form-group input[type="number"]:focus,
+        .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--kok); background-color: var(--karta);
+        }
+        .form-group textarea { resize: vertical; min-height: 70px; }
+        .miqdor-hint { font-size: 12px; color: var(--kok-och); margin-top: 6px; line-height: 1.5; }
+        .miqdor-hint b { color: var(--matn); }
+        .miqdor-hint .qism { color: var(--sariq-toq2); font-weight: 600; }
+        .modal-error { color: var(--qizil); font-size: 13px; margin-top: 10px; text-align: center; display: none; }
+
+        .turi-tabs {
+            display: flex; gap: 8px; margin-bottom: 16px;
+            background-color: var(--fon2); border: 1px solid var(--chegara);
+            border-radius: 8px; padding: 4px;
+        }
+        .turi-tab {
+            flex: 1; padding: 9px 10px; border: none; border-radius: 6px;
+            background: transparent; color: var(--matn3); cursor: pointer;
+            font-size: 13px; font-weight: 700; font-family: inherit;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .turi-tab:hover { color: var(--matn); }
+        .turi-tab.faol { background-color: var(--kok); color: var(--karta); }
+        .turi-tab.faol[data-turi="KATM"] { background-color: var(--sariq-toq2); }
+
+        .narx-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+        .narx-tab {
+            flex: 1; padding: 6px 8px; border-radius: 6px; cursor: pointer;
+            font-size: 12px; font-weight: 600; font-family: inherit;
+            background-color: var(--fon2); color: var(--matn3);
+            border: 1px solid var(--chegara);
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .narx-tab:hover { color: var(--matn); }
+        .narx-tab.faol { background-color: var(--fon3); color: var(--kok-toq); border-color: var(--chegara-kok); }
+
+        .kv-panel {
+            margin-top: 8px; padding: 10px 12px; border-radius: 8px;
+            background-color: var(--fon3); border: 1px solid var(--chegara-kok);
+            font-size: 13px; color: var(--matn2); line-height: 1.6;
+        }
+        .kv-panel b { color: var(--kok-toq); font-size: 15px; }
+        .kv-panel .xato { color: var(--qizil); font-weight: 600; }
+        .katm-info {
+            padding: 10px 12px; border-radius: 8px; margin-bottom: 14px;
+            background-color: var(--sariq-fon); border: 1px solid var(--sariq-chegara);
+            color: var(--sariq-toq2); font-size: 12.5px; line-height: 1.55;
+        }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container" id="root" th:attr="data-id=${mahsulotId}">
+    <a class="orqaga" href="/admin/mahsulotlar">&larr; Mahsulotlarga qaytish</a>
+
+    <div class="card" id="ustKart" style="display:none">
+        <div class="bosh-qator">
+            <div>
+                <h1 id="nomiSarlavha">—</h1>
+                <div class="kod-matn" id="kodMatn"></div>
+            </div>
+            <div class="amal-tugmalar">
+                <button class="sot-btn" id="sotishBtn" type="button">Sotish</button>
+                <button class="kod-btn" id="kodBtn" type="button">Kod yaratish</button>
+                <a class="edit-btn" id="tahrirBtn" href="#">Tahrirlash</a>
+                <button class="del-btn" id="ochirishBtn" type="button">O'chirish</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="yuklanmoqda" id="yuklanmoqda">Yuklanmoqda...</div>
+
+    <div id="mazmun" style="display:none">
+        <div class="card detail-grid">
+            <div class="rasm-blok">
+                <h2>Rasm</h2>
+                <div class="rasm-wrap" id="rasmWrap">
+                    <div class="rasm-placeholder" id="rasmYoq">Rasm yuklanmagan</div>
+                    <img id="rasmImg" style="display:none" alt="Mahsulot rasmi">
+                </div>
+                <div class="rasm-tugmalar">
+                    <button class="add-btn" id="rasmYuklashBtn" type="button">Rasm yuklash</button>
+                    <button class="del-btn" id="rasmOchirishBtn" type="button" style="display:none">O'chirish</button>
+                </div>
+                <input type="file" id="rasmFile" accept="image/png,image/jpeg,image/webp" style="display:none">
+            </div>
+
+            <div class="maydon-blok">
+                <h2>Ma'lumotlar</h2>
+                <div class="maydonlar">
+                    <div class="maydon">
+                        <div class="nom">Kategoriya</div>
+                        <div class="qiymat" id="mKategoriya">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Turi</div>
+                        <div class="qiymat" id="mTuri">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Birlik</div>
+                        <div class="qiymat" id="mBirlik">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Qoldiq (miqdor)</div>
+                        <div class="qiymat" id="mMiqdor">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Bo'yi</div>
+                        <div class="qiymat" id="mBoyi">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Eni</div>
+                        <div class="qiymat" id="mEni">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Kvadrat</div>
+                        <div class="qiymat" id="mKv">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Zavod narxi (umumiy)</div>
+                        <div class="narx-qator">
+                            <div class="qiymat narx-yashirin" id="mNarx">—</div>
+                            <button class="koz-btn" id="narxKozBtn" type="button" title="Ko'rsatish / yashirish">&#128065;</button>
+                        </div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Magazin</div>
+                        <div class="qiymat" id="mMagazin">—</div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Yaratgan</div>
+                        <div class="qiymat" id="mYaratgan">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Kod (QR / shtrix-kod) modali -->
+<div class="modal-overlay" id="kodOverlay">
+    <div class="modal">
+        <h2>Mahsulot kodi</h2>
+        <div class="modal-sub" id="kodModalNomi">—</div>
+
+        <div class="kod-info-qator">
+            <div class="maydon">
+                <div class="nom">Mahsulot kodi</div>
+                <div class="qiymat" id="kodModalKod">—</div>
+            </div>
+            <div class="maydon">
+                <div class="nom">ID</div>
+                <div class="qiymat" id="kodModalId">—</div>
+            </div>
+        </div>
+
+        <div class="havola-blok">
+            <label for="kodModalHavola">Havola (skanerlansa shu sahifa ochiladi)</label>
+            <div class="havola-qator">
+                <input type="text" id="kodModalHavola" readonly>
+                <button type="button" id="havolaNusxaBtn">Nusxalash</button>
+            </div>
+        </div>
+
+        <div class="kod-grid">
+            <div class="kod-blok">
+                <h3>QR kod</h3>
+                <div class="kod-img-wrap"><img id="qrImg" alt="QR kod"></div>
+                <div class="kod-izoh">Skaner qilinsa shu mahsulot sahifasi ochiladi</div>
+                <div class="kod-tugmalar">
+                    <a id="qrYuklab" download="mahsulot-qr.png">Yuklab olish</a>
+                    <a id="qrOchish" target="_blank" rel="noopener">Yangi oynada ochish</a>
+                </div>
+            </div>
+            <div class="kod-blok" id="shtrixBlok">
+                <h3>Shtrix-kod</h3>
+                <div class="kod-img-wrap"><img id="shtrixImg" alt="Shtrix-kod"></div>
+                <div class="kod-izoh">Mahsulot kodini (<span id="shtrixKodMatn"></span>) kodlaydi</div>
+                <div class="kod-tugmalar">
+                    <a id="shtrixYuklab" download="mahsulot-shtrix.png">Yuklab olish</a>
+                    <a id="shtrixOchish" target="_blank" rel="noopener">Yangi oynada ochish</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="cancel-btn" id="kodYopishBtn" type="button">Yopish</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sotish modali (naqd / KATM) -->
+<div class="modal-overlay" id="sotuvOverlay">
+    <div class="modal kichik">
+        <h2 id="sotuvSarlavha">Mahsulotni sotish</h2>
+        <div class="mahsulot-nomi" id="sotuvMahsulot">—</div>
+
+        <div class="turi-tabs">
+            <button type="button" class="turi-tab faol" data-turi="NAQD">Naqd sotuv</button>
+            <button type="button" class="turi-tab" data-turi="KATM">KATMga o'tkazish</button>
+        </div>
+
+        <div class="katm-info" id="katmInfo" style="display:none">
+            So'rov <b>gilam dasturiga</b> yuboriladi — shartnoma o'sha yerda tuziladi.
+            Mahsulot javob kelguncha <b>band</b> qilinadi (qoldiqdan chiqadi).
+            Shartnoma tuzilsa — sotuv yakunlanadi, rad etilsa — qoldiq tiklanadi.
+        </div>
+
+        <div class="form-group" id="metrGroup" style="display:none">
+            <label for="s_metr">Sotiladigan bo'yi (metr) *</label>
+            <input type="number" id="s_metr" min="0" step="0.01" placeholder="0">
+            <div class="kv-panel" id="kvPanel"></div>
+        </div>
+
+        <div class="form-group" id="miqdorGroup">
+            <label for="s_miqdor" id="sotuvMiqdorLabel">Sotiladigan miqdor *</label>
+            <input type="number" id="s_miqdor" min="0" step="0.01" placeholder="0">
+            <div class="miqdor-hint" id="sotuvMiqdorHint"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="s_narx" id="sotuvNarxLabel">Sotuv narxi (1 birlik uchun) *</label>
+            <div class="narx-tabs" id="narxTabs">
+                <button type="button" class="narx-tab faol" data-narx-turi="BIRLIK">1 birlik narxi</button>
+                <button type="button" class="narx-tab" data-narx-turi="UMUMIY">Umumiy summa</button>
+            </div>
+            <div style="display:flex; gap:8px">
+                <input type="number" id="s_narx" min="0" step="0.01" placeholder="0" style="flex:1">
+                <select id="s_valyuta" style="width:100px">
+                    <option value="UZS">so'm</option>
+                    <option value="USD">$</option>
+                </select>
+            </div>
+            <div class="miqdor-hint" id="sotuvJamiHint"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="s_mijoz" id="sotuvMijozLabel">Mijoz (ixtiyoriy)</label>
+            <input type="text" id="s_mijoz" placeholder="Ism familiya" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+            <label for="s_tel">Telefon (ixtiyoriy)</label>
+            <input type="text" id="s_tel" placeholder="+998 90 123 45 67" autocomplete="off">
+        </div>
+
+        <div id="katmMaydonlar" style="display:none">
+            <div class="form-group">
+                <label for="s_muddat">Nasiya muddati (oy)</label>
+                <input type="number" id="s_muddat" min="1" max="60" step="1" placeholder="Masalan: 12">
+            </div>
+            <div class="form-group">
+                <label for="s_oldindan">Oldindan to'lov (so'm)</label>
+                <input type="number" id="s_oldindan" min="0" step="1000" placeholder="0">
+                <div class="miqdor-hint">Naqd olingan boshlang'ich to'lov — gilamdagi shartnomaga o'tadi</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="s_izoh">Izoh (ixtiyoriy)</label>
+            <textarea id="s_izoh" placeholder="Masalan: nasiyaga, 50% oldindan"></textarea>
+        </div>
+
+        <p class="modal-error" id="sotuvError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="sotuvSaveBtn">Sotish</button>
+            <button class="cancel-btn" id="sotuvCancelBtn">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const root = document.getElementById('root');
+    const id = root.dataset.id;
+
+    function toastKorsat(matn, ok) { xabar(matn, ok ? 'ok' : 'err'); }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    function sonFormat(n) { return n == null ? '' : Number(n).toLocaleString('ru-RU'); }
+
+    function qiymatQoy(elId, matn, mutedIfEmpty) {
+        const el = document.getElementById(elId);
+        if (matn === null || matn === undefined || matn === '') {
+            el.innerHTML = '<span class="muted">—</span>';
+        } else {
+            el.textContent = matn;
+        }
+    }
+
+    let mahsulot = null;
+
+    function rasmniChiz() {
+        const img = document.getElementById('rasmImg');
+        const yoq = document.getElementById('rasmYoq');
+        const ochirishBtn = document.getElementById('rasmOchirishBtn');
+        if (mahsulot.rasm) {
+            img.src = '/uploads/mahsulot/' + mahsulot.rasm + '?t=' + Date.now();
+            img.style.display = 'block';
+            yoq.style.display = 'none';
+            ochirishBtn.style.display = '';
+        } else {
+            img.style.display = 'none';
+            yoq.style.display = 'flex';
+            ochirishBtn.style.display = 'none';
+        }
+    }
+
+    function sahifaniChiz() {
+        document.title = mahsulot.nomi + ' — Mahsulot';
+        document.getElementById('nomiSarlavha').textContent = mahsulot.nomi || '—';
+        document.getElementById('kodMatn').textContent = mahsulot.kod ? ('Kodi: ' + mahsulot.kod) : '';
+        document.getElementById('tahrirBtn').href = '/admin/mahsulotlar?tahrir=' + mahsulot.id;
+
+        document.getElementById('mKategoriya').innerHTML = mahsulot.kategoriyaNomi
+            ? '<span class="kategoriya-badge">' + esc(mahsulot.kategoriyaNomi) + '</span>'
+            : '<span class="muted">—</span>';
+        document.getElementById('mTuri').innerHTML = mahsulot.turi
+            ? '<span class="turi-badge ' + (mahsulot.turi === 'gatoviy' ? 'turi-gatoviy' : 'turi-metraj') + '">' +
+              esc(mahsulot.turi) + '</span>'
+            : '<span class="muted">—</span>';
+        qiymatQoy('mBirlik', mahsulot.birlik);
+        qiymatQoy('mMiqdor', mahsulot.miqdor != null ? (mahsulot.miqdor + ' ' + (mahsulot.birlik || '')) : null);
+        qiymatQoy('mBoyi', mahsulot.boyi != null ? (mahsulot.boyi + ' m') : null);
+        qiymatQoy('mEni', mahsulot.eni != null ? (mahsulot.eni + ' m') : null);
+        qiymatQoy('mKv', mahsulot.kv != null ? (mahsulot.kv + ' kv.m') : null);
+        qiymatQoy('mNarx', mahsulot.zavodNarxi != null ? (sonFormat(mahsulot.zavodNarxi) + ' so‘m') : null);
+        qiymatQoy('mMagazin', mahsulot.magazinNomi);
+        qiymatQoy('mYaratgan', mahsulot.yaratganFish);
+
+        rasmniChiz();
+
+        const sotishBtn = document.getElementById('sotishBtn');
+        sotishBtn.disabled = !(mahsulot.miqdor > 0);
+
+        document.getElementById('yuklanmoqda').style.display = 'none';
+        document.getElementById('ustKart').style.display = '';
+        document.getElementById('mazmun').style.display = '';
+    }
+
+    async function yukla() {
+        try {
+            const res = await fetch('/admin/get-mahsulot/' + id);
+            if (!res.ok) throw new Error();
+            mahsulot = await res.json();
+            sahifaniChiz();
+        } catch (e) {
+            document.getElementById('yuklanmoqda').textContent = 'Mahsulotni yuklashda xatolik';
+        }
+    }
+
+    // ===== Rasm yuklash / o'chirish =====
+    document.getElementById('rasmYuklashBtn').addEventListener('click', () => {
+        document.getElementById('rasmFile').click();
+    });
+
+    document.getElementById('rasmFile').addEventListener('change', async e => {
+        const fayl = e.target.files[0];
+        e.target.value = '';
+        if (!fayl) return;
+
+        if (!/^image\/(png|jpe?g|webp)$/.test(fayl.type)) {
+            toastKorsat('Faqat JPG, PNG yoki WEBP formatdagi rasm yuklash mumkin', false);
+            return;
+        }
+        if (fayl.size > 15 * 1024 * 1024) {
+            toastKorsat('Rasm hajmi 15 MB dan oshmasligi kerak', false);
+            return;
+        }
+
+        const form = new FormData();
+        form.append('file', fayl);
+        try {
+            const res = await fetch('/admin/mahsulot/' + id + '/rasm', { method: 'POST', body: form });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) await yukla();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+        }
+    });
+
+    document.getElementById('rasmOchirishBtn').addEventListener('click', async () => {
+        if (!await tasdiq.ochirish(mahsulot.nomi, 'rasmini')) return;
+        try {
+            const res = await fetch('/admin/mahsulot/' + id + '/rasm', { method: 'DELETE' });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) await yukla();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+        }
+    });
+
+    // ===== Zavod narxini yashirish / ko'rsatish =====
+    document.getElementById('narxKozBtn').addEventListener('click', () => {
+        document.getElementById('mNarx').classList.toggle('narx-yashirin');
+    });
+
+    // ===== Kod (QR / shtrix-kod) modali =====
+    const kodOverlay = document.getElementById('kodOverlay');
+
+    function kodModalniChiz() {
+        document.getElementById('kodModalNomi').textContent = mahsulot.nomi || '';
+        qiymatQoy('kodModalKod', mahsulot.kod);
+        document.getElementById('kodModalId').textContent = mahsulot.id;
+
+        const havola = window.location.origin + '/admin/mahsulot/' + id;
+        document.getElementById('kodModalHavola').value = havola;
+
+        document.getElementById('qrImg').src = '/admin/mahsulot/' + id + '/qr-kod';
+        document.getElementById('qrYuklab').href = '/admin/mahsulot/' + id + '/qr-kod';
+        document.getElementById('qrOchish').href = '/admin/mahsulot/' + id + '/qr-kod';
+
+        const shtrixBlok = document.getElementById('shtrixBlok');
+        if (mahsulot.kod) {
+            shtrixBlok.style.display = '';
+            document.getElementById('shtrixKodMatn').textContent = mahsulot.kod;
+            document.getElementById('shtrixImg').src = '/admin/mahsulot/' + id + '/shtrix-kod';
+            document.getElementById('shtrixYuklab').href = '/admin/mahsulot/' + id + '/shtrix-kod';
+            document.getElementById('shtrixOchish').href = '/admin/mahsulot/' + id + '/shtrix-kod';
+        } else {
+            shtrixBlok.style.display = 'none';
+        }
+    }
+
+    document.getElementById('kodBtn').addEventListener('click', () => {
+        kodModalniChiz();
+        kodOverlay.classList.add('open');
+    });
+
+    function kodModalYopish() { kodOverlay.classList.remove('open'); }
+
+    document.getElementById('kodYopishBtn').addEventListener('click', kodModalYopish);
+    kodOverlay.addEventListener('click', e => { if (e.target === kodOverlay) kodModalYopish(); });
+
+    document.getElementById('havolaNusxaBtn').addEventListener('click', async () => {
+        const input = document.getElementById('kodModalHavola');
+        try {
+            await navigator.clipboard.writeText(input.value);
+            toastKorsat('Havola nusxalandi', true);
+        } catch (e) {
+            input.select();
+            document.execCommand('copy');
+            toastKorsat('Havola nusxalandi', true);
+        }
+    });
+
+    // ===== Sotish modali (naqd / KATM) =====
+    const sotuvOverlay = document.getElementById('sotuvOverlay');
+    const sotuvError = document.getElementById('sotuvError');
+    let sotuvTuri = 'NAQD';           // NAQD | KATM
+    let narxTuri = 'BIRLIK';          // BIRLIK (1 birlik narxi) | UMUMIY (umumiy summa)
+
+    /** Metraj (kesib sotiladigan) mahsulotmi */
+    function metrajmi(m) {
+        return m && (m.birlik === 'kv.metr' || m.birlik === 'metr');
+    }
+
+    function yaxlit2(n) { return Math.round(n * 100) / 100; }
+
+    /**
+     * Kiritilgan METR ni mahsulot birligidagi miqdorga aylantiradi:
+     *   kv.metr -> metr * eni,   metr -> metr
+     * Butun bo'yi olinsa - aniq qoldiq (yaxlitlash xatosi bo'lmasin).
+     */
+    function metrniMiqdorga(m, metr) {
+        if (!(metr > 0)) return NaN;
+        const borMetr = m.boyi || 0;
+        if (borMetr > 0 && metr >= borMetr - 0.0001) return m.miqdor;
+        if (m.birlik === 'metr') return yaxlit2(metr);
+        const eni = m.eni || 0;
+        if (!(eni > 0)) return NaN;
+        return yaxlit2(metr * eni);
+    }
+
+    /** 1 dona/parchaning kvadrati */
+    function birKv(m) {
+        if (!m || !m.boyi || !m.eni) return null;
+        return Math.round(m.boyi * m.eni * 100) / 100;
+    }
+
+    /**
+     * Narx hisoblanadigan JAMI kvadrat (dona soniga bog'liq emas):
+     *   dona   -> dona soni × (bo'yi × eni)
+     *   metraj -> miqdor (allaqachon kv.metr)
+     */
+    function jamiKv(m, miqdor) {
+        if (!m || isNaN(miqdor) || miqdor <= 0) return null;
+        if (m.birlik === 'kv.metr') return miqdor;
+        const bir = birKv(m);
+        if (bir == null) return null;
+        return Math.round(bir * miqdor * 100) / 100;
+    }
+
+    /** Formadan sotiladigan miqdor (mahsulot birligida) */
+    function sotuvMiqdori() {
+        if (!mahsulot) return NaN;
+        if (metrajmi(mahsulot)) {
+            return metrniMiqdorga(mahsulot, parseFloat(document.getElementById('s_metr').value));
+        }
+        return parseFloat(document.getElementById('s_miqdor').value);
+    }
+
+    function sotuvHintYangila() {
+        if (!mahsulot) return;
+
+        const m = mahsulot;
+        const bor = m.miqdor || 0;
+        const birlik = m.birlik || 'dona';
+        const narx = parseFloat(document.getElementById('s_narx').value);
+        const valyuta = document.getElementById('s_valyuta').value;
+        const miqdor = sotuvMiqdori();
+
+        if (metrajmi(m)) {
+            const panel = document.getElementById('kvPanel');
+            const metr = parseFloat(document.getElementById('s_metr').value);
+            const eni = m.eni || 0;
+            const borMetr = m.boyi || 0;
+
+            if (isNaN(metr) || metr <= 0) {
+                panel.innerHTML = 'Mavjud: <b>' + borMetr + ' m</b> bo‘yi' +
+                    (eni ? ', eni <b>' + eni + ' m</b>' : '') +
+                    ' — jami <b>' + bor + ' ' + esc(birlik) + '</b>';
+            } else if (metr > borMetr + 0.0001) {
+                panel.innerHTML = '<span class="xato">Mahsulotda faqat ' + borMetr + ' metr bor</span>';
+            } else if (m.birlik === 'kv.metr') {
+                panel.innerHTML = yaxlit2(metr) + ' m × ' + eni + ' m (eni) = <b>' +
+                    miqdor + ' kv.metr</b><br>' +
+                    'Qolgan bo‘yi: <b>' + yaxlit2(borMetr - metr) + ' m</b> (' +
+                    yaxlit2(bor - miqdor) + ' kv.metr)';
+            } else {
+                panel.innerHTML = 'Sotiladi: <b>' + yaxlit2(metr) + ' metr</b><br>' +
+                    'Qoladi: <b>' + yaxlit2(borMetr - metr) + ' metr</b>';
+            }
+        } else {
+            const mHint = document.getElementById('sotuvMiqdorHint');
+            if (isNaN(miqdor) || miqdor <= 0) {
+                mHint.innerHTML = 'Mavjud qoldiq: <b>' + bor + ' ' + esc(birlik) + '</b>';
+            } else if (miqdor > bor + 0.0001) {
+                mHint.innerHTML = '<span class="qism">Mahsulotda faqat ' + bor + ' ' + esc(birlik) + ' bor</span>';
+            } else if (miqdor >= bor - 0.0001) {
+                mHint.innerHTML = 'Butun qoldiq sotiladi — <b>mahsulot tugaydi</b>';
+            } else {
+                mHint.innerHTML = 'Sotilgach <b>' + yaxlit2(bor - miqdor) + ' ' + esc(birlik) + '</b> qoladi';
+            }
+        }
+
+        const jHint = document.getElementById('sotuvJamiHint');
+        if (isNaN(miqdor) || miqdor <= 0 || isNaN(narx) || narx <= 0) {
+            jHint.textContent = '';
+        } else {
+            const kv = jamiKv(m, miqdor);
+            const asos = kv != null ? kv : miqdor;
+            const asosNomi = asos + ' ' + (kv != null ? 'kv.metr' : esc(birlik));
+            const pul = valyuta === 'USD' ? '$' : 'so‘m';
+
+            if (narxTuri === 'UMUMIY') {
+                const birNarx = yaxlit2(narx / asos);
+                jHint.innerHTML = '<b>' + narx.toLocaleString('ru-RU') + ' ' + pul + '</b> ÷ ' +
+                    asosNomi + ' = <b>' + birNarx.toLocaleString('ru-RU') + ' ' + pul + '</b>/' +
+                    (kv != null ? 'kv.metr' : esc(birlik)) +
+                    (valyuta === 'USD' ? ' <span class="qism">(kurs bo‘yicha so‘mga aylantiriladi)</span>' : '');
+            } else {
+                const jami = yaxlit2(asos * narx);
+                const chap = (kv != null && m.birlik !== 'kv.metr')
+                    ? miqdor + ' ' + esc(birlik) + ' × ' + birKv(m) + ' kv = ' + kv + ' kv.metr'
+                    : asosNomi;
+
+                jHint.innerHTML = chap + ' × ' +
+                    narx.toLocaleString('ru-RU') + ' = <b>' + jami.toLocaleString('ru-RU') + ' ' + pul + '</b>' +
+                    (valyuta === 'USD' ? ' <span class="qism">(kurs bo‘yicha so‘mga aylantiriladi)</span>' : '');
+            }
+        }
+    }
+
+    ['s_miqdor', 's_metr', 's_narx', 's_valyuta'].forEach(elId =>
+        document.getElementById(elId).addEventListener('input', sotuvHintYangila));
+    document.getElementById('s_valyuta').addEventListener('change', sotuvHintYangila);
+
+    function narxTuriniQoy(turi) {
+        narxTuri = turi;
+        document.querySelectorAll('.narx-tab').forEach(b =>
+            b.classList.toggle('faol', b.dataset.narxTuri === turi));
+
+        const umumiy = turi === 'UMUMIY';
+        const birlik = (mahsulot && mahsulot.birlik) || 'dona';
+        const kvli = mahsulot && mahsulot.boyi && mahsulot.eni;
+        document.getElementById('sotuvNarxLabel').textContent = umumiy
+            ? 'Umumiy summa *'
+            : (kvli ? 'Sotuv narxi (1 kv.metr uchun) *' : 'Sotuv narxi (1 ' + birlik + ' uchun) *');
+        document.getElementById('s_narx').placeholder = umumiy ? 'Masalan: 5000000' : '0';
+        sotuvHintYangila();
+    }
+
+    document.getElementById('narxTabs').addEventListener('click', e => {
+        const btn = e.target.closest('.narx-tab');
+        if (btn) narxTuriniQoy(btn.dataset.narxTuri);
+    });
+
+    function turiniQoy(turi) {
+        sotuvTuri = turi;
+        document.querySelectorAll('.turi-tab').forEach(b =>
+            b.classList.toggle('faol', b.dataset.turi === turi));
+
+        const katm = turi === 'KATM';
+        document.getElementById('katmInfo').style.display = katm ? 'block' : 'none';
+        document.getElementById('katmMaydonlar').style.display = katm ? 'block' : 'none';
+        document.getElementById('sotuvSarlavha').textContent =
+            katm ? 'KATMga o‘tkazish' : 'Mahsulotni sotish';
+        document.getElementById('sotuvMijozLabel').textContent =
+            katm ? 'Mijoz *' : 'Mijoz (ixtiyoriy)';
+
+        const btn = document.getElementById('sotuvSaveBtn');
+        btn.textContent = katm ? 'KATMga o‘tkazish' : 'Sotish';
+        btn.classList.toggle('katm-btn', katm);
+    }
+
+    document.querySelectorAll('.turi-tab').forEach(btn =>
+        btn.addEventListener('click', () => turiniQoy(btn.dataset.turi)));
+
+    function sotuvModalOchish() {
+        sotuvError.style.display = 'none';
+        turiniQoy('NAQD');
+
+        const birlik = mahsulot.birlik || 'dona';
+        const metraj = metrajmi(mahsulot);
+
+        document.getElementById('metrGroup').style.display = metraj ? 'block' : 'none';
+        document.getElementById('miqdorGroup').style.display = metraj ? 'none' : 'block';
+
+        const metrInput = document.getElementById('s_metr');
+        const miqdorInput = document.getElementById('s_miqdor');
+
+        if (metraj) {
+            metrInput.step = '0.01';
+            metrInput.max = mahsulot.boyi != null ? mahsulot.boyi : '';
+            metrInput.value = '';
+        } else {
+            miqdorInput.step = birlik === 'dona' ? '1' : '0.01';
+            miqdorInput.max = mahsulot.miqdor != null ? mahsulot.miqdor : '';
+            miqdorInput.value = birlik === 'dona' ? 1 : (mahsulot.miqdor != null ? mahsulot.miqdor : '');
+            document.getElementById('sotuvMiqdorLabel').textContent =
+                'Sotiladigan miqdor (' + birlik + ') *';
+        }
+
+        document.getElementById('s_narx').value = '';
+        narxTuriniQoy('BIRLIK');
+        document.getElementById('s_valyuta').value = 'UZS';
+        document.getElementById('s_mijoz').value = '';
+        document.getElementById('s_tel').value = '';
+        document.getElementById('s_muddat').value = '';
+        document.getElementById('s_oldindan').value = '';
+        document.getElementById('s_izoh').value = '';
+
+        const borKv = jamiKv(mahsulot, mahsulot.miqdor);
+        const tannarxBir = (mahsulot.zavodNarxi != null && borKv > 0)
+            ? Math.round(mahsulot.zavodNarxi / borKv) : null;
+        const olcham = metraj && mahsulot.eni
+            ? ' — o‘lcham: <b>' + mahsulot.eni + ' × ' + (mahsulot.boyi || 0) + ' m</b>'
+            : '';
+        document.getElementById('sotuvMahsulot').innerHTML =
+            '<b>' + esc(mahsulot.nomi) + '</b> (' + esc(mahsulot.kod) + ')' + olcham +
+            ' — qoldiq: <b>' +
+            (mahsulot.miqdor != null ? mahsulot.miqdor : '—') + ' ' + esc(birlik) + '</b>' +
+            (tannarxBir ? ', tannarx: <b>' + tannarxBir.toLocaleString('ru-RU') +
+                ' so‘m</b>/kv.metr' : '');
+
+        sotuvHintYangila();
+        sotuvOverlay.classList.add('open');
+        (metraj ? metrInput : miqdorInput).focus();
+    }
+
+    function sotuvModalYopish() {
+        sotuvOverlay.classList.remove('open');
+    }
+
+    document.getElementById('sotishBtn').addEventListener('click', () => {
+        if (mahsulot && mahsulot.miqdor > 0) sotuvModalOchish();
+    });
+    document.getElementById('sotuvCancelBtn').addEventListener('click', sotuvModalYopish);
+    sotuvOverlay.addEventListener('click', e => { if (e.target === sotuvOverlay) sotuvModalYopish(); });
+
+    document.getElementById('sotuvSaveBtn').addEventListener('click', async () => {
+        if (!mahsulot) return;
+        sotuvError.style.display = 'none';
+
+        const m = mahsulot;
+        const bor = m.miqdor || 0;
+        const birlik = m.birlik || 'dona';
+        const metraj = metrajmi(m);
+        const metr = parseFloat(document.getElementById('s_metr').value);
+        const miqdor = sotuvMiqdori();
+        const narx = parseFloat(document.getElementById('s_narx').value);
+        const mijoz = document.getElementById('s_mijoz').value.trim();
+
+        function xato(matn) {
+            sotuvError.textContent = matn;
+            sotuvError.style.display = 'block';
+        }
+
+        if (metraj) {
+            if (isNaN(metr) || metr <= 0) return xato('Sotiladigan bo‘yini (metr) kiriting');
+            if (metr > (m.boyi || 0) + 0.0001) {
+                return xato('Mahsulotda faqat ' + (m.boyi || 0) + ' metr bor');
+            }
+            if (isNaN(miqdor)) return xato('Mahsulotning eni kiritilmagan — kv hisoblanmadi');
+        } else {
+            if (isNaN(miqdor) || miqdor <= 0) return xato('Sotiladigan miqdorni kiriting');
+            if (birlik === 'dona' && !Number.isInteger(miqdor)) {
+                return xato('Dona uchun miqdor butun son bo‘lishi kerak');
+            }
+        }
+        if (miqdor > bor + 0.0001) return xato('Mahsulotda faqat ' + bor + ' ' + birlik + ' bor');
+        if (isNaN(narx) || narx <= 0) {
+            return xato(narxTuri === 'UMUMIY' ? 'Umumiy summani kiriting' : 'Sotuv narxini kiriting');
+        }
+        if (sotuvTuri === 'KATM' && !mijoz) {
+            return xato('KATMga o‘tkazish uchun mijoz ismini kiriting');
+        }
+
+        const muddat = parseInt(document.getElementById('s_muddat').value, 10);
+        const oldindan = parseInt(document.getElementById('s_oldindan').value, 10);
+        const url = sotuvTuri === 'KATM' ? '/admin/katmga-otkazish' : '/admin/sotish';
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mahsulotId: m.id,
+                    metr: metraj ? metr : null,
+                    miqdor: metraj ? null : miqdor,
+                    birlikNarxi: narxTuri === 'UMUMIY' ? null : narx,
+                    umumiySumma: narxTuri === 'UMUMIY' ? narx : null,
+                    valyuta: document.getElementById('s_valyuta').value,
+                    mijozIsmi: mijoz || null,
+                    mijozTel: document.getElementById('s_tel').value.trim() || null,
+                    muddat: sotuvTuri === 'KATM' && !isNaN(muddat) ? muddat : null,
+                    oldindanTulov: sotuvTuri === 'KATM' && !isNaN(oldindan) ? oldindan : null,
+                    izoh: document.getElementById('s_izoh').value.trim() || null
+                })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.holat) {
+                sotuvModalYopish();
+                toastKorsat(data.message, true);
+                await yukla();
+            } else {
+                xato(data.message || 'Xatolik yuz berdi');
+            }
+        } catch (e) {
+            xato('Server bilan aloqa yo‘q');
+        }
+    });
+
+    // ===== Mahsulotni o'chirish =====
+    document.getElementById('ochirishBtn').addEventListener('click', async () => {
+        if (!await tasdiq.ochirish(mahsulot.nomi, 'mahsulotini')) return;
+        try {
+            const res = await fetch('/admin/delete-mahsulot/' + id, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.holat) {
+                toastKorsat(data.message, true);
+                setTimeout(() => { window.location.href = '/admin/mahsulotlar'; }, 600);
+            } else {
+                toastKorsat(data.message, false);
+            }
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+        }
+    });
+
+    yukla();
+</script>
+
+</body>
+</html>

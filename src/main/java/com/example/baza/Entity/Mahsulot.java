@@ -58,4 +58,7 @@ public class Mahsulot extends AbstractLongEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "yaratgan_user_id", updatable = false)
     private Users yaratganUser;
+
+    /** Yuklangan rasm fayl nomi (diskda saqlanadi, DBda faqat nomi) — bo'lmasa null */
+    private String rasm;
 }
