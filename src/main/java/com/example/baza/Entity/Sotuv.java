@@ -143,4 +143,11 @@ public class Sotuv extends AbstractLongEntity {
 
     @Column(length = 500)
     private String qaytarishSababi;
+
+    // ---- Kassada qabul qilish (owner tomonidan naqd/tushum tasdiqlanishi) ----
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "kassa_qabul_qilgan_id")
+    private Users kassaQabulQilgan;
+
+    private LocalDateTime kassaQabulVaqti;
 }

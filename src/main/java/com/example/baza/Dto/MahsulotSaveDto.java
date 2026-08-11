@@ -16,5 +16,6 @@ public record MahsulotSaveDto(String nomi,
                               Double eni,
                               Double miqdor,
                               String turi,
-                              Long magazinId) {
+                              Long magazinId,
+                              String maxsusKod) {
 }

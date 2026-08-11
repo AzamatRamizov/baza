@@ -7,6 +7,7 @@
     <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
     <link rel="stylesheet" href="/tema.css">
     <script src="/tema.js"></script>
+    <script src="/skaner.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -170,6 +171,12 @@
         .form-group input[readonly] {
             background-color: var(--fon6); color: var(--kok-och); font-weight: 600; cursor: default;
         }
+        #mh_maxsus_kod.skaner-ok {
+            border-color: var(--yashil-toq) !important;
+            background-color: var(--yashil-fon) !important;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .kod-skaner-izoh { font-size: 11.5px; color: var(--matn4); margin-top: 5px; }
         .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions .save-btn {
             flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
@@ -205,7 +212,7 @@
                 <button class="stok-tugma" id="barchaBtn" type="button">Barcha mahsulotlar</button>
             </div>
             <input type="text" class="search-input" id="searchInput"
-                   placeholder="Qidirish: nomi, kodi, kategoriya, magazin...">
+                   placeholder="Qidirish: nomi, kodi, maxsus kod, kategoriya, magazin...">
             <button class="import-btn" id="openImportBtn">Exceldan yuklash</button>
             <button class="add-btn" id="openModalBtn">+ Yangi mahsulot</button>
         </div>
@@ -251,6 +258,14 @@
             <div class="form-group">
                 <label for="mh_kod">Kodi *</label>
                 <input type="text" id="mh_kod" placeholder="Masalan: GL-1024" autocomplete="off">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="mh_maxsus_kod">Maxsus kod (skaner)</label>
+                <input type="text" id="mh_maxsus_kod" placeholder="Shtrix-kod/QR skanerlang" autocomplete="off">
+                <div class="kod-skaner-izoh">Skanerni shu yerga qaratib bosing — takrorlanmas bo'lishi shart</div>
             </div>
         </div>
 
@@ -401,6 +416,7 @@
             list = list.filter(m =>
                 (m.nomi || '').toLowerCase().includes(q) ||
                 (m.kod || '').toLowerCase().includes(q) ||
+                (m.maxsusKod || '').toLowerCase().includes(q) ||
                 (m.kategoriyaNomi || '').toLowerCase().includes(q) ||
                 (m.magazinNomi || '').toLowerCase().includes(q)
             );
@@ -464,6 +480,7 @@
             mahsulotlar = await res.json();
             jadvalniChiz();
             tahrirParamniOchish();
+            qidirParamniOchish();
         } catch (e) {
             tbody.innerHTML = '<tr class="empty-row"><td colspan="14">Yuklashda xatolik</td></tr>';
         }
@@ -489,6 +506,23 @@
         } else {
             xabar('Mahsulot topilmadi', 'warn');
         }
+    }
+
+    /**
+     * Dashboarddagi skaner bir xil kodli bir nechta mahsulot topsa
+     * ?qidir=<kod> bilan shu yerga yo'naltiradi — qidiruvni avtomatik to'ldiramiz.
+     */
+    function qidirParamniOchish() {
+        const q = new URLSearchParams(window.location.search);
+        const kod = q.get('qidir');
+        if (!kod) return;
+
+        q.delete('qidir');
+        const qs = q.toString();
+        history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+
+        searchInput.value = kod;
+        stokToggle(false);   // qidirilayotgan kod tugagan mahsulotlar orasida ham bo'lishi mumkin
     }
 
     // ===== Modal ma'lumotlari =====
@@ -707,6 +741,7 @@
 
         document.getElementById('mh_nomi').value = mahsulot ? (mahsulot.nomi || '') : '';
         document.getElementById('mh_kod').value = mahsulot ? (mahsulot.kod || '') : '';
+        document.getElementById('mh_maxsus_kod').value = mahsulot ? (mahsulot.maxsusKod || '') : '';
         document.getElementById('mh_turi').value = mahsulot ? (mahsulot.turi || 'gatoviy') : 'gatoviy';
         // Miqdor: tahrirlashda bazadagi qiymat, yangi mahsulotda avto to'ldiriladi
         const miqdorInput = document.getElementById('mh_miqdor');
@@ -741,7 +776,9 @@
         await loadMagazinSelect(mahsulot ? mahsulot.magazinId : null);
 
         overlay.classList.add('open');
-        document.getElementById('mh_nomi').focus();
+        // Yangi mahsulotda avval Maxsus kod maydoniga fokus — ish joyida odatda shtrix-kod
+        // birinchi skanerlanadi, keyin nomi qo'lda kiritiladi
+        document.getElementById(mahsulot ? 'mh_nomi' : 'mh_maxsus_kod').focus();
     }
 
     function modalYopish() {
@@ -752,6 +789,58 @@
     document.getElementById('openModalBtn').addEventListener('click', () => modalOchish(null));
     document.getElementById('cancelBtn').addEventListener('click', modalYopish);
     overlay.addEventListener('click', e => { if (e.target === overlay) modalYopish(); });
+
+    // ===== Maxsus kod maydoniga shtrix-kod/QR skaner bilan yozish =====
+    // Fizik skaner klaviaturaga o'xshab juda tez belgi "teradi" va Enter bilan tugatadi.
+    // Modal ochiq bo'lganda, Maxsus kod maydonining o'zi fokusda bo'lsa (yoki hech narsa
+    // fokusda bo'lmasa) shu tezlikni aniqlab, skanerlangan matnni to'g'ridan-to'g'ri
+    // maydonga yozamiz — boshqa maydonda (Nomi va h.k.) qo'lda yozilsa aralashmaymiz.
+    (function () {
+        const kodInput = document.getElementById('mh_maxsus_kod');
+        const SKANER_ORTACHA_MS = 50;
+        const MIN_KOD_UZUNLIK = 2;
+        let buffer = '';
+        let vaqtlar = [];
+
+        function tozala() { buffer = ''; vaqtlar = []; }
+
+        function bajarTekshiruv() {
+            const kod = buffer;
+            const vaqt = vaqtlar;
+            tozala();
+            if (kod.length < MIN_KOD_UZUNLIK || vaqt.length < 2) return;
+
+            let jami = 0;
+            for (let i = 1; i < vaqt.length; i++) jami += vaqt[i] - vaqt[i - 1];
+            if (jami / (vaqt.length - 1) > SKANER_ORTACHA_MS) return; // qo'lda yozilgan
+
+            kodInput.value = kod;
+            kodInput.classList.add('skaner-ok');
+            setTimeout(() => kodInput.classList.remove('skaner-ok'), 700);
+            document.getElementById('mh_nomi').focus();
+        }
+
+        document.addEventListener('keydown', e => {
+            if (!overlay.classList.contains('open')) return;
+
+            const faolEl = document.activeElement;
+            const faolTag = (faolEl && faolEl.tagName) || '';
+            const kodFokusda = faolEl === kodInput;
+            // Boshqa maydonda (Nomi, Kategoriya va h.k.) qo'lda yozilayotgan bo'lsa aralashmaymiz
+            if (!kodFokusda && (faolTag === 'INPUT' || faolTag === 'TEXTAREA' || faolTag === 'SELECT')) return;
+
+            if (e.key === 'Enter') {
+                bajarTekshiruv();
+                return;
+            }
+            if (e.key.length !== 1) return;
+
+            const hozir = Date.now();
+            if (vaqtlar.length && hozir - vaqtlar[vaqtlar.length - 1] > 300) tozala();
+            buffer += e.key;
+            vaqtlar.push(hozir);
+        });
+    })();
 
     // ===== Saqlash =====
     document.getElementById('saveBtn').addEventListener('click', async () => {
@@ -805,7 +894,8 @@
             valyuta: document.getElementById('mh_valyuta').value,
             boyi: boyi === '' ? null : Number(boyi),
             eni: eni === '' ? null : Number(eni),
-            magazinId: magazinVal === '' ? null : Number(magazinVal)
+            magazinId: magazinVal === '' ? null : Number(magazinVal),
+            maxsusKod: document.getElementById('mh_maxsus_kod').value.trim() || null
         };
 
         const url = editingId ? '/admin/update-mahsulot/' + editingId : '/admin/add-mahsulot';

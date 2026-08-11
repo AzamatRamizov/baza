@@ -143,6 +143,72 @@ public class OtkazmaService {
                 " jo'natildi — tasdiq kutilmoqda", true);
     }
 
+    /**
+     * "Jo'natish"ning teskarisi: mahsulot boshqa magazinda turibdi, men (o'z magazinim
+     * uchun) uni so'rayapman. Tasdiq/rad etish HOZIR mahsulot turgan (qayerdan) tomonga
+     * tegishli — {@link #halQilishTekshir} shu yo'nalishni tekshiradi.
+     */
+    @Transactional
+    public ApiResponse sorash(String username, OtkazmaSaveDto dto) {
+        Users u = user(username);
+        if (u == null) return new ApiResponse("Foydalanuvchi topilmadi", false);
+
+        if (dto.mahsulotId() == null || dto.qayergaMagazinId() == null) {
+            return new ApiResponse("Mahsulot va o'z magaziningiz tanlanishi shart", false);
+        }
+
+        Mahsulot mahsulot = mahsulotRepository.findById(dto.mahsulotId()).orElse(null);
+        if (mahsulot == null) return new ApiResponse("Mahsulot topilmadi", false);
+
+        Magazin qayerga = magazinRepository.findById(dto.qayergaMagazinId()).orElse(null);
+        if (qayerga == null) return new ApiResponse("Magazin topilmadi", false);
+        if (!mansubmi(u, qayerga)) {
+            return new ApiResponse("Siz bu magazinga mas'ul emassiz", false);
+        }
+
+        Magazin qayerdan = mahsulot.getMagazin();
+        if (qayerdan == null) {
+            return new ApiResponse("Bu mahsulot hech qaysi magazinga biriktirilmagan — so'rab bo'lmaydi", false);
+        }
+        if (Objects.equals(qayerdan.getId(), qayerga.getId())) {
+            return new ApiResponse("Bu mahsulot allaqachon shu magazinda", false);
+        }
+
+        if (otkazmaRepository.existsByMahsulot_IdAndHolat(mahsulot.getId(), OtkazmaHolati.KUTILMOQDA)) {
+            return new ApiResponse("Bu mahsulot bo'yicha tasdiq kutilayotgan o'tkazma bor", false);
+        }
+
+        double bor = mahsulot.getMiqdor() == null ? 0 : mahsulot.getMiqdor();
+        if (bor <= 0) {
+            return new ApiResponse("Mahsulot qoldig'i 0 — so'rab bo'lmaydi", false);
+        }
+        double miqdor = dto.miqdor() == null ? bor : yaxlit(dto.miqdor());
+        String miqdorXato = miqdorTekshir(miqdor, bor, mahsulot.getBirlik());
+        if (miqdorXato != null) return new ApiResponse(miqdorXato, false);
+
+        Otkazma o = new Otkazma();
+        o.setMahsulot(mahsulot);
+        o.setQayerdan(qayerdan);
+        o.setQayerga(qayerga);
+        o.setYuborgan(u);
+        o.setSorovmi(true);
+        o.setHolat(OtkazmaHolati.KUTILMOQDA);
+        o.setMiqdor(miqdor);
+        o.setBirlik(mahsulot.getBirlik());
+        o.setIzoh(dto.izoh());
+        o.setYuborilganVaqt(LocalDateTime.now());
+        otkazmaRepository.save(o);
+
+        boolean toliq = toliqmi(miqdor, bor);
+        tarixService.yoz("O'tkazma", "So'raldi", o.getId(), mahsulot.getNomi(),
+                qayerga.getNomi() + " <- " + qayerdan.getNomi() +
+                        " | Miqdor: " + son(miqdor) + " " + birlik(mahsulot.getBirlik()) +
+                        (toliq ? " (to'liq)" : " (qismi, jami " + son(bor) + ")") +
+                        (dto.izoh() == null || dto.izoh().isBlank() ? "" : " | Izoh: " + dto.izoh()));
+
+        return new ApiResponse("So'rov \"" + qayerdan.getNomi() + "\" magaziniga tasdiq uchun yuborildi", true);
+    }
+
     @Transactional
     public ApiResponse qabulQilish(String username, Long otkazmaId, String javobIzoh) {
         Users u = user(username);
@@ -252,8 +318,13 @@ public class OtkazmaService {
         if (o.getHolat() != OtkazmaHolati.KUTILMOQDA) {
             return "Bu o'tkazma allaqachon hal qilingan: " + o.getHolat().getNomi();
         }
-        if (!mansubmi(u, o.getQayerga())) {
-            return "Bu o'tkazma sizning magazinigizga kelmagan";
+        // So'rovda tasdiq/rad HOZIR mahsulot turgan (qayerdan) tomonga tegishli —
+        // oddiy jo'natishda esa qabul qiluvchi (qayerga) tomonga
+        Magazin halQiluvchi = o.isSorovmi() ? o.getQayerdan() : o.getQayerga();
+        if (!mansubmi(u, halQiluvchi)) {
+            return o.isSorovmi()
+                    ? "Bu so'rov sizning magazinigizga tegishli emas"
+                    : "Bu o'tkazma sizning magazinigizga kelmagan";
         }
         return null;
     }

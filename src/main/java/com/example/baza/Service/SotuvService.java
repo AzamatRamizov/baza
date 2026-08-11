@@ -114,13 +114,36 @@ public class SotuvService {
     /**
      * Kassa sahifasi uchun — magazin mansubligidan qat'i nazar HAR DOIM barcha
      * magazinlar bo'yicha (KASSA_KORISH ruxsati aynan shu uchun beriladi —
-     * odatiy "Sotuvlar" kabi hodimning o'z magaziniga cheklanmaydi).
+     * odatiy "Sotuvlar" kabi hodimning o'z magaziniga cheklanmaydi). Tanlangan
+     * sana oralig'idan tashqarida bo'lsa ham hali kassada qabul qilinmagan
+     * sotuvlar HAR DOIM qo'shiladi — {@link SotuvRepository#findKassaUchun}ga qarang.
      */
     @Transactional(readOnly = true)
     public List<SotuvDto> getKassa(LocalDate sanadan, LocalDate sanagacha) {
         LocalDateTime dan = sanadan == null ? SANA_MIN : sanadan.atStartOfDay();
         LocalDateTime gacha = sanagacha == null ? SANA_MAX : sanagacha.atTime(KUN_OXIRI);
-        return sotuvRepository.findHammasi(dan, gacha);
+        return sotuvRepository.findKassaUchun(dan, gacha);
+    }
+
+    /** Owner (yoki KASSA_TASDIQLASH huquqi bo'lgan boshqa hodim) sotuv tushumini kassada qabul qiladi */
+    @Transactional
+    public ApiResponse kassaQabulQildim(String username, Long sotuvId) {
+        Users u = user(username);
+        if (u == null) return new ApiResponse("Foydalanuvchi topilmadi", false);
+
+        Sotuv s = sotuvRepository.findById(sotuvId).orElse(null);
+        if (s == null) return new ApiResponse("Sotuv topilmadi", false);
+        if (s.getKassaQabulQilgan() != null) {
+            return new ApiResponse("Bu sotuv allaqachon kassada qabul qilingan", false);
+        }
+
+        s.setKassaQabulQilgan(u);
+        s.setKassaQabulVaqti(LocalDateTime.now());
+        sotuvRepository.save(s);
+
+        tarixService.yoz("Sotuv", "Kassada qabul qilindi", s.getId(),
+                s.getMahsulotNomi(), "Summa: " + s.getSumma() + " so'm");
+        return new ApiResponse("Qabul qilindi", true);
     }
 
     // ================= SOTISH =================

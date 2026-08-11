@@ -21,5 +21,6 @@ public record OtkazmaDto(Long id,
                          String izoh,
                          String javobIzoh,
                          LocalDateTime yuborilganVaqt,
-                         LocalDateTime halQilinganVaqt) {
+                         LocalDateTime halQilinganVaqt,
+                         boolean sorovmi) {
 }

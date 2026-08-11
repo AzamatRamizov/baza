@@ -2,12 +2,17 @@ package com.example.baza.Service;
 
 import com.example.baza.Dto.ApiResponse;
 import com.example.baza.Dto.MahsulotDto;
+import com.example.baza.Dto.MahsulotQidirDto;
 import com.example.baza.Dto.MahsulotSaveDto;
 import com.example.baza.Dto.UsdKursDto;
 import com.example.baza.Entity.Mahsulot;
+import com.example.baza.Entity.Rol;
+import com.example.baza.Entity.SotuvHolati;
+import com.example.baza.Entity.Users;
 import com.example.baza.Repository.KategoriyaRepository;
 import com.example.baza.Repository.MagazinRepository;
 import com.example.baza.Repository.MahsulotRepository;
+import com.example.baza.Repository.SotuvRepository;
 import com.example.baza.Repository.UsersRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,6 +38,7 @@ public class MahsulotService {
     private final MagazinRepository magazinRepository;
     private final UsersRepository usersRepository;
     private final KategoriyaRepository kategoriyaRepository;
+    private final SotuvRepository sotuvRepository;
     private final ValyutaService valyutaService;
     private final TarixService tarixService;
 
@@ -41,16 +47,21 @@ public class MahsulotService {
 
     private static final Set<String> RUXSAT_ETILGAN_KENGAYTMALAR = Set.of("jpg", "jpeg", "png", "webp");
 
+    /** Zaxiradan haqiqatan chiqib ketgan holatlar — "sotilgan summa" shular bo'yicha hisoblanadi */
+    private static final List<SotuvHolati> SOTILGAN_HOLATLAR = List.of(SotuvHolati.SOTILDI, SotuvHolati.KATMDA);
+
     public MahsulotService(MahsulotRepository mahsulotRepository,
                            MagazinRepository magazinRepository,
                            UsersRepository usersRepository,
                            KategoriyaRepository kategoriyaRepository,
+                           SotuvRepository sotuvRepository,
                            ValyutaService valyutaService,
                            TarixService tarixService) {
         this.mahsulotRepository = mahsulotRepository;
         this.magazinRepository = magazinRepository;
         this.usersRepository = usersRepository;
         this.kategoriyaRepository = kategoriyaRepository;
+        this.sotuvRepository = sotuvRepository;
         this.valyutaService = valyutaService;
         this.tarixService = tarixService;
     }
@@ -71,7 +82,7 @@ public class MahsulotService {
 
     @Transactional
     public ApiResponse addMahsulot(MahsulotSaveDto dto) {
-        String xato = tekshir(dto, null, null);
+        String xato = tekshir(dto, null, null, null);
         if (xato != null) return new ApiResponse(xato, false);
 
         Double miqdor = miqdorniAniqla(dto);
@@ -105,7 +116,7 @@ public class MahsulotService {
             return new ApiResponse("Mahsulot topilmadi", false);
         }
 
-        String xato = tekshir(dto, id, mahsulot.getKod());
+        String xato = tekshir(dto, id, mahsulot.getKod(), mahsulot.getMaxsusKod());
         if (xato != null) return new ApiResponse(xato, false);
 
         Double miqdor = miqdorniAniqla(dto);
@@ -139,8 +150,59 @@ public class MahsulotService {
         return new ApiResponse("Mahsulot o'chirildi", true);
     }
 
-    public Optional<MahsulotDto> getMahsulotDto(Long id) {
-        return mahsulotRepository.findDtoById(id);
+    /**
+     * Detail sahifasi uchun — "tegishli" va "sotilganSumma" maydonlari joriy
+     * mahsulotga nisbatan hisoblab qo'yiladi (ro'yxat so'rovlarida hisoblanmaydi).
+     */
+    public Optional<MahsulotDto> getMahsulotDto(Long id, String username) {
+        return mahsulotRepository.findDtoById(id)
+                .map(dto -> dto.detailUchunTuldirish(
+                        tegishlimi(id, username),
+                        sotuvRepository.sumSummaMahsulotBoyicha(id, SOTILGAN_HOLATLAR)));
+    }
+
+    /**
+     * Shtrix-kod/QR skaneri kodni o'qiganda chaqiriladi.
+     * Avval TAKRORLANMAS "maxsus kod" bo'yicha aniq moslikni qidiradi (yagona natija,
+     * noaniqlik yo'q); topilmasa — orqaga qarab oddiy "kod" (artikul) bo'yicha qidiradi,
+     * bu esa bir necha mahsulotga tegishli bo'lishi mumkin (ommaviy import ataylab
+     * takrorlaydi, {@link MahsulotRepository#findByKodIgnoreCase} izohiga qarang) —
+     * shunday holatda "koplik" true qaytadi, chaqiruvchi ro'yxatga o'tkazadi.
+     * <p>
+     * Natijaga skanerlagan hodimga mahsulot tegishlimi (uning magazin(lar)i) qo'shiladi —
+     * chaqiruvchi tomon "tegishli emas" bo'lsa ogohlantirish ko'rsatib, o'tishni to'xtatadi.
+     */
+    public Optional<MahsulotQidirDto> kodBoyichaQidir(String kod, String username) {
+        if (kod == null || kod.isBlank()) return Optional.empty();
+        String tozaKod = kod.trim();
+
+        Optional<Mahsulot> maxsusTopilgan = mahsulotRepository.findByMaxsusKodIgnoreCase(tozaKod);
+        if (maxsusTopilgan.isPresent()) {
+            return Optional.of(qidirDtoYasash(maxsusTopilgan.get(), tozaKod, username));
+        }
+
+        List<Mahsulot> topilganlar = mahsulotRepository.findByKodIgnoreCase(tozaKod);
+        if (topilganlar.isEmpty()) return Optional.empty();
+        if (topilganlar.size() > 1) {
+            // Ko'plik holatida tegishlilik hisoblanmaydi — ro'yxatga o'tkaziladi, u yerda ko'rinadi
+            return Optional.of(new MahsulotQidirDto(null, true, tozaKod, true, null, null));
+        }
+        return Optional.of(qidirDtoYasash(topilganlar.get(0), tozaKod, username));
+    }
+
+    private MahsulotQidirDto qidirDtoYasash(Mahsulot mahsulot, String kod, String username) {
+        boolean tegishli = tegishlimi(mahsulot.getId(), username);
+        String magazinNomi = mahsulot.getMagazin() == null ? null : mahsulot.getMagazin().getNomi();
+        return new MahsulotQidirDto(mahsulot.getId(), false, kod, tegishli, mahsulot.getNomi(), magazinNomi);
+    }
+
+    /** Owner har doim "tegishli" — hodim uchun mahsulotning magazini o'ziga biriktirilgan bo'lishi shart */
+    private boolean tegishlimi(Long mahsulotId, String username) {
+        Users u = usersRepository.findByUsername(username).orElse(null);
+        if (u == null) return false;
+        boolean owner = u.getRollar() != null && u.getRollar().stream().anyMatch(Rol::isTizimRoli);
+        if (owner) return true;
+        return mahsulotRepository.existsByIdAndMagazin_Hodimlar_Id(mahsulotId, u.getId());
     }
 
     /**
@@ -218,6 +280,7 @@ public class MahsulotService {
     /** Tarix uchun mahsulotning qisqacha holati */
     private String mahsulotHolati(Mahsulot m) {
         return "kod=" + m.getKod()
+                + ", maxsusKod=" + (m.getMaxsusKod() == null ? "—" : m.getMaxsusKod())
                 + ", nomi=" + m.getNomi()
                 + ", kategoriya=" + (m.getKategoriya() == null ? "—" : m.getKategoriya().getNomi())
                 + ", turi=" + m.getTuri()
@@ -239,8 +302,10 @@ public class MahsulotService {
      *                bir necha marta qo'shishi mumkinligi uchun kerak: aks holda allaqachon
      *                takrorlangan kod bilan mahsulotni (hech narsa o'zgartirmasdan ham)
      *                saqlab bo'lmay qoladi.
+     * @param eskiMaxsusKod tahrirlanayotgan mahsulotning HOZIRGI maxsus kodi — xuddi
+     *                eskiKod kabi, o'zgarmagan bo'lsa takrorlanish tekshiruvi o'tkazib yuboriladi.
      */
-    private String tekshir(MahsulotSaveDto dto, Long ozId, String eskiKod) {
+    private String tekshir(MahsulotSaveDto dto, Long ozId, String eskiKod, String eskiMaxsusKod) {
         if (dto.nomi() == null || dto.nomi().isBlank()) {
             return "Mahsulot nomi kiritilishi shart";
         }
@@ -255,6 +320,19 @@ public class MahsulotService {
                     .findFirst().orElse(null);
             if (boshqasi != null) {
                 return "Bu kod bilan mahsulot allaqachon mavjud: " + boshqasi.getNomi();
+            }
+        }
+        // Maxsus kod (skaner uchun) — ixtiyoriy, lekin kiritilsa TAKRORLANMAS bo'lishi shart
+        if (dto.maxsusKod() != null && !dto.maxsusKod().isBlank()) {
+            String yangiMaxsusKod = dto.maxsusKod().trim();
+            boolean maxsusKodOzgardi = eskiMaxsusKod == null || !yangiMaxsusKod.equalsIgnoreCase(eskiMaxsusKod);
+            if (maxsusKodOzgardi) {
+                Mahsulot boshqasi = mahsulotRepository.findByMaxsusKodIgnoreCase(yangiMaxsusKod)
+                        .filter(m -> !Objects.equals(m.getId(), ozId))
+                        .orElse(null);
+                if (boshqasi != null) {
+                    return "Bu maxsus kod boshqa mahsulotda band: " + boshqasi.getNomi();
+                }
             }
         }
         if (dto.turi() == null || dto.turi().isBlank()) {
@@ -385,6 +463,8 @@ public class MahsulotService {
                                       Long narxSom, Double miqdor) {
         mahsulot.setNomi(dto.nomi().trim());
         mahsulot.setKod(dto.kod().trim());
+        mahsulot.setMaxsusKod(dto.maxsusKod() == null || dto.maxsusKod().isBlank()
+                ? null : dto.maxsusKod().trim());
         mahsulot.setKategoriya(dto.kategoriyaId() == null
                 ? null
                 : kategoriyaRepository.findById(dto.kategoriyaId()).orElse(null));

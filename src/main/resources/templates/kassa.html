@@ -122,6 +122,24 @@
             text-align: center; color: var(--matn4); padding: 34px 16px;
             white-space: normal; line-height: 1.6;
         }
+
+        .qabul-btn {
+            padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            background-color: var(--sariq-fon); color: var(--sariq-toq2);
+            border: 1px solid var(--sariq-chegara);
+            transition: background-color 0.2s;
+        }
+        .qabul-btn:hover { background-color: var(--sariq-chegara); }
+        .qabul-belgi {
+            display: inline-block; padding: 4px 11px; border-radius: 12px;
+            font-size: 12px; font-weight: 700;
+            background-color: var(--yashil-fon); color: var(--yashil-toq);
+            border: 1px solid var(--yashil-chegara);
+        }
+        .boshqa-kun-belgi {
+            display: block; font-size: 11px; color: var(--sariq-toq2); font-weight: 600; margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -166,9 +184,9 @@
                 <label for="fQidiruv">Qidirish</label>
                 <input type="text" id="fQidiruv" placeholder="Mahsulot, kod, mijoz, sotuvchi, magazin...">
             </div>
-            <button class="filtr-tugma" data-oraliq="bugun">Bugun</button>
+            <button class="filtr-tugma faol" data-oraliq="bugun">Bugun</button>
             <button class="filtr-tugma" data-oraliq="hafta">7 kun</button>
-            <button class="filtr-tugma faol" data-oraliq="oy">30 kun</button>
+            <button class="filtr-tugma" data-oraliq="oy">30 kun</button>
             <button class="filtr-tugma" data-oraliq="hammasi">Hammasi</button>
         </div>
 
@@ -237,10 +255,11 @@
                     <th>Magazin</th>
                     <th>Sotuvchi</th>
                     <th>Holat</th>
+                    <th>Kassa</th>
                 </tr>
                 </thead>
                 <tbody id="sotuvTbody">
-                <tr class="empty-row"><td colspan="10">Yuklanmoqda...</td></tr>
+                <tr class="empty-row"><td colspan="11">Yuklanmoqda...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -369,7 +388,7 @@
             list.length ? list.length + ' ta yozuv' : '';
 
         if (!list.length) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="10">' +
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="11">' +
                 (q || h || magazinId ? 'Filtr bo‘yicha hech narsa topilmadi'
                        : 'Bu davrda sotuv bo‘lmagan') + '</td></tr>';
             return;
@@ -380,6 +399,9 @@
             KATM_RAD: 'KATM rad etdi', QAYTARILDI: 'Qaytarildi'
         };
 
+        const oraliqBoshi = fSanadan.value ? new Date(fSanadan.value + 'T00:00:00') : null;
+        const oraliqOxiri = fSanagacha.value ? new Date(fSanagacha.value + 'T23:59:59') : null;
+
         tbody.innerHTML = list.map(s => {
             const katmda = s.holat === 'KATMDA';
             const yopiq = s.holat === 'QAYTARILDI' || s.holat === 'KATM_RAD';
@@ -387,10 +409,18 @@
             const olcham = (s.boyi != null && s.eni != null)
                 ? '<span class="olcham">' + s.eni + ' × ' + s.boyi + ' m</span>' : '';
 
+            const vaqt = s.vaqt ? new Date(s.vaqt) : null;
+            const boshqaKun = !s.kassaQabulVaqti && vaqt && !isNaN(vaqt) &&
+                ((oraliqBoshi && vaqt < oraliqBoshi) || (oraliqOxiri && vaqt > oraliqOxiri));
+
+            const qabulKatak = s.kassaQabulVaqti
+                ? '<span class="qabul-belgi" title="' + esc(s.kassaQabulQilganFish || '') + '">Qabul qilindi</span>'
+                : '<button class="qabul-btn" data-qabul="' + s.id + '" data-name="' + esc(s.mahsulotNomi) + '">Qabul qildim</button>';
+
             return `
             <tr class="${yopiq ? 'qaytarilgan' : ''} ${katmda ? 'katmda' : ''}">
                 <td class="muted">${s.id}</td>
-                <td class="vaqt">${vaqtFormat(s.vaqt)}</td>
+                <td class="vaqt">${vaqtFormat(s.vaqt)}${boshqaKun ? '<span class="boshqa-kun-belgi">boshqa kundan</span>' : ''}</td>
                 <td>
                     <b>${esc(s.mahsulotNomi)}</b>
                     ${s.turi === 'KATM' ? '<span class="turi-badge">KATM</span>' : ''}
@@ -402,13 +432,14 @@
                 <td>${esc(s.magazinNomi) || '<span class="muted">—</span>'}</td>
                 <td>${esc(s.sotganFish) || '<span class="muted">—</span>'}</td>
                 <td><span class="holat holat-${s.holat}">${holatNomi[s.holat] || esc(s.holat)}</span></td>
+                <td>${qabulKatak}</td>
             </tr>`;
         }).join('');
     }
 
     // ===== Yuklash =====
     async function load() {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Yuklanmoqda...</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="11">Yuklanmoqda...</td></tr>';
         magazinTbody.innerHTML = '<tr class="empty-row"><td colspan="6">Yuklanmoqda...</td></tr>';
 
         const p = new URLSearchParams();
@@ -422,7 +453,7 @@
             jadvalniChiz();
         } catch (e) {
             sotuvlar = [];
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Yuklashda xatolik</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="11">Yuklashda xatolik</td></tr>';
             magazinTbody.innerHTML = '<tr class="empty-row"><td colspan="6">Yuklashda xatolik</td></tr>';
         }
     }
@@ -462,13 +493,28 @@
         });
     });
 
-    // ===== Boshlanishi — oxirgi 30 kun =====
+    // ===== Kassada qabul qilish =====
+    tbody.addEventListener('click', async e => {
+        const btn = e.target.closest('[data-qabul]');
+        if (!btn) return;
+        btn.disabled = true;
+        try {
+            const res = await fetch('/admin/kassa-qabul/' + btn.dataset.qabul, { method: 'POST' });
+            const data = await res.json();
+            xabar(data.message, data.holat ? 'ok' : 'err');
+            if (data.holat) load();
+            else btn.disabled = false;
+        } catch (e) {
+            xabar('Server bilan aloqa yo‘q', 'err');
+            btn.disabled = false;
+        }
+    });
+
+    // ===== Boshlanishi — bugun =====
     (function boshlanish() {
         magazinlarniYukla();
         const bugun = new Date();
-        const boshi = new Date();
-        boshi.setDate(bugun.getDate() - 29);
-        fSanadan.value = sanaMatn(boshi);
+        fSanadan.value = sanaMatn(bugun);
         fSanagacha.value = sanaMatn(bugun);
         load();
     })();

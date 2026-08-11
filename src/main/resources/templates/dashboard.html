@@ -7,6 +7,7 @@
     <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
     <link rel="stylesheet" href="/tema.css">
     <script src="/tema.js"></script>
+    <script src="/skaner.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -35,6 +36,27 @@
             color: var(--matn2);
             font-size: 14px;
         }
+
+        .skaner-card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 20px 28px;
+            margin-top: 20px; display: flex; align-items: center; gap: 14px;
+        }
+        .skaner-nuqta {
+            width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+            background-color: var(--matn4); transition: background-color 0.2s;
+        }
+        .skaner-card.faol .skaner-nuqta {
+            background-color: var(--yashil-toq);
+            box-shadow: 0 0 0 4px var(--yashil-fon);
+            animation: skaner-puls 1s ease-in-out infinite;
+        }
+        @keyframes skaner-puls {
+            0%, 100% { box-shadow: 0 0 0 4px var(--yashil-fon); }
+            50% { box-shadow: 0 0 0 8px transparent; }
+        }
+        .skaner-matn .sarlavha { font-size: 14px; font-weight: 700; color: var(--matn); }
+        .skaner-matn .holat { font-size: 12.5px; color: var(--matn3); margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -48,7 +70,24 @@
         <h1>Xush kelibsiz, <span th:text="${username}">user</span>!</h1>
         <p>Siz tizimga muvaffaqiyatli kirdingiz. Dashboard sahifasi shu yerda kengaytiriladi.</p>
     </div>
+
+    <div class="skaner-card" id="skanerCard">
+        <div class="skaner-nuqta"></div>
+        <div class="skaner-matn">
+            <div class="sarlavha">Shtrix-kod / QR skaner</div>
+            <div class="holat" id="skanerHolat">Skanerlashga tayyor — istalgan joyda kodni skaner qiling</div>
+        </div>
+    </div>
 </div>
+
+<script>
+    // Umumiy skaner mantig'i /skaner.js'da — bu yerda faqat jonli holat ko'rsatkichini
+    // (nuqta pulsatsiyasi + matn) yangilash uchun ilova qilinadigan hook
+    window.skanerHolatYangilandi = function (matn, faol) {
+        document.getElementById('skanerHolat').textContent = matn;
+        document.getElementById('skanerCard').classList.toggle('faol', faol);
+    };
+</script>
 
 </body>
 </html>

@@ -41,6 +41,7 @@ public enum Ruxsat {
 
     // ===== Kassa =====
     KASSA_KORISH("Kassani ko'rish (barcha magazinlar tushumi va KATMlari)", "Kassa"),
+    KASSA_TASDIQLASH("Kassada sotuv tushumini qabul qilish (\"Qabul qildim\")", "Kassa"),
 
     // ===== Arizalar (Instagram) =====
     ARIZA_KORISH("Instagramdan kelgan arizalarni ko'rish", "Arizalar"),

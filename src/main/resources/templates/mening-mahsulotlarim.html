@@ -7,6 +7,7 @@
     <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
     <link rel="stylesheet" href="/tema.css">
     <script src="/tema.js"></script>
+    <script src="/skaner.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -243,7 +244,7 @@
             <h1>Mening mahsulotlarim</h1>
             <span class="kim" th:text="${username}">user</span>
             <input type="text" class="search-input" id="searchInput"
-                   placeholder="Qidirish: nomi, kodi, kategoriya, magazin...">
+                   placeholder="Qidirish: nomi, kodi, maxsus kod, kategoriya, magazin...">
         </div>
 
         <div class="statlar">
@@ -453,6 +454,7 @@
         const list = !q ? mahsulotlar : mahsulotlar.filter(m =>
             (m.nomi || '').toLowerCase().includes(q) ||
             (m.kod || '').toLowerCase().includes(q) ||
+            (m.maxsusKod || '').toLowerCase().includes(q) ||
             (m.kategoriyaNomi || '').toLowerCase().includes(q) ||
             (m.magazinNomi || '').toLowerCase().includes(q)
         );

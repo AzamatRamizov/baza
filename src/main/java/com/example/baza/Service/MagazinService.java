@@ -7,6 +7,7 @@ import com.example.baza.Dto.MagazinSaveDto;
 import com.example.baza.Dto.RolQisqaDto;
 import com.example.baza.Dto.UserDto;
 import com.example.baza.Entity.Magazin;
+import com.example.baza.Entity.Rol;
 import com.example.baza.Entity.Users;
 import com.example.baza.Repository.MagazinRepository;
 import com.example.baza.Repository.UsersRepository;
@@ -52,6 +53,22 @@ public class MagazinService {
     /** Select ro'yxatlari uchun qisqa ro'yxat — barcha login qilgan userlarga ochiq */
     public List<MagazinQisqaDto> getMagazinNomlar() {
         return magazinRepository.findAll().stream()
+                .map(m -> new MagazinQisqaDto(m.getId(), m.getNomi()))
+                .toList();
+    }
+
+    /**
+     * Hodim mas'ul bo'lgan magazinlar — "mahsulot so'rash" kabi "bu MENING
+     * magazinim" tanlanadigan joylarda ishlatiladi. Owner uchun barcha magazinlar
+     * qaytadi (Owner odatda hech qaysi magazinning hodimlar ro'yxatida yo'q).
+     */
+    public List<MagazinQisqaDto> getMeningMagazinlarim(String username) {
+        Users u = usersRepository.findByUsername(username).orElse(null);
+        if (u == null) return List.of();
+        boolean owner = u.getRollar() != null
+                && u.getRollar().stream().anyMatch(Rol::isTizimRoli);
+        if (owner) return getMagazinNomlar();
+        return magazinRepository.findByHodimlar_Id(u.getId()).stream()
                 .map(m -> new MagazinQisqaDto(m.getId(), m.getNomi()))
                 .toList();
     }

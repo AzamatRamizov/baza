@@ -7,6 +7,7 @@
     <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
     <link rel="stylesheet" href="/tema.css">
     <script src="/tema.js"></script>
+    <script src="/skaner.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -43,6 +44,42 @@
         .edit-btn:hover { background-color: var(--chegara3); }
         .del-btn { background-color: var(--qizil-fon); color: var(--qizil); border: 1px solid var(--qizil-3); }
         .del-btn:hover { background-color: var(--qizil-2); }
+        .sor-btn { background-color: var(--sariq-fon); color: var(--sariq-toq2); border: 1px solid var(--sariq-chegara); }
+        .sor-btn:hover { background-color: var(--sariq-chegara); }
+        .sor-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .tugagan-badge {
+            display: inline-flex; align-items: center;
+            padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 700;
+            background-color: var(--qizil-fon); color: var(--qizil); border: 1px solid var(--qizil-3);
+        }
+
+        /* ---- "Amallar" dropdown menyu (Kod yaratish / Tahrirlash / O'chirish) ---- */
+        .amallar-menu { position: relative; }
+        .amallar-btn {
+            display: flex; align-items: center; gap: 7px;
+            background-color: var(--fon3); color: var(--kok-toq); border: 1px solid var(--chegara-kok);
+        }
+        .amallar-btn:hover { background-color: var(--chegara3); }
+        .amallar-btn .chevron { font-size: 10px; transition: transform 0.2s; }
+        .amallar-menu.open .amallar-btn .chevron { transform: rotate(180deg); }
+        .amallar-dropdown {
+            position: absolute; top: calc(100% + 6px); right: 0;
+            min-width: 170px;
+            background-color: var(--karta); border-radius: 8px;
+            box-shadow: 0 6px 24px var(--soya4); border: 1px solid var(--chegara);
+            padding: 6px 0; display: none; z-index: 120;
+        }
+        .amallar-menu.open .amallar-dropdown { display: block; }
+        .amallar-dropdown a, .amallar-dropdown button {
+            display: block; width: 100%; text-align: left;
+            padding: 9px 16px; background: none; border: none;
+            color: var(--matn); font-size: 14px; font-weight: 500; font-family: inherit;
+            text-decoration: none; cursor: pointer;
+            transition: background-color 0.15s;
+        }
+        .amallar-dropdown a:hover, .amallar-dropdown button:hover { background-color: var(--fon2); }
+        .amallar-dropdown button.ochirish-band { color: var(--qizil); }
+        .amallar-dropdown button.ochirish-band:hover { background-color: var(--qizil-fon); }
 
         .detail-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
         @media (max-width: 820px) { .detail-grid { grid-template-columns: 1fr; } }
@@ -250,6 +287,10 @@
 <div class="container" id="root" th:attr="data-id=${mahsulotId}">
     <a class="orqaga" href="/admin/mahsulotlar">&larr; Mahsulotlarga qaytish</a>
 
+    <div class="katm-info" id="tegishliEmasBanner" style="display:none; margin-bottom:20px">
+        Diqqat: bu mahsulot sizning magazin(lar)ingizga tegishli emas — faqat ko'rish uchun ochilgan.
+    </div>
+
     <div class="card" id="ustKart" style="display:none">
         <div class="bosh-qator">
             <div>
@@ -257,10 +298,19 @@
                 <div class="kod-matn" id="kodMatn"></div>
             </div>
             <div class="amal-tugmalar">
+                <span class="tugagan-badge" id="tuganganBadge" style="display:none">Qolmagan</span>
                 <button class="sot-btn" id="sotishBtn" type="button">Sotish</button>
-                <button class="kod-btn" id="kodBtn" type="button">Kod yaratish</button>
-                <a class="edit-btn" id="tahrirBtn" href="#">Tahrirlash</a>
-                <button class="del-btn" id="ochirishBtn" type="button">O'chirish</button>
+                <button class="sor-btn" id="sorashBtn" type="button">So'rash</button>
+                <div class="amallar-menu" id="amallarMenu">
+                    <button class="amallar-btn" id="amallarBtn" type="button">
+                        Amallar <span class="chevron">&#9660;</span>
+                    </button>
+                    <div class="amallar-dropdown">
+                        <button type="button" id="kodBtn">Kod yaratish</button>
+                        <a id="tahrirBtn" href="#">Tahrirlash</a>
+                        <button type="button" class="ochirish-band" id="ochirishBtn">O'chirish</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -314,11 +364,15 @@
                         <div class="qiymat" id="mKv">—</div>
                     </div>
                     <div class="maydon">
-                        <div class="nom">Zavod narxi (umumiy)</div>
+                        <div class="nom">Zavod narxi (qoldiq)</div>
                         <div class="narx-qator">
                             <div class="qiymat narx-yashirin" id="mNarx">—</div>
                             <button class="koz-btn" id="narxKozBtn" type="button" title="Ko'rsatish / yashirish">&#128065;</button>
                         </div>
+                    </div>
+                    <div class="maydon">
+                        <div class="nom">Sotilgan summasi</div>
+                        <div class="qiymat narx-yashirin" id="mSotilgan">—</div>
                     </div>
                     <div class="maydon">
                         <div class="nom">Magazin</div>
@@ -344,6 +398,10 @@
             <div class="maydon">
                 <div class="nom">Mahsulot kodi</div>
                 <div class="qiymat" id="kodModalKod">—</div>
+            </div>
+            <div class="maydon">
+                <div class="nom">Maxsus kod (skaner)</div>
+                <div class="qiymat" id="kodModalMaxsusKod">—</div>
             </div>
             <div class="maydon">
                 <div class="nom">ID</div>
@@ -372,7 +430,7 @@
             <div class="kod-blok" id="shtrixBlok">
                 <h3>Shtrix-kod</h3>
                 <div class="kod-img-wrap"><img id="shtrixImg" alt="Shtrix-kod"></div>
-                <div class="kod-izoh">Mahsulot kodini (<span id="shtrixKodMatn"></span>) kodlaydi</div>
+                <div class="kod-izoh">Quyidagi qiymatni kodlaydi: <span id="shtrixKodMatn"></span></div>
                 <div class="kod-tugmalar">
                     <a id="shtrixYuklab" download="mahsulot-shtrix.png">Yuklab olish</a>
                     <a id="shtrixOchish" target="_blank" rel="noopener">Yangi oynada ochish</a>
@@ -466,6 +524,38 @@
     </div>
 </div>
 
+<!-- So'rash modali ("Jo'natish"ning teskarisi — mahsulotni o'z magazinimga so'rayman) -->
+<div class="modal-overlay" id="sorashOverlay">
+    <div class="modal kichik">
+        <h2>Mahsulotni so'rash</h2>
+        <div class="mahsulot-nomi" id="sorashMahsulot">—</div>
+
+        <div class="form-group">
+            <label for="so_magazin">Qaysi magazingizga so'ralsin? *</label>
+            <select id="so_magazin">
+                <option value="">— Tanlang —</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="so_miqdor" id="sorashMiqdorLabel">So'raladigan miqdor *</label>
+            <input type="number" id="so_miqdor" min="0" step="0.01" placeholder="0">
+            <div class="miqdor-hint" id="sorashMiqdorHint"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="so_izoh">Izoh (ixtiyoriy)</label>
+            <textarea id="so_izoh" placeholder="Masalan: mijoz so'ramoqda"></textarea>
+        </div>
+
+        <p class="modal-error" id="sorashError"></p>
+        <div class="modal-actions">
+            <button class="save-btn" id="sorashSaveBtn">So'rash</button>
+            <button class="cancel-btn" id="sorashCancelBtn">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const root = document.getElementById('root');
     const id = root.dataset.id;
@@ -490,6 +580,7 @@
     }
 
     let mahsulot = null;
+    let tegishliEmasOgohlantirildi = false;
 
     function rasmniChiz() {
         const img = document.getElementById('rasmImg');
@@ -526,13 +617,27 @@
         qiymatQoy('mEni', mahsulot.eni != null ? (mahsulot.eni + ' m') : null);
         qiymatQoy('mKv', mahsulot.kv != null ? (mahsulot.kv + ' kv.m') : null);
         qiymatQoy('mNarx', mahsulot.zavodNarxi != null ? (sonFormat(mahsulot.zavodNarxi) + ' so‘m') : null);
+        qiymatQoy('mSotilgan', mahsulot.sotilganSumma ? (sonFormat(mahsulot.sotilganSumma) + ' so‘m') : null);
         qiymatQoy('mMagazin', mahsulot.magazinNomi);
         qiymatQoy('mYaratgan', mahsulot.yaratganFish);
 
         rasmniChiz();
 
+        document.getElementById('tuganganBadge').style.display = (mahsulot.miqdor > 0) ? 'none' : 'inline-flex';
+
         const sotishBtn = document.getElementById('sotishBtn');
         sotishBtn.disabled = !(mahsulot.miqdor > 0);
+
+        // So'rash — faqat mahsulot sizga tegishli BO'LMASA va qoldiq bo'lsa mantiqli
+        const sorashBtn = document.getElementById('sorashBtn');
+        sorashBtn.disabled = mahsulot.tegishli || !(mahsulot.miqdor > 0);
+        sorashBtn.title = mahsulot.tegishli ? 'Bu mahsulot allaqachon sizga tegishli' : '';
+
+        document.getElementById('tegishliEmasBanner').style.display = mahsulot.tegishli ? 'none' : 'block';
+        if (!mahsulot.tegishli && !tegishliEmasOgohlantirildi) {
+            tegishliEmasOgohlantirildi = true;
+            xabar('Bu mahsulot sizning magazin(lar)ingizga tegishli emas', 'warn');
+        }
 
         document.getElementById('yuklanmoqda').style.display = 'none';
         document.getElementById('ustKart').style.display = '';
@@ -593,9 +698,10 @@
         }
     });
 
-    // ===== Zavod narxini yashirish / ko'rsatish =====
+    // ===== Zavod narxi va sotilgan summani yashirish / ko'rsatish (birgalikda) =====
     document.getElementById('narxKozBtn').addEventListener('click', () => {
         document.getElementById('mNarx').classList.toggle('narx-yashirin');
+        document.getElementById('mSotilgan').classList.toggle('narx-yashirin');
     });
 
     // ===== Kod (QR / shtrix-kod) modali =====
@@ -604,6 +710,7 @@
     function kodModalniChiz() {
         document.getElementById('kodModalNomi').textContent = mahsulot.nomi || '';
         qiymatQoy('kodModalKod', mahsulot.kod);
+        qiymatQoy('kodModalMaxsusKod', mahsulot.maxsusKod);
         document.getElementById('kodModalId').textContent = mahsulot.id;
 
         const havola = window.location.origin + '/admin/mahsulot/' + id;
@@ -613,10 +720,12 @@
         document.getElementById('qrYuklab').href = '/admin/mahsulot/' + id + '/qr-kod';
         document.getElementById('qrOchish').href = '/admin/mahsulot/' + id + '/qr-kod';
 
+        // Shtrix-kod maxsus kodni kodlaydi (bo'lmasa oddiy kodni) — backenddagi mantiqqa mos
+        const shtrixMatn = mahsulot.maxsusKod || mahsulot.kod;
         const shtrixBlok = document.getElementById('shtrixBlok');
-        if (mahsulot.kod) {
+        if (shtrixMatn) {
             shtrixBlok.style.display = '';
-            document.getElementById('shtrixKodMatn').textContent = mahsulot.kod;
+            document.getElementById('shtrixKodMatn').textContent = shtrixMatn;
             document.getElementById('shtrixImg').src = '/admin/mahsulot/' + id + '/shtrix-kod';
             document.getElementById('shtrixYuklab').href = '/admin/mahsulot/' + id + '/shtrix-kod';
             document.getElementById('shtrixOchish').href = '/admin/mahsulot/' + id + '/shtrix-kod';
@@ -625,7 +734,21 @@
         }
     }
 
+    // ===== "Amallar" dropdown menyusi =====
+    const amallarMenu = document.getElementById('amallarMenu');
+    document.getElementById('amallarBtn').addEventListener('click', e => {
+        e.stopPropagation();
+        amallarMenu.classList.toggle('open');
+    });
+    document.addEventListener('click', e => {
+        if (!amallarMenu.contains(e.target)) amallarMenu.classList.remove('open');
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') amallarMenu.classList.remove('open');
+    });
+
     document.getElementById('kodBtn').addEventListener('click', () => {
+        amallarMenu.classList.remove('open');
         kodModalniChiz();
         kodOverlay.classList.add('open');
     });
@@ -956,8 +1079,101 @@
         }
     });
 
+    // ===== So'rash modali ("Jo'natish"ning teskarisi) =====
+    const sorashOverlay = document.getElementById('sorashOverlay');
+    const sorashError = document.getElementById('sorashError');
+
+    async function sorashModalOchish() {
+        sorashError.style.display = 'none';
+        document.getElementById('so_izoh').value = '';
+
+        const birlik = mahsulot.birlik || 'dona';
+        const miqdorInput = document.getElementById('so_miqdor');
+        miqdorInput.step = birlik === 'dona' ? '1' : '0.01';
+        miqdorInput.max = mahsulot.miqdor != null ? mahsulot.miqdor : '';
+        miqdorInput.value = mahsulot.miqdor != null ? mahsulot.miqdor : '';
+        document.getElementById('sorashMiqdorLabel').textContent = 'So‘raladigan miqdor (' + birlik + ') *';
+        document.getElementById('sorashMiqdorHint').innerHTML =
+            'Mavjud (u yerdagi) qoldiq: <b>' + (mahsulot.miqdor != null ? mahsulot.miqdor : '—') + ' ' + esc(birlik) + '</b>';
+
+        document.getElementById('sorashMahsulot').innerHTML =
+            '<b>' + esc(mahsulot.nomi) + '</b> (' + esc(mahsulot.kod) + ') — hozir: ' +
+            esc(mahsulot.magazinNomi || '—');
+
+        const select = document.getElementById('so_magazin');
+        select.innerHTML = '<option value="">— Yuklanmoqda —</option>';
+        sorashOverlay.classList.add('open');
+
+        try {
+            const res = await fetch('/admin/get-mening-magazinlarim');
+            if (!res.ok) throw new Error();
+            const magazinlar = await res.json();
+            if (!magazinlar.length) {
+                select.innerHTML = '<option value="">— Sizga biriktirilgan magazin yo‘q —</option>';
+                return;
+            }
+            select.innerHTML = '<option value="">— Tanlang —</option>' +
+                magazinlar.map(mg => `<option value="${mg.id}">${esc(mg.nomi)}</option>`).join('');
+            if (magazinlar.length === 1) select.value = String(magazinlar[0].id);
+        } catch (e) {
+            select.innerHTML = '<option value="">— Yuklashda xatolik —</option>';
+        }
+    }
+
+    function sorashModalYopish() { sorashOverlay.classList.remove('open'); }
+
+    document.getElementById('sorashBtn').addEventListener('click', () => {
+        if (!document.getElementById('sorashBtn').disabled) sorashModalOchish();
+    });
+    document.getElementById('sorashCancelBtn').addEventListener('click', sorashModalYopish);
+    sorashOverlay.addEventListener('click', e => { if (e.target === sorashOverlay) sorashModalYopish(); });
+
+    document.getElementById('sorashSaveBtn').addEventListener('click', async () => {
+        sorashError.style.display = 'none';
+
+        function xato(matn) {
+            sorashError.textContent = matn;
+            sorashError.style.display = 'block';
+        }
+
+        const magazinId = document.getElementById('so_magazin').value;
+        if (!magazinId) return xato('O‘z magazingizni tanlang');
+
+        const bor = mahsulot.miqdor || 0;
+        const birlik = mahsulot.birlik || 'dona';
+        const miqdor = parseFloat(document.getElementById('so_miqdor').value);
+        if (isNaN(miqdor) || miqdor <= 0) return xato('So‘raladigan miqdorni kiriting');
+        if (miqdor > bor + 0.0001) return xato('Mahsulotda faqat ' + bor + ' ' + birlik + ' bor');
+        if (birlik === 'dona' && !Number.isInteger(miqdor)) {
+            return xato('Dona uchun miqdor butun son bo‘lishi kerak');
+        }
+
+        try {
+            const res = await fetch('/admin/otkazma-sorash', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mahsulotId: mahsulot.id,
+                    qayergaMagazinId: Number(magazinId),
+                    miqdor: miqdor,
+                    izoh: document.getElementById('so_izoh').value.trim() || null
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.holat) {
+                sorashModalYopish();
+                toastKorsat(data.message, true);
+            } else {
+                xato(data.message || 'Xatolik yuz berdi');
+            }
+        } catch (e) {
+            xato('Server bilan aloqa yo‘q');
+        }
+    });
+
     // ===== Mahsulotni o'chirish =====
     document.getElementById('ochirishBtn').addEventListener('click', async () => {
+        amallarMenu.classList.remove('open');
         if (!await tasdiq.ochirish(mahsulot.nomi, 'mahsulotini')) return;
         try {
             const res = await fetch('/admin/delete-mahsulot/' + id, { method: 'DELETE' });

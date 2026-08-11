@@ -16,6 +16,7 @@ import com.example.baza.Dto.MagazinQisqaDto;
 import com.example.baza.Dto.MagazinSaveDto;
 import com.example.baza.Dto.MahsulotDto;
 import com.example.baza.Dto.MahsulotImportNatijaDto;
+import com.example.baza.Dto.MahsulotQidirDto;
 import com.example.baza.Dto.MahsulotSaveDto;
 import com.example.baza.Dto.OtkazmaDto;
 import com.example.baza.Dto.OtkazmaJavobDto;
@@ -303,6 +304,13 @@ public class AdminController {
         return ResponseEntity.ok(magazinService.getMagazinNomlar());
     }
 
+    /** Joriy hodim mas'ul bo'lgan magazinlar — "mahsulot so'rash" moda maydonini to'ldiradi */
+    @GetMapping("/get-mening-magazinlarim")
+    @ResponseBody
+    public ResponseEntity<List<MagazinQisqaDto>> getMeningMagazinlarim(Authentication authentication) {
+        return ResponseEntity.ok(magazinService.getMeningMagazinlarim(authentication.getName()));
+    }
+
     @PostMapping("/add-mahsulot")
     @ResponseBody
     @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
@@ -359,7 +367,7 @@ public class AdminController {
     /** Bitta mahsulotning to'liq ma'lumoti — rasm, QR kod, shtrix-kod shu yerda */
     @GetMapping("/mahsulot/{id}")
     public String mahsulotDetailPage(@PathVariable Long id, Authentication authentication, Model model) {
-        if (mahsulotService.getMahsulotDto(id).isEmpty()) {
+        if (mahsulotService.getMahsulotDto(id, authentication.getName()).isEmpty()) {
             return "redirect:/admin/mahsulotlar";
         }
         model.addAttribute("username", authentication.getName());
@@ -370,8 +378,17 @@ public class AdminController {
 
     @GetMapping("/get-mahsulot/{id}")
     @ResponseBody
-    public ResponseEntity<MahsulotDto> getMahsulot(@PathVariable Long id) {
-        return mahsulotService.getMahsulotDto(id)
+    public ResponseEntity<MahsulotDto> getMahsulot(@PathVariable Long id, Authentication authentication) {
+        return mahsulotService.getMahsulotDto(id, authentication.getName())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Shtrix-kod skaneri o'qigan kod bo'yicha mahsulotni topadi — dashboarddagi skaner shu yerga so'rov yuboradi */
+    @GetMapping("/mahsulot-qidir-kod/{kod}")
+    @ResponseBody
+    public ResponseEntity<MahsulotQidirDto> mahsulotQidirKod(@PathVariable String kod, Authentication authentication) {
+        return mahsulotService.kodBoyichaQidir(kod, authentication.getName())
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -396,8 +413,9 @@ public class AdminController {
     /** QR kod — skaner qilinsa shu mahsulotning detail sahifasiga olib boradi */
     @GetMapping(value = "/mahsulot/{id}/qr-kod", produces = MediaType.IMAGE_PNG_VALUE)
     @ResponseBody
-    public ResponseEntity<byte[]> mahsulotQrKod(@PathVariable Long id, HttpServletRequest request) {
-        if (mahsulotService.getMahsulotDto(id).isEmpty()) {
+    public ResponseEntity<byte[]> mahsulotQrKod(@PathVariable Long id, HttpServletRequest request,
+                                                 Authentication authentication) {
+        if (mahsulotService.getMahsulotDto(id, authentication.getName()).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         String port = (request.getServerPort() == 80 || request.getServerPort() == 443)
@@ -414,14 +432,20 @@ public class AdminController {
     /** Shtrix-kod (Code128) — mahsulot kodini kodlaydi */
     @GetMapping(value = "/mahsulot/{id}/shtrix-kod", produces = MediaType.IMAGE_PNG_VALUE)
     @ResponseBody
-    public ResponseEntity<byte[]> mahsulotShtrixKod(@PathVariable Long id) {
-        MahsulotDto mahsulot = mahsulotService.getMahsulotDto(id).orElse(null);
-        if (mahsulot == null || mahsulot.kod() == null || mahsulot.kod().isBlank()) {
+    public ResponseEntity<byte[]> mahsulotShtrixKod(@PathVariable Long id, Authentication authentication) {
+        MahsulotDto mahsulot = mahsulotService.getMahsulotDto(id, authentication.getName()).orElse(null);
+        if (mahsulot == null) {
+            return ResponseEntity.notFound().build();
+        }
+        // Maxsus kod (skaner uchun takrorlanmas) ustuvor — bo'lmasa oddiy kod (artikul) ishlatiladi
+        String matn = (mahsulot.maxsusKod() != null && !mahsulot.maxsusKod().isBlank())
+                ? mahsulot.maxsusKod() : mahsulot.kod();
+        if (matn == null || matn.isBlank()) {
             return ResponseEntity.notFound().build();
         }
         try {
             return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
-                    .body(barkodService.shtrixKod(mahsulot.kod(), 300, 100));
+                    .body(barkodService.shtrixKod(matn, 300, 100));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
@@ -462,6 +486,16 @@ public class AdminController {
     public ResponseEntity<ApiResponse> otkazmaYuborish(Authentication authentication,
                                                        @RequestBody OtkazmaSaveDto dto) {
         ApiResponse res = otkazmaService.yuborish(authentication.getName(), dto);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /** "Jo'natish"ning teskarisi — boshqa magazindagi mahsulotni o'z magazinimga so'rayman */
+    @PostMapping("/otkazma-sorash")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('OTKAZMA_YUBORISH')")
+    public ResponseEntity<ApiResponse> otkazmaSorash(Authentication authentication,
+                                                      @RequestBody OtkazmaSaveDto dto) {
+        ApiResponse res = otkazmaService.sorash(authentication.getName(), dto);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 
@@ -602,6 +636,15 @@ public class AdminController {
             @RequestParam(name = "sanagacha", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sanagacha) {
         return ResponseEntity.ok(sotuvService.getKassa(sanadan, sanagacha));
+    }
+
+    /** Owner (yoki KASSA_TASDIQLASH huquqli hodim) sotuv tushumini kassada qabul qiladi */
+    @PostMapping("/kassa-qabul/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('KASSA_TASDIQLASH')")
+    public ResponseEntity<ApiResponse> kassaQabul(Authentication authentication, @PathVariable Long id) {
+        ApiResponse res = sotuvService.kassaQabulQildim(authentication.getName(), id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 
     // ================= TARIX =================

@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -83,4 +84,16 @@ public class Otkazma extends AbstractLongEntity {
     private LocalDateTime yuborilganVaqt;
 
     private LocalDateTime halQilinganVaqt;
+
+    /**
+     * false — oddiy jo'natish (qayerdan tomon boshlaydi, qayerga tomon tasdiqlaydi).
+     * true  — so'rov (qayerga tomon — mahsulot uni istaydigan hodim — boshlaydi,
+     *         qayerdan tomon — hozir mahsulot turgan magazin — tasdiqlaydi/rad etadi).
+     * `yuborgan` maydoni ikkala holatda ham "boshlagan hodim"ni bildiradi.
+     *
+     * {@code @ColumnDefault} shart — jadvalda allaqachon (haqiqiy) qatorlar bor,
+     * default'siz ALTER TABLE ... NOT NULL ularda mavjud bo'lmagani uchun muvaffaqiyatsiz bo'ladi.
+     */
+    @ColumnDefault("false")
+    private boolean sorovmi;
 }

@@ -77,6 +77,12 @@
         }
         .yonalish { font-weight: 600; }
         .yonalish .strelka { color: var(--kok); margin: 0 7px; font-weight: 700; }
+        .turi-badge {
+            display: inline-block; padding: 2px 9px; border-radius: 10px;
+            font-size: 11px; font-weight: 700; margin-bottom: 3px;
+        }
+        .turi-jonatma { background-color: var(--fon3); color: var(--kok-toq); }
+        .turi-sorov { background-color: var(--sariq-fon); color: var(--sariq-toq2); }
 
         .holat {
             display: inline-block; padding: 4px 11px; border-radius: 12px;
@@ -231,7 +237,7 @@
             if (o.holat === 'KUTILMOQDA') {
                 if (rejim === 'kelayotgan') {
                     amallar =
-                        `<button class="amal-btn qabul-btn" data-qabul="${o.id}" data-name="${esc(o.mahsulotNomi)}">Tasdiqlash</button>` +
+                        `<button class="amal-btn qabul-btn" data-qabul="${o.id}" data-name="${esc(o.mahsulotNomi)}" data-sorov="${o.sorovmi}">Tasdiqlash</button>` +
                         `<button class="amal-btn rad-btn" data-rad="${o.id}" data-name="${esc(o.mahsulotNomi)}">Rad etish</button>`;
                 } else {
                     amallar = `<button class="amal-btn bekor-btn" data-bekor="${o.id}" data-name="${esc(o.mahsulotNomi)}">Bekor qilish</button>`;
@@ -253,6 +259,7 @@
                     ${o.natijaMahsulotId ? '<div class="qism-belgi">kesib berilgan</div>' : ''}
                 </td>
                 <td class="yonalish">
+                    <div class="turi-badge ${o.sorovmi ? 'turi-sorov' : 'turi-jonatma'}">${o.sorovmi ? 'So‘rov' : 'Jo‘natma'}</div><br>
                     ${esc(o.qayerdanNomi) || '—'}<span class="strelka">&rarr;</span>${esc(o.qayergaNomi) || '—'}
                 </td>
                 <td>${esc(o.yuborganFish) || '<span class="muted">—</span>'}</td>
@@ -329,10 +336,13 @@
     tbody.addEventListener('click', async e => {
         const qabul = e.target.closest('[data-qabul]');
         if (qabul) {
+            const sorov_ = qabul.dataset.sorov === 'true';
             const ha = await tasdiq({
                 tur: 'ok',
-                sarlavha: 'O\u2018tkazmani tasdiqlash',
-                matn: '\u201C' + qabul.dataset.name + '\u201D mahsuloti sizning magazinigizga o\u2018tadi.',
+                sarlavha: sorov_ ? 'So\u2018rovni tasdiqlash' : 'O\u2018tkazmani tasdiqlash',
+                matn: sorov_
+                    ? '\u201C' + qabul.dataset.name + '\u201D mahsuloti sizning magaziningizdan so\u2018ralmoqda \u2014 tasdiqlasangiz boshqa magazinga o\u2018tadi.'
+                    : '\u201C' + qabul.dataset.name + '\u201D mahsuloti sizning magazinigizga o\u2018tadi.',
                 tugma: 'Ha, tasdiqlayman'
             });
             if (ha) sorov('/admin/otkazma-qabul/' + qabul.dataset.qabul, { izoh: null });

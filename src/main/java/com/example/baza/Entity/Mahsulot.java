@@ -61,4 +61,11 @@ public class Mahsulot extends AbstractLongEntity {
 
     /** Yuklangan rasm fayl nomi (diskda saqlanadi, DBda faqat nomi) — bo'lmasa null */
     private String rasm;
+
+    /**
+     * Skaner uchun maxsus kod — "kod" (artikul) dan farqli, bitta mahsulotga TAKRORLANMAS
+     * biriktiriladi (artikul ommaviy importda takrorlanishi mumkin, bu esa mumkin emas).
+     * Shtrix-kod/QR shu qiymatni kodlaydi, dashboarddagi skaner ham shu bo'yicha qidiradi.
+     */
+    private String maxsusKod;
 }

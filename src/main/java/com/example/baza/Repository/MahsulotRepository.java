@@ -20,7 +20,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
             select new com.example.baza.Dto.MahsulotDto(
                 m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
-                mag.id, mag.nomi, u.fish, m.rasm)
+                mag.id, mag.nomi, u.fish, m.rasm, m.maxsusKod, true, 0L)
             from Mahsulot m
             left join m.kategoriya k
             left join m.magazin mag
@@ -34,7 +34,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
             select new com.example.baza.Dto.MahsulotDto(
                 m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
-                mag.id, mag.nomi, u.fish, m.rasm)
+                mag.id, mag.nomi, u.fish, m.rasm, m.maxsusKod, true, 0L)
             from Mahsulot m
             left join m.kategoriya k
             left join m.magazin mag
@@ -51,7 +51,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
             select distinct new com.example.baza.Dto.MahsulotDto(
                 m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
-                mag.id, mag.nomi, u.fish, m.rasm)
+                mag.id, mag.nomi, u.fish, m.rasm, m.maxsusKod, true, 0L)
             from Mahsulot m
             left join m.kategoriya k
             join m.magazin mag
@@ -71,6 +71,12 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
      * Optional/single-result EMAS (aks holda NonUniqueResultException beradi).
      */
     List<Mahsulot> findByKodIgnoreCase(String kod);
+
+    /** Maxsus kod (skaner uchun) — bitta mahsulotga takrorlanmas biriktiriladi */
+    Optional<Mahsulot> findByMaxsusKodIgnoreCase(String maxsusKod);
+
+    /** Skanerlangan mahsulot shu hodimning magazin(lar)iga tegishlimi — "Mening mahsulotlarim" bilan bir xil scoping */
+    boolean existsByIdAndMagazin_Hodimlar_Id(Long mahsulotId, Long userId);
 
     /** Ommaviy import vaqtida takroriy kodlarni tekshirish uchun — to'liq entity yuklanmaydi */
     @Query("select m.kod from Mahsulot m where m.kod is not null")

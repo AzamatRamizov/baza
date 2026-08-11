@@ -37,5 +37,7 @@ public record SotuvDto(Long id,
                        LocalDateTime katmJavobVaqti,
                        String qaytarganFish,
                        LocalDateTime qaytarilganVaqt,
-                       String qaytarishSababi) {
+                       String qaytarishSababi,
+                       String kassaQabulQilganFish,
+                       LocalDateTime kassaQabulVaqti) {
 }

@@ -19,7 +19,7 @@ public interface OtkazmaRepository extends JpaRepository<Otkazma, Long> {
                 o.miqdor, o.birlik, o.natijaMahsulotId,
                 yu.fish, hq.fish,
                 o.holat, o.izoh, o.javobIzoh,
-                o.yuborilganVaqt, o.halQilinganVaqt)
+                o.yuborilganVaqt, o.halQilinganVaqt, o.sorovmi)
             from Otkazma o
             join o.mahsulot m
             left join o.qayerdan qd
@@ -28,11 +28,20 @@ public interface OtkazmaRepository extends JpaRepository<Otkazma, Long> {
             left join o.halQilgan hq
             """;
 
-    /** Menga kelayotgan o'tkazmalar — men mas'ul bo'lgan magazinga jo'natilganlari */
+    /**
+     * Menda hal qilish (tasdiqlash/rad etish) kutayotgan o'tkazmalar:
+     *  - oddiy jo'natish (sorovmi=false) — men qabul qiluvchi (qayerga) tomonda bo'lsam
+     *  - so'rov (sorovmi=true) — mendan so'rashyapti, men qayerdan (hozirgi egasi) tomonda bo'lsam
+     */
     @Query(SELECT + """
             where o.holat = :holat
-              and exists (select 1 from Magazin mg join mg.hodimlar h
-                          where mg.id = qg.id and h.id = :userId)
+              and (
+                (o.sorovmi = false and exists (select 1 from Magazin mg join mg.hodimlar h
+                            where mg.id = qg.id and h.id = :userId))
+                or
+                (o.sorovmi = true and exists (select 1 from Magazin mg join mg.hodimlar h
+                            where mg.id = qd.id and h.id = :userId))
+              )
             order by o.id desc
             """)
     List<OtkazmaDto> findKelayotganlar(@Param("userId") Long userId,

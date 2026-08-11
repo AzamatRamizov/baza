@@ -2,6 +2,7 @@ package com.example.baza.Repository;
 
 import com.example.baza.Dto.SotuvDto;
 import com.example.baza.Entity.Sotuv;
+import com.example.baza.Entity.SotuvHolati;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -22,13 +23,15 @@ public interface SotuvRepository extends JpaRepository<Sotuv, Long> {
                 so.fish, s.vaqt, s.turi, s.holat,
                 s.katmVaqti, s.gilamgaYuborildi, s.gilamXato,
                 s.katmJavobi, kj.fish, s.katmJavobVaqti,
-                qa.fish, s.qaytarilganVaqt, s.qaytarishSababi)
+                qa.fish, s.qaytarilganVaqt, s.qaytarishSababi,
+                kq.fish, s.kassaQabulVaqti)
             from Sotuv s
             left join s.mahsulot m
             left join s.magazin mag
             left join s.sotgan so
             left join s.katmJavobBergan kj
             left join s.qaytargan qa
+            left join s.kassaQabulQilgan kq
             """;
 
     /** Men mas'ul bo'lgan magazin(lar)dagi sotuvlar */
@@ -50,9 +53,33 @@ public interface SotuvRepository extends JpaRepository<Sotuv, Long> {
     List<SotuvDto> findHammasi(@Param("sanadan") LocalDateTime sanadan,
                                @Param("sanagacha") LocalDateTime sanagacha);
 
+    /**
+     * Kassa uchun — berilgan sana oralig'idagi barcha sotuvlar, PLYUS boshqa
+     * kunlarga tegishli bo'lsa ham hali kassada qabul qilinmagan sotuvlar
+     * (shu orqali hech qaysi tushum "ko'zdan yo'qolmaydi").
+     */
+    @Query(SELECT + """
+            where (s.vaqt >= :sanadan and s.vaqt <= :sanagacha)
+               or s.kassaQabulQilgan is null
+            order by s.id desc
+            """)
+    List<SotuvDto> findKassaUchun(@Param("sanadan") LocalDateTime sanadan,
+                                  @Param("sanagacha") LocalDateTime sanagacha);
+
     /** Bitta mahsulotning sotuv tarixi */
     @Query(SELECT + " where m.id = :mahsulotId order by s.id desc")
     List<SotuvDto> findMahsulotBoyicha(@Param("mahsulotId") Long mahsulotId);
+
+    /**
+     * Bitta mahsulot bo'yicha jami sotilgan summa (haqiqatan qoldiqdan chiqib ketgan
+     * holatlar: SOTILDI va KATMDA — KATM_RAD/QAYTARILDI qoldiqni tikladi, sotilgan hisoblanmaydi).
+     */
+    @Query("""
+            select coalesce(sum(s.summa), 0) from Sotuv s
+            where s.mahsulot.id = :mahsulotId and s.holat in :holatlar
+            """)
+    long sumSummaMahsulotBoyicha(@Param("mahsulotId") Long mahsulotId,
+                                 @Param("holatlar") List<SotuvHolati> holatlar);
 
     /**
      * Hodim o'chirilganda — uning sotuvlardagi izlarini bog'lanishdan bo'shatadi
