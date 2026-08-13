@@ -26,7 +26,12 @@ import com.example.baza.Dto.ProfilUpdateDto;
 import com.example.baza.Dto.RolDto;
 import com.example.baza.Dto.RolSaveDto;
 import com.example.baza.Dto.RuxsatDto;
+import com.example.baza.Dto.HodimQisqaDto;
+import com.example.baza.Dto.HolatBelgilaDto;
 import com.example.baza.Dto.KatmJavobDto;
+import com.example.baza.Dto.KutilayotganMahsulotDto;
+import com.example.baza.Dto.MagazinTanlashDto;
+import com.example.baza.Dto.SerialKodDto;
 import com.example.baza.Dto.SotuvDto;
 import com.example.baza.Dto.SotuvJavobDto;
 import com.example.baza.Dto.SotuvSaveDto;
@@ -43,6 +48,7 @@ import com.example.baza.Service.MagazinService;
 import com.example.baza.Service.MahsulotImportService;
 import com.example.baza.Service.MahsulotService;
 import com.example.baza.Service.OtkazmaService;
+import com.example.baza.Service.KutilayotganMahsulotService;
 import com.example.baza.Service.RolService;
 import com.example.baza.Service.SotuvService;
 import com.example.baza.Service.StatistikaService;
@@ -50,6 +56,8 @@ import com.example.baza.Service.TarixService;
 import com.example.baza.Service.ValyutaService;
 import com.example.baza.Service.UserService;
 import com.example.baza.Service.BarkodService;
+import com.example.baza.Service.SozlamaService;
+import com.example.baza.Dto.SozlamaDto;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -95,6 +103,8 @@ public class AdminController {
     private final ArizaService arizaService;
     private final InstagramAkkauntService instagramAkkauntService;
     private final BarkodService barkodService;
+    private final SozlamaService sozlamaService;
+    private final KutilayotganMahsulotService kutilayotganMahsulotService;
 
     public AdminController(AuthenticationManager authenticationManager,
                            TokenGenerator tokenGenerator,
@@ -111,7 +121,9 @@ public class AdminController {
                            MahsulotImportService mahsulotImportService,
                            ArizaService arizaService,
                            InstagramAkkauntService instagramAkkauntService,
-                           BarkodService barkodService) {
+                           BarkodService barkodService,
+                           SozlamaService sozlamaService,
+                           KutilayotganMahsulotService kutilayotganMahsulotService) {
         this.authenticationManager = authenticationManager;
         this.tokenGenerator = tokenGenerator;
         this.userService = userService;
@@ -128,6 +140,8 @@ public class AdminController {
         this.arizaService = arizaService;
         this.instagramAkkauntService = instagramAkkauntService;
         this.barkodService = barkodService;
+        this.sozlamaService = sozlamaService;
+        this.kutilayotganMahsulotService = kutilayotganMahsulotService;
     }
 
     // ================= LOGIN =================
@@ -350,6 +364,69 @@ public class AdminController {
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 
+    // ================= KUTILAYOTGAN MAHSULOTLAR (zavod "Chiqim" Excel + skaner tasdiqlash) =================
+
+    @GetMapping("/kutilayotgan-mahsulotlar")
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public String kutilayotganMahsulotlarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "kutilayotgan-mahsulotlar");
+        return "kutilayotgan-mahsulotlar";
+    }
+
+    /** Zavod "Chiqim" Excel fayli — mahsulotga darhol qo'shilmaydi, "kutilmoqda" holatida saqlanadi */
+    @PostMapping("/kutilayotgan-mahsulot-yukla")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<MahsulotImportNatijaDto> kutilayotganMahsulotYukla(
+            @RequestParam("file") MultipartFile file) {
+        MahsulotImportNatijaDto res = kutilayotganMahsulotService.excelniYukla(file);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @GetMapping("/get-kutilayotgan-mahsulotlar")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<List<KutilayotganMahsulotDto>> getKutilayotganMahsulotlar() {
+        return ResponseEntity.ok(kutilayotganMahsulotService.royxat());
+    }
+
+    /** Fizik mahsulot skanerlanganda (seriya raqami) — ro'yxatdagi mos qatorga ptichka qo'yadi */
+    @PostMapping("/kutilayotgan-mahsulot-skaner")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<ApiResponse> kutilayotganMahsulotSkaner(@RequestBody SerialKodDto dto) {
+        ApiResponse res = kutilayotganMahsulotService.skanerBelgila(dto.serialKod());
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /** Ptichkani qo'lda belgilash/bekor qilish (skaner ishlamay qolsa) */
+    @PostMapping("/kutilayotgan-mahsulot-belgila/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<ApiResponse> kutilayotganMahsulotBelgila(@PathVariable Long id,
+                                                                    @RequestBody HolatBelgilaDto dto) {
+        ApiResponse res = kutilayotganMahsulotService.qolBelgila(id, Boolean.TRUE.equals(dto.holat()));
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    @DeleteMapping("/kutilayotgan-mahsulot/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<ApiResponse> kutilayotganMahsulotOchirish(@PathVariable Long id) {
+        ApiResponse res = kutilayotganMahsulotService.ochirish(id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    /** Belgilangan (skanerlangan) qatorlarni haqiqiy Mahsulotga aylantiradi, magazin shu yerda tanlanadi */
+    @PostMapping("/kutilayotgan-mahsulotlar-tasdiqlash")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('MAHSULOT_QOSHISH')")
+    public ResponseEntity<ApiResponse> kutilayotganMahsulotlarTasdiqlash(@RequestBody MagazinTanlashDto dto) {
+        ApiResponse res = kutilayotganMahsulotService.tasdiqlaHammasi(dto.magazinId());
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
     /**
      * Mahsulot kamchiliklari — mavjud mahsulotlardan nomi, kodi, zavod narxi,
      * kategoriyasi, magazini yoki o'lchami yetishmayotganlari. Ro'yxat
@@ -434,18 +511,12 @@ public class AdminController {
     @ResponseBody
     public ResponseEntity<byte[]> mahsulotShtrixKod(@PathVariable Long id, Authentication authentication) {
         MahsulotDto mahsulot = mahsulotService.getMahsulotDto(id, authentication.getName()).orElse(null);
-        if (mahsulot == null) {
-            return ResponseEntity.notFound().build();
-        }
-        // Maxsus kod (skaner uchun takrorlanmas) ustuvor — bo'lmasa oddiy kod (artikul) ishlatiladi
-        String matn = (mahsulot.maxsusKod() != null && !mahsulot.maxsusKod().isBlank())
-                ? mahsulot.maxsusKod() : mahsulot.kod();
-        if (matn == null || matn.isBlank()) {
+        if (mahsulot == null || mahsulot.kod() == null || mahsulot.kod().isBlank()) {
             return ResponseEntity.notFound().build();
         }
         try {
             return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
-                    .body(barkodService.shtrixKod(matn, 300, 100));
+                    .body(barkodService.shtrixKod(mahsulot.kod(), 300, 100));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
@@ -570,6 +641,15 @@ public class AdminController {
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 
+    /** Sotish modalidagi "Sotuvchi" tanlovi - shu magazinga mas'ul hodimlar ro'yxati */
+    @GetMapping("/get-magazin-hodimlari/{magazinId}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SOTUV_QILISH')")
+    public ResponseEntity<List<HodimQisqaDto>> getMagazinHodimlari(Authentication authentication,
+                                                                    @PathVariable Long magazinId) {
+        return ResponseEntity.ok(sotuvService.magazinHodimlari(authentication.getName(), magazinId));
+    }
+
     /** Mahsulotni KATMga o'tkazish - mahsulot band bo'ladi, javob kutiladi */
     @PostMapping("/katmga-otkazish")
     @ResponseBody
@@ -644,6 +724,34 @@ public class AdminController {
     @PreAuthorize("hasAuthority('KASSA_TASDIQLASH')")
     public ResponseEntity<ApiResponse> kassaQabul(Authentication authentication, @PathVariable Long id) {
         ApiResponse res = sotuvService.kassaQabulQildim(authentication.getName(), id);
+        return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
+    }
+
+    // ================= SOZLAMALAR =================
+    @GetMapping("/sozlamalar")
+    @PreAuthorize("hasAuthority('SOZLAMA_BOSHQARISH')")
+    public String sozlamalarPage(Authentication authentication, Model model) {
+        model.addAttribute("username", authentication.getName());
+        model.addAttribute("page", "sozlamalar");
+        return "sozlamalar";
+    }
+
+    /**
+     * Sozlamalarni o'qish — istalgan tizimga kirgan foydalanuvchiga ochiq (Ruxsat
+     * bilan cheklanmagan), chunki "chop etish" har qanday sahifadan chaqirilishi
+     * mumkin va shu sozlamadan foydalanadi. Faqat O'ZGARTIRISH cheklangan.
+     */
+    @GetMapping("/get-sozlamalar")
+    @ResponseBody
+    public ResponseEntity<SozlamaDto> getSozlamalar() {
+        return ResponseEntity.ok(sozlamaService.olish());
+    }
+
+    @PostMapping("/sozlamalar-yangilash")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SOZLAMA_BOSHQARISH')")
+    public ResponseEntity<ApiResponse> sozlamalarYangilash(@RequestBody SozlamaDto dto) {
+        ApiResponse res = sozlamaService.yangilash(dto);
         return res.holat() ? ResponseEntity.ok(res) : ResponseEntity.badRequest().body(res);
     }
 

@@ -12,6 +12,7 @@ package com.example.baza.Dto;
 public record MahsulotDto(Long id,
                           String nomi,
                           String kod,
+                          String serialKod,
                           Long kategoriyaId,
                           String kategoriyaNomi,
                           String birlik,
@@ -25,14 +26,13 @@ public record MahsulotDto(Long id,
                           String magazinNomi,
                           String yaratganFish,
                           String rasm,
-                          String maxsusKod,
                           boolean tegishli,
                           long sotilganSumma) {
 
     /** Detail sahifasi uchun — joriy hodimga nisbatan hisoblangan maydonlarni to'ldiradi */
     public MahsulotDto detailUchunTuldirish(boolean tegishli, long sotilganSumma) {
-        return new MahsulotDto(id, nomi, kod, kategoriyaId, kategoriyaNomi, birlik, zavodNarxi,
-                boyi, eni, kv, miqdor, turi, magazinId, magazinNomi, yaratganFish, rasm, maxsusKod,
+        return new MahsulotDto(id, nomi, kod, serialKod, kategoriyaId, kategoriyaNomi, birlik, zavodNarxi,
+                boyi, eni, kv, miqdor, turi, magazinId, magazinNomi, yaratganFish, rasm,
                 tegishli, sotilganSumma);
     }
 }

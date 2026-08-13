@@ -14,6 +14,8 @@ package com.example.baza.Dto;
  *                     (birlikNarxi va umumiySumma ikkalasiga ham tegishli)
  * @param muddat        Nasiya muddati (oy) — KATM uchun
  * @param oldindanTulov Boshlang'ich naqd to'lov — KATM uchun (gilamga uzatiladi)
+ * @param sotuvchiId    Sotuvni amalga oshirgan hodim — berilmasa, so'rov yuborgan
+ *                      (tizimga kirgan) foydalanuvchining o'zi sotuvchi deb yoziladi
  */
 public record SotuvSaveDto(Long mahsulotId,
                            Double metr,
@@ -25,5 +27,6 @@ public record SotuvSaveDto(Long mahsulotId,
                            String mijozTel,
                            Integer muddat,
                            Long oldindanTulov,
-                           String izoh) {
+                           String izoh,
+                           Long sotuvchiId) {
 }

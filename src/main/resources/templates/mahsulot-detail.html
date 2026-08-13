@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/tema.css">
     <script src="/tema.js"></script>
     <script src="/skaner.js"></script>
+    <script src="/chop.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -142,13 +143,18 @@
         }
         .kod-blok img { max-width: 100%; }
         .kod-blok .kod-izoh { font-size: 12px; color: var(--matn3); margin-bottom: 12px; }
-        .kod-tugmalar { display: flex; gap: 8px; justify-content: center; }
-        .kod-tugmalar a {
+        .kod-tugmalar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .kod-tugmalar a, .kod-tugmalar button {
             padding: 7px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600;
             text-decoration: none; background-color: var(--fon3); color: var(--kok-toq);
             border: 1px solid var(--chegara-kok); transition: background-color 0.2s;
+            font-family: inherit; cursor: pointer;
         }
-        .kod-tugmalar a:hover { background-color: var(--chegara3); }
+        .kod-tugmalar a:hover, .kod-tugmalar button:hover { background-color: var(--chegara3); }
+        .kod-tugmalar .chop-btn {
+            background-color: var(--kok); color: var(--karta); border-color: var(--kok);
+        }
+        .kod-tugmalar .chop-btn:hover { background-color: var(--kok-hover); }
 
         .yuklanmoqda { text-align: center; color: var(--matn3); font-size: 14px; padding: 30px 0; }
 
@@ -382,6 +388,10 @@
                         <div class="nom">Yaratgan</div>
                         <div class="qiymat" id="mYaratgan">—</div>
                     </div>
+                    <div class="maydon">
+                        <div class="nom">Seriya raqami</div>
+                        <div class="qiymat" id="mSerial">—</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -398,10 +408,6 @@
             <div class="maydon">
                 <div class="nom">Mahsulot kodi</div>
                 <div class="qiymat" id="kodModalKod">—</div>
-            </div>
-            <div class="maydon">
-                <div class="nom">Maxsus kod (skaner)</div>
-                <div class="qiymat" id="kodModalMaxsusKod">—</div>
             </div>
             <div class="maydon">
                 <div class="nom">ID</div>
@@ -425,6 +431,7 @@
                 <div class="kod-tugmalar">
                     <a id="qrYuklab" download="mahsulot-qr.png">Yuklab olish</a>
                     <a id="qrOchish" target="_blank" rel="noopener">Yangi oynada ochish</a>
+                    <button type="button" class="chop-btn" id="qrChopBtn">Chop etish</button>
                 </div>
             </div>
             <div class="kod-blok" id="shtrixBlok">
@@ -434,6 +441,7 @@
                 <div class="kod-tugmalar">
                     <a id="shtrixYuklab" download="mahsulot-shtrix.png">Yuklab olish</a>
                     <a id="shtrixOchish" target="_blank" rel="noopener">Yangi oynada ochish</a>
+                    <button type="button" class="chop-btn" id="shtrixChopBtn">Chop etish</button>
                 </div>
             </div>
         </div>
@@ -487,6 +495,11 @@
                 </select>
             </div>
             <div class="miqdor-hint" id="sotuvJamiHint"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="s_sotuvchi">Sotuvchi</label>
+            <select id="s_sotuvchi"></select>
         </div>
 
         <div class="form-group">
@@ -620,6 +633,7 @@
         qiymatQoy('mSotilgan', mahsulot.sotilganSumma ? (sonFormat(mahsulot.sotilganSumma) + ' so‘m') : null);
         qiymatQoy('mMagazin', mahsulot.magazinNomi);
         qiymatQoy('mYaratgan', mahsulot.yaratganFish);
+        qiymatQoy('mSerial', mahsulot.serialKod);
 
         rasmniChiz();
 
@@ -710,7 +724,6 @@
     function kodModalniChiz() {
         document.getElementById('kodModalNomi').textContent = mahsulot.nomi || '';
         qiymatQoy('kodModalKod', mahsulot.kod);
-        qiymatQoy('kodModalMaxsusKod', mahsulot.maxsusKod);
         document.getElementById('kodModalId').textContent = mahsulot.id;
 
         const havola = window.location.origin + '/admin/mahsulot/' + id;
@@ -720,8 +733,7 @@
         document.getElementById('qrYuklab').href = '/admin/mahsulot/' + id + '/qr-kod';
         document.getElementById('qrOchish').href = '/admin/mahsulot/' + id + '/qr-kod';
 
-        // Shtrix-kod maxsus kodni kodlaydi (bo'lmasa oddiy kodni) — backenddagi mantiqqa mos
-        const shtrixMatn = mahsulot.maxsusKod || mahsulot.kod;
+        const shtrixMatn = mahsulot.kod;
         const shtrixBlok = document.getElementById('shtrixBlok');
         if (shtrixMatn) {
             shtrixBlok.style.display = '';
@@ -768,6 +780,15 @@
             document.execCommand('copy');
             toastKorsat('Havola nusxalandi', true);
         }
+    });
+
+    // ===== Chop etish (maxsus printerga, /chop.js'dagi umumiy funksiya) =====
+    document.getElementById('qrChopBtn').addEventListener('click', () => {
+        chopEt(document.getElementById('qrImg').src, (mahsulot.nomi || '') + ' — QR kod');
+    });
+    document.getElementById('shtrixChopBtn').addEventListener('click', () => {
+        chopEt(document.getElementById('shtrixImg').src,
+            (mahsulot.nomi || '') + (mahsulot.kod ? ' (' + mahsulot.kod + ')' : ''));
     });
 
     // ===== Sotish modali (naqd / KATM) =====
@@ -943,9 +964,38 @@
     document.querySelectorAll('.turi-tab').forEach(btn =>
         btn.addEventListener('click', () => turiniQoy(btn.dataset.turi)));
 
+    /** Sotish modalidagi "Sotuvchi" ro'yxatini shu mahsulot magazinidagi hodimlar bilan to'ldiradi */
+    async function sotuvchiSelectYukla(magazinId) {
+        const select = document.getElementById('s_sotuvchi');
+        select.innerHTML = '<option value="">Men (joriy foydalanuvchi)</option>';
+        if (!magazinId) return;
+        try {
+            const [profilRes, hodimRes] = await Promise.all([
+                fetch('/admin/get-profil'),
+                fetch('/admin/get-magazin-hodimlari/' + magazinId)
+            ]);
+            const profil = profilRes.ok ? await profilRes.json() : null;
+            const hodimlar = hodimRes.ok ? await hodimRes.json() : [];
+            if (profil) {
+                select.innerHTML = '<option value="">Men (' + esc(profil.fish || profil.username) + ')</option>';
+            }
+            hodimlar
+                .filter(h => !profil || h.id !== profil.id)
+                .forEach(h => {
+                    const opt = document.createElement('option');
+                    opt.value = h.id;
+                    opt.textContent = h.fish || ('#' + h.id);
+                    select.appendChild(opt);
+                });
+        } catch (e) {
+            // jim - "Men" tanlangan bo'lib qoladi
+        }
+    }
+
     function sotuvModalOchish() {
         sotuvError.style.display = 'none';
         turiniQoy('NAQD');
+        sotuvchiSelectYukla(mahsulot.magazinId);
 
         const birlik = mahsulot.birlik || 'dona';
         const metraj = metrajmi(mahsulot);
@@ -1062,7 +1112,8 @@
                     mijozTel: document.getElementById('s_tel').value.trim() || null,
                     muddat: sotuvTuri === 'KATM' && !isNaN(muddat) ? muddat : null,
                     oldindanTulov: sotuvTuri === 'KATM' && !isNaN(oldindan) ? oldindan : null,
-                    izoh: document.getElementById('s_izoh').value.trim() || null
+                    izoh: document.getElementById('s_izoh').value.trim() || null,
+                    sotuvchiId: document.getElementById('s_sotuvchi').value || null
                 })
             });
             const data = await res.json();

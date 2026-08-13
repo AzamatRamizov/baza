@@ -100,6 +100,7 @@
         }
         .del-btn:hover { background-color: var(--qizil-2); }
         .empty-row td { text-align: center; color: var(--matn4); padding: 24px; }
+        .muted { color: var(--matn4); }
 
         /* Modal */
         .modal-overlay {
@@ -118,12 +119,12 @@
             display: block; margin-bottom: 5px; color: var(--kok-och);
             font-size: 12px; font-weight: 600; text-transform: uppercase;
         }
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
             font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
             transition: border-color 0.2s; font-family: inherit;
         }
-        .form-group input:focus { border-color: var(--kok); background-color: var(--karta); }
+        .form-group input:focus, .form-group select:focus { border-color: var(--kok); background-color: var(--karta); }
         .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions .save-btn {
             flex: 1; padding: 10px; background-color: var(--kok); color: var(--karta); border: none;
@@ -159,11 +160,12 @@
             <tr>
                 <th style="width:60px">#</th>
                 <th>Nomi</th>
+                <th>Narxi (1 kv.metr)</th>
                 <th style="width:180px"></th>
             </tr>
             </thead>
             <tbody id="kategoriyaTbody">
-            <tr class="empty-row"><td colspan="3">Yuklanmoqda...</td></tr>
+            <tr class="empty-row"><td colspan="4">Yuklanmoqda...</td></tr>
             </tbody>
         </table>
     </div>
@@ -176,6 +178,16 @@
         <div class="form-group">
             <label for="k_nomi">Kategoriya nomi *</label>
             <input type="text" id="k_nomi" placeholder="Masalan: Gilamlar" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="k_narxi">Standart narxi (1 kv.metr uchun, ixtiyoriy)</label>
+            <div style="display:flex; gap:8px;">
+                <input type="number" id="k_narxi" min="0" step="0.01" placeholder="0" style="flex:1">
+                <select id="k_valyuta" style="width:90px">
+                    <option value="USD" selected>$</option>
+                    <option value="UZS">so'm</option>
+                </select>
+            </div>
         </div>
         <p class="modal-error" id="modalError"></p>
         <div class="modal-actions">
@@ -242,7 +254,7 @@
             kategoriyalar = await res.json();
 
             if (!kategoriyalar.length) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Kategoriyalar yo\u2018q</td></tr>';
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Kategoriyalar yo\u2018q</td></tr>';
                 return;
             }
 
@@ -250,6 +262,7 @@
                 <tr>
                     <td>${i + 1}</td>
                     <td><b>${esc(k.nomi)}</b></td>
+                    <td>${k.narxi != null ? Number(k.narxi).toLocaleString('ru-RU') + (k.valyuta === 'USD' ? ' $' : ' so\u2018m') : '<span class="muted">\u2014</span>'}</td>
                     <td>
                         <button class="edit-btn" data-id="${k.id}">Tahrirlash</button>
                         <button class="del-btn" data-id="${k.id}" data-name="${esc(k.nomi)}">O'chirish</button>
@@ -257,7 +270,7 @@
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Yuklashda xatolik</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Yuklashda xatolik</td></tr>';
         }
     }
 
@@ -267,6 +280,8 @@
         editingId = kategoriya ? kategoriya.id : null;
         modalTitle.textContent = kategoriya ? 'Kategoriyani tahrirlash' : 'Yangi kategoriya';
         document.getElementById('k_nomi').value = kategoriya ? kategoriya.nomi : '';
+        document.getElementById('k_narxi').value = kategoriya && kategoriya.narxi != null ? kategoriya.narxi : '';
+        document.getElementById('k_valyuta').value = kategoriya && kategoriya.valyuta ? kategoriya.valyuta : 'USD';
         overlay.classList.add('open');
         document.getElementById('k_nomi').focus();
     }
@@ -282,6 +297,9 @@
     document.getElementById('k_nomi').addEventListener('keydown', e => {
         if (e.key === 'Enter') document.getElementById('saveBtn').click();
     });
+    document.getElementById('k_narxi').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('saveBtn').click();
+    });
 
     // ===== Saqlash =====
     document.getElementById('saveBtn').addEventListener('click', async () => {
@@ -294,6 +312,13 @@
             return;
         }
 
+        const narxiVal = document.getElementById('k_narxi').value;
+        if (narxiVal !== '' && Number(narxiVal) < 0) {
+            modalError.textContent = 'Narxi manfiy bo‘lishi mumkin emas';
+            modalError.style.display = 'block';
+            return;
+        }
+
         const url = editingId ? '/admin/update-kategoriya/' + editingId : '/admin/add-kategoriya';
         const method = editingId ? 'PUT' : 'POST';
 
@@ -301,7 +326,11 @@
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nomi: nomi })
+                body: JSON.stringify({
+                    nomi: nomi,
+                    narxi: narxiVal === '' ? null : Number(narxiVal),
+                    valyuta: document.getElementById('k_valyuta').value
+                })
             });
             const data = await res.json();
 

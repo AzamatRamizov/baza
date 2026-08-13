@@ -338,6 +338,12 @@
 
             <a class="sb-link" href="/admin/tarix" sec:authorize="hasAuthority('TARIX_KORISH')"
                th:classappend="${page == 'tarix'} ? 'active'">Tarix</a>
+
+            <a class="sb-link" href="/admin/kutilayotgan-mahsulotlar" sec:authorize="hasAuthority('MAHSULOT_QOSHISH')"
+               th:classappend="${page == 'kutilayotgan-mahsulotlar'} ? 'active'">Kutilayotgan mahsulotlar</a>
+
+            <a class="sb-link" href="/admin/sozlamalar" sec:authorize="hasAuthority('SOZLAMA_BOSHQARISH')"
+               th:classappend="${page == 'sozlamalar'} ? 'active'">Sozlamalar</a>
         </nav>
     </div>
 

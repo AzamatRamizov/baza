@@ -9,6 +9,7 @@ package com.example.baza.Dto;
  */
 public record MahsulotSaveDto(String nomi,
                               String kod,
+                              String serialKod,
                               Long kategoriyaId,
                               Double zavodNarxi,
                               String valyuta,
@@ -16,6 +17,5 @@ public record MahsulotSaveDto(String nomi,
                               Double eni,
                               Double miqdor,
                               String turi,
-                              Long magazinId,
-                              String maxsusKod) {
+                              Long magazinId) {
 }

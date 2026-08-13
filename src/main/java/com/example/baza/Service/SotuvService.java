@@ -1,6 +1,7 @@
 package com.example.baza.Service;
 
 import com.example.baza.Dto.ApiResponse;
+import com.example.baza.Dto.HodimQisqaDto;
 import com.example.baza.Dto.KatmSorovDto;
 import com.example.baza.Dto.SotuvDto;
 import com.example.baza.Dto.SotuvSaveDto;
@@ -161,6 +162,28 @@ public class SotuvService {
     }
 
     /**
+     * Sotish modalidagi "Sotuvchi" tanlovi uchun — shu magazinga mas'ul hodimlar ro'yxati
+     * (so'rov yuborayotgan foydalanuvchi shu magazinga tegishli bo'lishi shart, Owner - har doim).
+     */
+    @Transactional(readOnly = true)
+    public List<HodimQisqaDto> magazinHodimlari(String username, Long magazinId) {
+        Users u = user(username);
+        if (u == null || magazinId == null) return List.of();
+
+        Magazin magazin = magazinRepository.findById(magazinId).orElse(null);
+        if (magazin == null || !mansubmi(u, magazin)) return List.of();
+
+        return magazin.getHodimlar().stream()
+                .sorted((a, b) -> {
+                    String fa = a.getFish() == null ? "" : a.getFish();
+                    String fb = b.getFish() == null ? "" : b.getFish();
+                    return fa.compareToIgnoreCase(fb);
+                })
+                .map(h -> new HodimQisqaDto(h.getId(), h.getFish()))
+                .toList();
+    }
+
+    /**
      * Ikkala yo'nalish uchun umumiy mantiq - farqi faqat turi va boshlang'ich holatda.
      */
     private ApiResponse chiqarish(String username, SotuvSaveDto dto, SotuvTuri turi) {
@@ -216,6 +239,19 @@ public class SotuvService {
 
         if (turi == SotuvTuri.KATM && (dto.mijozIsmi() == null || dto.mijozIsmi().isBlank())) {
             return new ApiResponse("KATMga o'tkazish uchun mijoz ismi kiritilishi shart", false);
+        }
+
+        // ---- Sotuvchini aniqlash: belgilangan bo'lsa shu hodim, aks holda tizimga kirgan o'zi ----
+        Users sotuvchi = u;
+        if (dto.sotuvchiId() != null && !dto.sotuvchiId().equals(u.getId())) {
+            Users tanlangan = usersRepository.findById(dto.sotuvchiId()).orElse(null);
+            if (tanlangan == null) {
+                return new ApiResponse("Tanlangan sotuvchi topilmadi", false);
+            }
+            if (!mansubmi(tanlangan, magazin)) {
+                return new ApiResponse("Tanlangan sotuvchi bu magazinga tegishli emas", false);
+            }
+            sotuvchi = tanlangan;
         }
 
         long tannarx = tannarxUlushi(mahsulot, miqdor, bor);
@@ -279,7 +315,7 @@ public class SotuvService {
         s.setOldindanTulov(dto.oldindanTulov() != null && dto.oldindanTulov() > 0
                 ? dto.oldindanTulov() : null);
         s.setIzoh(bosh(dto.izoh()));
-        s.setSotgan(u);
+        s.setSotgan(sotuvchi);
         s.setVaqt(LocalDateTime.now());
         s.setTuri(turi);
         s.setHolat(turi == SotuvTuri.KATM ? SotuvHolati.KATMDA : SotuvHolati.SOTILDI);

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sozlamalar</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <script src="/chop.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 720px; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px;
+            margin-bottom: 20px;
+        }
+        .card h1 { color: var(--kok); font-size: 20px; margin-bottom: 4px; }
+        .card .izoh { font-size: 13px; color: var(--matn3); margin-bottom: 20px; }
+
+        .bolim { margin-bottom: 22px; }
+        .bolim:last-child { margin-bottom: 0; }
+        .bolim h2 {
+            font-size: 13px; color: var(--kok-och); text-transform: uppercase;
+            letter-spacing: 0.4px; margin-bottom: 12px;
+            padding-bottom: 8px; border-bottom: 1px solid var(--chegara);
+        }
+
+        .maydon-qator {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 20px; padding: 10px 0;
+        }
+        .maydon-qator .matn { flex: 1; }
+        .maydon-qator .nomi { font-size: 14px; font-weight: 600; color: var(--matn); }
+        .maydon-qator .tavsif { font-size: 12.5px; color: var(--matn3); margin-top: 3px; line-height: 1.5; }
+        .maydon-qator input[type="number"] {
+            width: 90px; padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
+            font-family: inherit; text-align: center; flex-shrink: 0;
+            transition: border-color 0.2s;
+        }
+        .maydon-qator input[type="number"]:focus { border-color: var(--kok); background-color: var(--karta); }
+
+        .kelasi-izoh {
+            font-size: 12.5px; color: var(--matn4); font-style: italic; padding: 10px 0 0;
+        }
+
+        .amal-qator { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+        .save-btn {
+            padding: 10px 22px; background-color: var(--kok); color: var(--karta); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: background-color 0.2s;
+        }
+        .save-btn:hover { background-color: var(--kok-hover); }
+        .save-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+        .bolim textarea {
+            width: 100%; padding: 10px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
+            font-family: inherit; resize: vertical; min-height: 70px;
+            transition: border-color 0.2s;
+        }
+        .bolim textarea:focus { border-color: var(--kok); background-color: var(--karta); }
+        .bolim .tavsif { margin-bottom: 8px; }
+        .chop-natija {
+            margin-top: 10px; font-size: 12.5px; line-height: 1.6; display: none;
+        }
+        .chop-natija .topildi { color: var(--yashil-toq); }
+        .chop-natija .topilmadi { color: var(--qizil); }
+
+        .yuklanmoqda { text-align: center; color: var(--matn3); font-size: 14px; padding: 20px 0; }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <h1>Sozlamalar</h1>
+        <div class="izoh">Tizim bo'ylab qo'llaniladigan umumiy sozlamalar — bu bo'lim keyinchalik yangi sozlamalar bilan boyitiladi.</div>
+
+        <div id="yuklanmoqda" class="yuklanmoqda">Yuklanmoqda...</div>
+
+        <div id="forma" style="display:none">
+            <div class="bolim">
+                <h2>Chop etish</h2>
+                <div class="maydon-qator">
+                    <div class="matn">
+                        <div class="nomi">Bitta sahifada nechta nusxa chiqarilsin</div>
+                        <div class="tavsif">
+                            Mahsulot sahifasidagi QR kod / shtrix-kod "Chop etish" tugmasi bosilganda,
+                            bitta sahifaga shuncha nusxa (masalan yorliq qog'oziga bir nechta bir xil
+                            kod) chiqariladi. Bu sozlama tizimning barcha "chop etish" tugmalari uchun umumiy.
+                        </div>
+                    </div>
+                    <input type="number" id="chopNusxaSoni" min="1" max="20" step="1">
+                </div>
+            </div>
+
+            <div class="amal-qator">
+                <button class="save-btn" id="saqlashBtn" type="button">Saqlash</button>
+            </div>
+
+            <div class="bolim" style="margin-top:28px">
+                <h2>QR kodlarni ID bo'yicha chop etish</h2>
+                <div class="tavsif">
+                    Bir nechta mahsulotning ID raqamini kiriting (vergul, bo'sh joy yoki har birini
+                    alohida qatorga yozib) — har bir mahsulot uchun BITTADAN QR kod, bitta sahifaga
+                    chop etiladi.
+                </div>
+                <textarea id="chopIdlar" placeholder="Masalan: 12353, 12355, 12360"></textarea>
+                <div class="chop-natija" id="chopNatija"></div>
+            </div>
+
+            <div class="amal-qator">
+                <button class="save-btn" id="chopIdlarBtn" type="button">QR kodlarni chop etish</button>
+            </div>
+
+            <div class="kelasi-izoh">Boshqa sozlamalar shu sahifaga keyinroq qo'shiladi.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toastKorsat(matn, ok) { xabar(matn, ok ? 'ok' : 'err'); }
+
+    async function yukla() {
+        try {
+            const res = await fetch('/admin/get-sozlamalar');
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            document.getElementById('chopNusxaSoni').value = data.chopEtishNusxaSoni != null ? data.chopEtishNusxaSoni : 4;
+            document.getElementById('yuklanmoqda').style.display = 'none';
+            document.getElementById('forma').style.display = 'block';
+        } catch (e) {
+            document.getElementById('yuklanmoqda').textContent = 'Yuklashda xatolik';
+        }
+    }
+
+    document.getElementById('saqlashBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('saqlashBtn');
+        const qiymat = parseInt(document.getElementById('chopNusxaSoni').value, 10);
+        if (isNaN(qiymat) || qiymat < 1 || qiymat > 20) {
+            toastKorsat('Nusxalar soni 1 dan 20 gacha bo‘lishi kerak', false);
+            return;
+        }
+
+        btn.disabled = true;
+        try {
+            const res = await fetch('/admin/sozlamalar-yangilash', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chopEtishNusxaSoni: qiymat })
+            });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // ===== QR kodlarni ID bo'yicha chop etish =====
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    document.getElementById('chopIdlarBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('chopIdlarBtn');
+        const natijaEl = document.getElementById('chopNatija');
+        natijaEl.style.display = 'none';
+
+        const xom = document.getElementById('chopIdlar').value;
+        const idlar = [...new Set(
+            xom.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+        )];
+
+        if (!idlar.length) {
+            toastKorsat('Kamida bitta ID kiriting', false);
+            return;
+        }
+
+        const notoGriIdlar = idlar.filter(id => !/^\d+$/.test(id));
+        if (notoGriIdlar.length) {
+            toastKorsat('Noto‘g‘ri ID: ' + notoGriIdlar.join(', '), false);
+            return;
+        }
+
+        btn.disabled = true;
+        try {
+            const natijalar = await Promise.all(idlar.map(async id => {
+                try {
+                    const res = await fetch('/admin/get-mahsulot/' + id);
+                    if (!res.ok) return { id, topildi: false };
+                    const data = await res.json();
+                    return {
+                        id, topildi: true,
+                        imgSrc: '/admin/mahsulot/' + id + '/qr-kod',
+                        sarlavha: (data.nomi || ('#' + id)) + (data.kod ? ' (' + data.kod + ')' : '')
+                    };
+                } catch (e) {
+                    return { id, topildi: false };
+                }
+            }));
+
+            const topilganlar = natijalar.filter(n => n.topildi);
+            const topilmaganlar = natijalar.filter(n => !n.topildi).map(n => n.id);
+
+            let natijaHtml = '<span class="topildi">' + topilganlar.length + ' ta topildi</span>';
+            if (topilmaganlar.length) {
+                natijaHtml += ' — <span class="topilmadi">topilmadi: ' + esc(topilmaganlar.join(', ')) + '</span>';
+            }
+            natijaEl.innerHTML = natijaHtml;
+            natijaEl.style.display = 'block';
+
+            if (!topilganlar.length) {
+                toastKorsat('Hech qaysi ID bo‘yicha mahsulot topilmadi', false);
+                return;
+            }
+
+            chopEtRoyxat(topilganlar.map(n => ({ imgSrc: n.imgSrc, sarlavha: n.sarlavha })), 'QR kodlar');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    yukla();
+</script>
+
+</body>
+</html>

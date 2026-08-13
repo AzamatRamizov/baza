@@ -42,7 +42,7 @@ public class KategoriyaService {
 
     public List<KategoriyaDto> getAllKategoriyalar() {
         return kategoriyaRepository.findAllByOrderByNomiAsc().stream()
-                .map(k -> new KategoriyaDto(k.getId(), k.getNomi()))
+                .map(k -> new KategoriyaDto(k.getId(), k.getNomi(), k.getNarxi(), k.getValyuta()))
                 .toList();
     }
 
@@ -53,10 +53,13 @@ public class KategoriyaService {
 
         Kategoriya kategoriya = new Kategoriya();
         kategoriya.setNomi(dto.nomi().trim());
+        kategoriya.setNarxi(dto.narxi());
+        kategoriya.setValyuta(valyutaAniqla(dto));
         kategoriyaRepository.save(kategoriya);
 
         tarixService.yoz("Kategoriya", "Qo'shildi",
-                kategoriya.getId(), kategoriya.getNomi(), null);
+                kategoriya.getId(), kategoriya.getNomi(),
+                dto.narxi() == null ? null : "Narxi: " + dto.narxi() + " " + kategoriya.getValyuta() + "/kv.metr");
         return new ApiResponse("Kategoriya qo'shildi", true);
     }
 
@@ -71,13 +74,25 @@ public class KategoriyaService {
         if (xato != null) return new ApiResponse(xato, false);
 
         String eskiNomi = kategoriya.getNomi();
+        Double eskiNarxi = kategoriya.getNarxi();
+        String eskiValyuta = kategoriya.getValyuta();
         kategoriya.setNomi(dto.nomi().trim());
+        kategoriya.setNarxi(dto.narxi());
+        kategoriya.setValyuta(valyutaAniqla(dto));
         kategoriyaRepository.save(kategoriya);
 
+        StringBuilder tafsilot = new StringBuilder();
+        if (!eskiNomi.equals(kategoriya.getNomi())) {
+            tafsilot.append("Nomi: ").append(eskiNomi).append(" -> ").append(kategoriya.getNomi());
+        }
+        if (!Objects.equals(eskiNarxi, kategoriya.getNarxi()) || !Objects.equals(eskiValyuta, kategoriya.getValyuta())) {
+            if (tafsilot.length() > 0) tafsilot.append(" | ");
+            tafsilot.append("Narxi: ").append(eskiNarxi).append(" ").append(eskiValyuta)
+                    .append(" -> ").append(kategoriya.getNarxi()).append(" ").append(kategoriya.getValyuta());
+        }
         tarixService.yoz("Kategoriya", "Tahrirlandi",
                 kategoriya.getId(), kategoriya.getNomi(),
-                eskiNomi.equals(kategoriya.getNomi()) ? null
-                        : "Nomi: " + eskiNomi + " -> " + kategoriya.getNomi());
+                tafsilot.length() == 0 ? null : tafsilot.toString());
         return new ApiResponse("Kategoriya yangilandi", true);
     }
 
@@ -182,6 +197,11 @@ public class KategoriyaService {
 
     // ================= YORDAMCHI =================
 
+    /** "UZS" yoki "USD" — noma'lum/bo'sh qiymat "UZS"ga tushadi (narxi bo'lmasa ahamiyatsiz) */
+    private String valyutaAniqla(KategoriyaSaveDto dto) {
+        return "USD".equals(dto.valyuta()) ? "USD" : "UZS";
+    }
+
     /** Taqqoslash uchun kalit — registr va ortiqcha bo'shliqlarga bog'liq emas */
     private String kalit(String nomi) {
         return nomi.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
@@ -194,6 +214,9 @@ public class KategoriyaService {
         Optional<Kategoriya> mavjud = kategoriyaRepository.findByNomiIgnoreCase(dto.nomi().trim());
         if (mavjud.isPresent() && !Objects.equals(mavjud.get().getId(), ozId)) {
             return "Bunday nomli kategoriya allaqachon mavjud";
+        }
+        if (dto.narxi() != null && dto.narxi() < 0) {
+            return "Narxi manfiy bo'lishi mumkin emas";
         }
         return null;
     }

@@ -82,7 +82,7 @@ public class MahsulotService {
 
     @Transactional
     public ApiResponse addMahsulot(MahsulotSaveDto dto) {
-        String xato = tekshir(dto, null, null, null);
+        String xato = tekshir(dto, null, null);
         if (xato != null) return new ApiResponse(xato, false);
 
         Double miqdor = miqdorniAniqla(dto);
@@ -90,6 +90,15 @@ public class MahsulotService {
         if (narxSom == null && dto.zavodNarxi() != null) {
             return new ApiResponse(
                     "Dollar kursini olib bo'lmadi — keyinroq urinib ko'ring yoki narxni so'mda kiriting", false);
+        }
+
+        // Kodi, bo'yi va eni (va magazini) bir xil mahsulot ALLAQACHON bor bo'lsa —
+        // jismonan bir xil mahsulot deb hisoblanadi: yangi qator ochmasdan qoldig'iga
+        // qo'shamiz. Kod bir xil lekin o'lchami boshqacha bo'lsa — pastda oddiy yangi
+        // qator sifatida qo'shiladi (tekshir() bunga endi yo'l qo'yadi).
+        Mahsulot mosi = birXilOlchamdaginiTop(dto);
+        if (mosi != null) {
+            return miqdorgaQoshish(mosi, miqdor, narxSom);
         }
 
         Mahsulot mahsulot = new Mahsulot();
@@ -116,7 +125,7 @@ public class MahsulotService {
             return new ApiResponse("Mahsulot topilmadi", false);
         }
 
-        String xato = tekshir(dto, id, mahsulot.getKod(), mahsulot.getMaxsusKod());
+        String xato = tekshir(dto, id, mahsulot.getKod());
         if (xato != null) return new ApiResponse(xato, false);
 
         Double miqdor = miqdorniAniqla(dto);
@@ -162,12 +171,15 @@ public class MahsulotService {
     }
 
     /**
-     * Shtrix-kod/QR skaneri kodni o'qiganda chaqiriladi.
-     * Avval TAKRORLANMAS "maxsus kod" bo'yicha aniq moslikni qidiradi (yagona natija,
-     * noaniqlik yo'q); topilmasa — orqaga qarab oddiy "kod" (artikul) bo'yicha qidiradi,
-     * bu esa bir necha mahsulotga tegishli bo'lishi mumkin (ommaviy import ataylab
-     * takrorlaydi, {@link MahsulotRepository#findByKodIgnoreCase} izohiga qarang) —
-     * shunday holatda "koplik" true qaytadi, chaqiruvchi ro'yxatga o'tkazadi.
+     * Shtrix-kod/QR skaneri kodni o'qiganda chaqiriladi — universal: avval "kod"
+     * (artikul) bo'yicha qidiradi, topilmasa "seriya raqami" (serialKod, zavod
+     * bergan — Excel orqali import qilingan mahsulotlarda bo'ladi) bo'yicha ham
+     * qidiradi. Shunday qilib skaner ham o'z QR kodimiz (link), ham zavod
+     * shtrix-kodi (raqamli, link emas) bilan ishlaydi.
+     * <p>
+     * Bitta kod bir necha mahsulotga tegishli bo'lishi mumkin (ommaviy import
+     * ataylab takrorlaydi, {@link MahsulotRepository#findByKodIgnoreCase}
+     * izohiga qarang) — shunday holatda "koplik" true qaytadi, chaqiruvchi ro'yxatga o'tkazadi.
      * <p>
      * Natijaga skanerlagan hodimga mahsulot tegishlimi (uning magazin(lar)i) qo'shiladi —
      * chaqiruvchi tomon "tegishli emas" bo'lsa ogohlantirish ko'rsatib, o'tishni to'xtatadi.
@@ -176,12 +188,10 @@ public class MahsulotService {
         if (kod == null || kod.isBlank()) return Optional.empty();
         String tozaKod = kod.trim();
 
-        Optional<Mahsulot> maxsusTopilgan = mahsulotRepository.findByMaxsusKodIgnoreCase(tozaKod);
-        if (maxsusTopilgan.isPresent()) {
-            return Optional.of(qidirDtoYasash(maxsusTopilgan.get(), tozaKod, username));
-        }
-
         List<Mahsulot> topilganlar = mahsulotRepository.findByKodIgnoreCase(tozaKod);
+        if (topilganlar.isEmpty()) {
+            topilganlar = mahsulotRepository.findBySerialKodIgnoreCase(tozaKod);
+        }
         if (topilganlar.isEmpty()) return Optional.empty();
         if (topilganlar.size() > 1) {
             // Ko'plik holatida tegishlilik hisoblanmaydi — ro'yxatga o'tkaziladi, u yerda ko'rinadi
@@ -280,7 +290,6 @@ public class MahsulotService {
     /** Tarix uchun mahsulotning qisqacha holati */
     private String mahsulotHolati(Mahsulot m) {
         return "kod=" + m.getKod()
-                + ", maxsusKod=" + (m.getMaxsusKod() == null ? "—" : m.getMaxsusKod())
                 + ", nomi=" + m.getNomi()
                 + ", kategoriya=" + (m.getKategoriya() == null ? "—" : m.getKategoriya().getNomi())
                 + ", turi=" + m.getTuri()
@@ -295,17 +304,60 @@ public class MahsulotService {
     // ================= YORDAMCHI =================
 
     /**
+     * Yangi qo'shilayotgan mahsulot bilan kodi, bo'yi, eni va magazini (agar
+     * ko'rsatilgan bo'lsa) bir xil bo'lgan MAVJUD mahsulotni qidiradi — topilsa
+     * jismonan bir xil mahsulot deb hisoblab, yangi qator ochish o'rniga o'sha
+     * mahsulotning qoldig'iga qo'shiladi.
+     */
+    private Mahsulot birXilOlchamdaginiTop(MahsulotSaveDto dto) {
+        if (dto.kod() == null || dto.kod().isBlank() || dto.boyi() == null || dto.eni() == null) {
+            return null;
+        }
+        return mahsulotRepository.findByKodIgnoreCase(dto.kod().trim()).stream()
+                .filter(m -> olchamBirXilmi(m.getBoyi(), dto.boyi()) && olchamBirXilmi(m.getEni(), dto.eni()))
+                .filter(m -> Objects.equals(m.getMagazin() == null ? null : m.getMagazin().getId(), dto.magazinId()))
+                .findFirst().orElse(null);
+    }
+
+    private boolean olchamBirXilmi(Double a, Double b) {
+        return a != null && b != null && Math.abs(a - b) < 0.001;
+    }
+
+    /** Bir xil kod/o'lchamdagi mavjud mahsulotning qoldig'i va zavod narxiga qo'shadi */
+    private ApiResponse miqdorgaQoshish(Mahsulot mosi, Double qoshiladiganMiqdor, Long qoshiladiganNarx) {
+        double eskiMiqdor = mosi.getMiqdor() == null ? 0 : mosi.getMiqdor();
+        double qoshiladigan = qoshiladiganMiqdor == null ? 0 : qoshiladiganMiqdor;
+        Double yangiMiqdor = yaxlit(eskiMiqdor + qoshiladigan);
+        mosi.setMiqdor(yangiMiqdor);
+
+        if (qoshiladiganNarx != null) {
+            long eskiNarx = mosi.getZavodNarxi() == null ? 0 : mosi.getZavodNarxi();
+            mosi.setZavodNarxi(eskiNarx + qoshiladiganNarx);
+        }
+        mahsulotRepository.save(mosi);
+
+        tarixService.yoz("Mahsulot", "Qoldiqqa qo'shildi (bir xil kod/o'lcham)", mosi.getId(), mosi.getNomi(),
+                "Kod: " + mosi.getKod() + " | Qoldiq: " + yaxlit(eskiMiqdor) + " -> " + yangiMiqdor +
+                        " " + mosi.getBirlik());
+
+        return new ApiResponse("\"" + mosi.getKod() + "\" kodli va bir xil o'lchamdagi mahsulot allaqachon bor edi — " +
+                "soni " + yaxlit(eskiMiqdor) + " dan " + yangiMiqdor + " ga oshirildi", true);
+    }
+
+    /**
      * @param ozId    tahrirlanayotgan mahsulot id'si (yangi qo'shishda null)
      * @param eskiKod tahrirlanayotgan mahsulotning HOZIRGI kodi (yangi qo'shishda null) —
      *                agar dto.kod() shu bilan bir xil bo'lsa (kod o'zgarmagan), takrorlanish
-     *                tekshiruvi o'tkazib yuboriladi. Bu — ommaviy import bir xil kodni
-     *                bir necha marta qo'shishi mumkinligi uchun kerak: aks holda allaqachon
-     *                takrorlangan kod bilan mahsulotni (hech narsa o'zgartirmasdan ham)
-     *                saqlab bo'lmay qoladi.
-     * @param eskiMaxsusKod tahrirlanayotgan mahsulotning HOZIRGI maxsus kodi — xuddi
-     *                eskiKod kabi, o'zgarmagan bo'lsa takrorlanish tekshiruvi o'tkazib yuboriladi.
+     *                tekshiruvi o'tkazib yuboriladi.
+     *
+     *                Kod takrorlanishi TAHRIRLASHDA (ozId != null) taqiqlanadi — YANGI
+     *                QO'SHISHDA (ozId == null) esa taqiqlanmaydi: bir xil kod, lekin
+     *                o'lchami har xil bo'lgan mahsulotlar normal holat (masalan turli
+     *                o'lchamdagi gilamlar bitta dizayn kodini bo'lishishi mumkin) —
+     *                {@link #addMahsulot} o'zi bir xil kod VA o'lcham topilsa
+     *                (mavjud mahsulotning qoldig'iga qo'shadi), aks holda yangi qator ochadi.
      */
-    private String tekshir(MahsulotSaveDto dto, Long ozId, String eskiKod, String eskiMaxsusKod) {
+    private String tekshir(MahsulotSaveDto dto, Long ozId, String eskiKod) {
         if (dto.nomi() == null || dto.nomi().isBlank()) {
             return "Mahsulot nomi kiritilishi shart";
         }
@@ -313,25 +365,14 @@ public class MahsulotService {
             return "Mahsulot kodi kiritilishi shart";
         }
         String yangiKod = dto.kod().trim();
-        boolean kodOzgardi = eskiKod == null || !yangiKod.equalsIgnoreCase(eskiKod);
-        if (kodOzgardi) {
-            Mahsulot boshqasi = mahsulotRepository.findByKodIgnoreCase(yangiKod).stream()
-                    .filter(m -> !Objects.equals(m.getId(), ozId))
-                    .findFirst().orElse(null);
-            if (boshqasi != null) {
-                return "Bu kod bilan mahsulot allaqachon mavjud: " + boshqasi.getNomi();
-            }
-        }
-        // Maxsus kod (skaner uchun) — ixtiyoriy, lekin kiritilsa TAKRORLANMAS bo'lishi shart
-        if (dto.maxsusKod() != null && !dto.maxsusKod().isBlank()) {
-            String yangiMaxsusKod = dto.maxsusKod().trim();
-            boolean maxsusKodOzgardi = eskiMaxsusKod == null || !yangiMaxsusKod.equalsIgnoreCase(eskiMaxsusKod);
-            if (maxsusKodOzgardi) {
-                Mahsulot boshqasi = mahsulotRepository.findByMaxsusKodIgnoreCase(yangiMaxsusKod)
+        if (ozId != null) {
+            boolean kodOzgardi = eskiKod == null || !yangiKod.equalsIgnoreCase(eskiKod);
+            if (kodOzgardi) {
+                Mahsulot boshqasi = mahsulotRepository.findByKodIgnoreCase(yangiKod).stream()
                         .filter(m -> !Objects.equals(m.getId(), ozId))
-                        .orElse(null);
+                        .findFirst().orElse(null);
                 if (boshqasi != null) {
-                    return "Bu maxsus kod boshqa mahsulotda band: " + boshqasi.getNomi();
+                    return "Bu kod bilan mahsulot allaqachon mavjud: " + boshqasi.getNomi();
                 }
             }
         }
@@ -463,8 +504,8 @@ public class MahsulotService {
                                       Long narxSom, Double miqdor) {
         mahsulot.setNomi(dto.nomi().trim());
         mahsulot.setKod(dto.kod().trim());
-        mahsulot.setMaxsusKod(dto.maxsusKod() == null || dto.maxsusKod().isBlank()
-                ? null : dto.maxsusKod().trim());
+        mahsulot.setSerialKod(dto.serialKod() == null || dto.serialKod().isBlank()
+                ? null : dto.serialKod().trim());
         mahsulot.setKategoriya(dto.kategoriyaId() == null
                 ? null
                 : kategoriyaRepository.findById(dto.kategoriyaId()).orElse(null));

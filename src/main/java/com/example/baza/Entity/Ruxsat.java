@@ -46,7 +46,10 @@ public enum Ruxsat {
     // ===== Arizalar (Instagram) =====
     ARIZA_KORISH("Instagramdan kelgan arizalarni ko'rish", "Arizalar"),
     ARIZA_BOSHQARISH("Ariza holatini o'zgartirish (bog'lanildi, mijozga aylandi va h.k.)", "Arizalar"),
-    INSTAGRAM_AKKAUNT_BOSHQARISH("Instagram akkauntlarini boshqarish (qo'shish, tahrirlash, o'chirish, mas'ul belgilash)", "Arizalar");
+    INSTAGRAM_AKKAUNT_BOSHQARISH("Instagram akkauntlarini boshqarish (qo'shish, tahrirlash, o'chirish, mas'ul belgilash)", "Arizalar"),
+
+    // ===== Sozlamalar =====
+    SOZLAMA_BOSHQARISH("Tizim sozlamalarini o'zgartirish", "Sozlamalar");
 
     private final String nomi;
     private final String bolim;

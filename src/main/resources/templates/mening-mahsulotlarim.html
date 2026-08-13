@@ -244,7 +244,7 @@
             <h1>Mening mahsulotlarim</h1>
             <span class="kim" th:text="${username}">user</span>
             <input type="text" class="search-input" id="searchInput"
-                   placeholder="Qidirish: nomi, kodi, maxsus kod, kategoriya, magazin...">
+                   placeholder="Qidirish: nomi, kodi, kategoriya, magazin...">
         </div>
 
         <div class="statlar">
@@ -374,6 +374,11 @@
         </div>
 
         <div class="form-group">
+            <label for="s_sotuvchi">Sotuvchi</label>
+            <select id="s_sotuvchi"></select>
+        </div>
+
+        <div class="form-group">
             <label for="s_mijoz" id="sotuvMijozLabel">Mijoz (ixtiyoriy)</label>
             <input type="text" id="s_mijoz" placeholder="Ism familiya" autocomplete="off">
         </div>
@@ -454,7 +459,6 @@
         const list = !q ? mahsulotlar : mahsulotlar.filter(m =>
             (m.nomi || '').toLowerCase().includes(q) ||
             (m.kod || '').toLowerCase().includes(q) ||
-            (m.maxsusKod || '').toLowerCase().includes(q) ||
             (m.kategoriyaNomi || '').toLowerCase().includes(q) ||
             (m.magazinNomi || '').toLowerCase().includes(q)
         );
@@ -838,10 +842,39 @@
     document.querySelectorAll('.turi-tab').forEach(btn =>
         btn.addEventListener('click', () => turiniQoy(btn.dataset.turi)));
 
+    /** Sotish modalidagi "Sotuvchi" ro'yxatini shu mahsulot magazinidagi hodimlar bilan to'ldiradi */
+    async function sotuvchiSelectYukla(magazinId) {
+        const select = document.getElementById('s_sotuvchi');
+        select.innerHTML = '<option value="">Men (joriy foydalanuvchi)</option>';
+        if (!magazinId) return;
+        try {
+            const [profilRes, hodimRes] = await Promise.all([
+                fetch('/admin/get-profil'),
+                fetch('/admin/get-magazin-hodimlari/' + magazinId)
+            ]);
+            const profil = profilRes.ok ? await profilRes.json() : null;
+            const hodimlar = hodimRes.ok ? await hodimRes.json() : [];
+            if (profil) {
+                select.innerHTML = '<option value="">Men (' + esc(profil.fish || profil.username) + ')</option>';
+            }
+            hodimlar
+                .filter(h => !profil || h.id !== profil.id)
+                .forEach(h => {
+                    const opt = document.createElement('option');
+                    opt.value = h.id;
+                    opt.textContent = h.fish || ('#' + h.id);
+                    select.appendChild(opt);
+                });
+        } catch (e) {
+            // jim - "Men" tanlangan bo'lib qoladi
+        }
+    }
+
     function sotuvModalOchish(mahsulot) {
         sotilayotgan = mahsulot;
         sotuvError.style.display = 'none';
         turiniQoy('NAQD');
+        sotuvchiSelectYukla(mahsulot.magazinId);
 
         const birlik = mahsulot.birlik || 'dona';
         const metraj = metrajmi(mahsulot);
@@ -958,7 +991,8 @@
                     mijozTel: document.getElementById('s_tel').value.trim() || null,
                     muddat: sotuvTuri === 'KATM' && !isNaN(muddat) ? muddat : null,
                     oldindanTulov: sotuvTuri === 'KATM' && !isNaN(oldindan) ? oldindan : null,
-                    izoh: document.getElementById('s_izoh').value.trim() || null
+                    izoh: document.getElementById('s_izoh').value.trim() || null,
+                    sotuvchiId: document.getElementById('s_sotuvchi').value || null
                 })
             });
             const data = await res.json();

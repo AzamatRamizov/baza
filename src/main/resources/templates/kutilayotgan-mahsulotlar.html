@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kutilayotgan mahsulotlar</title>
+    <!-- Kun/tun rejimi: ranglar + rejim boshqaruvi (defer qo'yilmaydi!) -->
+    <link rel="stylesheet" href="/tema.css">
+    <script src="/tema.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background-color: var(--fon);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--matn);
+        }
+        .container { max-width: 95%; margin: 32px auto; padding: 0 20px; }
+        .card {
+            background-color: var(--karta); border-radius: 10px;
+            box-shadow: 0 4px 20px var(--soya); padding: 24px 28px; margin-bottom: 20px;
+        }
+        .card-header {
+            display: flex; align-items: center; gap: 14px; margin-bottom: 6px; flex-wrap: wrap;
+        }
+        .card-header h1 { color: var(--kok); font-size: 20px; }
+        .izoh { font-size: 13px; color: var(--matn3); margin-bottom: 18px; }
+
+        .skaner-holat {
+            margin-left: auto; display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: var(--matn3); padding: 7px 14px;
+            background-color: var(--fon2); border-radius: 20px; border: 1px solid var(--chegara);
+        }
+        .skaner-nuqta {
+            width: 9px; height: 9px; border-radius: 50%; background-color: var(--matn4);
+            transition: background-color 0.2s;
+        }
+        .skaner-holat.faol .skaner-nuqta { background-color: var(--yashil-toq); animation: puls 1s infinite; }
+        @keyframes puls { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+        /* ---- Yuklash zonasi ---- */
+        .drop-zone {
+            border: 2px dashed var(--chegara-kok); border-radius: 10px;
+            padding: 22px 20px; text-align: center; cursor: pointer;
+            background-color: var(--fon2); transition: background-color 0.2s, border-color 0.2s;
+        }
+        .drop-zone:hover, .drop-zone.ustida { border-color: var(--kok); background-color: var(--fon3); }
+        .drop-zone .belgi { font-size: 26px; line-height: 1; margin-bottom: 6px; }
+        .drop-zone .asosiy { font-size: 15px; font-weight: 600; color: var(--matn); }
+        .drop-zone .qosh { font-size: 12px; color: var(--matn3); margin-top: 6px; line-height: 1.5; }
+
+        .import-yordam {
+            font-size: 12px; color: var(--matn3); line-height: 1.65;
+            background-color: var(--fon2); border-left: 3px solid var(--chegara-kok);
+            border-radius: 0 6px 6px 0; padding: 10px 14px; margin-top: 14px;
+        }
+        .import-yordam code { background-color: var(--fon5); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+
+        .import-natija { margin-top: 14px; display: none; }
+        .natija-satr { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 14px; }
+        .natija-satr b { font-weight: 700; }
+        .natija-satr.ok b { color: var(--yashil-toq); }
+        .natija-satr.otkaz b { color: var(--sariq-toq2); }
+        .natija-royxat { max-height: 180px; overflow-y: auto; margin-top: 10px; font-size: 12.5px; color: var(--matn2); line-height: 1.7; }
+        .natija-royxat div { padding: 2px 0; }
+        .yuklanmoqda { text-align: center; color: var(--matn3); font-size: 14px; padding: 14px 0; }
+
+        /* ---- Ro'yxat ---- */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--chegara); white-space: nowrap; }
+        th { color: var(--kok-och); font-size: 12px; text-transform: uppercase; background-color: var(--fon2); }
+        tr:hover td { background-color: var(--fon4); }
+        tr.belgilangan td { background-color: var(--yashil-fon); }
+        .muted { color: var(--matn4); }
+        .empty-row td { text-align: center; color: var(--matn4); padding: 24px; white-space: normal; }
+
+        .ptichka { width: 20px; height: 20px; cursor: pointer; accent-color: var(--yashil-toq); }
+
+        .del-btn {
+            padding: 6px 12px; background-color: var(--qizil-fon); color: var(--qizil); border: 1px solid var(--qizil-3);
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .del-btn:hover { background-color: var(--qizil-2); }
+
+        .tasdiqlash-panel {
+            display: flex; align-items: center; gap: 14px; margin-top: 18px;
+            padding-top: 18px; border-top: 1px solid var(--chegara); flex-wrap: wrap;
+        }
+        .tasdiqlash-panel select {
+            padding: 9px 12px; border: 1.5px solid var(--chegara-kok); border-radius: 6px;
+            font-size: 14px; color: var(--matn); background-color: var(--fon2); outline: none;
+            font-family: inherit; min-width: 220px;
+        }
+        .belgilangan-son { font-size: 13px; color: var(--matn3); }
+        .belgilangan-son b { color: var(--yashil-toq); }
+        .tasdiqlash-btn {
+            padding: 10px 22px; background-color: var(--kok); color: var(--karta); border: none;
+            border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: background-color 0.2s;
+        }
+        .tasdiqlash-btn:hover { background-color: var(--kok-hover); }
+        .tasdiqlash-btn:disabled { opacity: .5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<nav th:replace="~{fragment :: navbar}"></nav>
+<div th:replace="~{fragment :: xabar}"></div>
+<div th:replace="~{fragment :: tasdiq}"></div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Zavoddan yuklash</h1>
+            <div class="skaner-holat" id="skanerHolat">
+                <div class="skaner-nuqta"></div>
+                <span id="skanerHolatMatn">Skanerlashga tayyor</span>
+            </div>
+        </div>
+        <div class="izoh">
+            Excel yuklanganda mahsulotlar darhol qo'shilmaydi — "kutilmoqda" ro'yxatiga tushadi.
+            Har bir jismoniy mahsulotni shtrix-kod skaneri bilan o'qib (seriya raqami), pastdagi
+            ro'yxatda ptichka qo'yiladi. Ptichka qo'yilganlargina "Tasdiqlash" bosilganda haqiqiy
+            mahsulotga aylanadi.
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="belgi">&#128196;</div>
+            <div class="asosiy" id="dropMatn">Faylni bu yerga tashlang yoki bosing</div>
+            <div class="qosh">.xlsx yoki .xls &middot; eng ko'pi 15 MB</div>
+        </div>
+        <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none">
+
+        <div class="import-yordam">
+            Fayl ustunlari: <code>Etiket Adı</code>, <code>DIZAYN</code>, <code>EN</code>,
+            <code>BOY</code>, <code>DONA</code>, <code>Serial №</code>. Boshqa ustunlar
+            (Zavod, BAR CODE, Şekil Adı, Rangi) e'tiborga olinmaydi.
+        </div>
+
+        <div class="yuklanmoqda" id="importYuklanmoqda" style="display:none">Yuklanmoqda...</div>
+        <div class="import-natija" id="importNatija"></div>
+        <p class="modal-error" id="importError" style="color:var(--qizil); font-size:13px; margin-top:10px; display:none"></p>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>Kutilmoqda</h1>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th></th>
+                    <th>Nomi</th>
+                    <th>Kodi</th>
+                    <th>Seriya raqami</th>
+                    <th>O'lcham</th>
+                    <th>Miqdor</th>
+                    <th>Yuklangan</th>
+                    <th>Skanerlagan</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="royxatTbody">
+                <tr class="empty-row"><td colspan="9">Yuklanmoqda...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tasdiqlash-panel">
+            <select id="tasdiqMagazin">
+                <option value="">— Magazinni tanlang —</option>
+            </select>
+            <span class="belgilangan-son"><b id="belgilanganSoni">0</b> ta belgilangan</span>
+            <button class="tasdiqlash-btn" id="tasdiqlashBtn" disabled>Tasdiqlash</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toastKorsat(matn, ok) { xabar(matn, ok ? 'ok' : 'err'); }
+
+    function esc(s) {
+        return (s == null ? '' : String(s))
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    function sanaFormat(s) {
+        if (!s) return '—';
+        const d = new Date(s);
+        return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    let royxat = [];
+
+    // ===== Ro'yxatni yuklash va chizish =====
+    async function yukla() {
+        try {
+            const res = await fetch('/admin/get-kutilayotgan-mahsulotlar');
+            if (!res.ok) throw new Error();
+            royxat = await res.json();
+            chiz();
+        } catch (e) {
+            document.getElementById('royxatTbody').innerHTML =
+                '<tr class="empty-row"><td colspan="9">Yuklashda xatolik</td></tr>';
+        }
+    }
+
+    function chiz() {
+        const tbody = document.getElementById('royxatTbody');
+        if (!royxat.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Kutilmoqda ro‘yxati bo‘sh</td></tr>';
+        } else {
+            tbody.innerHTML = royxat.map(k => `
+                <tr class="${k.skanerlandi ? 'belgilangan' : ''}">
+                    <td><input type="checkbox" class="ptichka" data-id="${k.id}" ${k.skanerlandi ? 'checked' : ''}></td>
+                    <td>${esc(k.nomi)}</td>
+                    <td>${esc(k.kod)}</td>
+                    <td>${esc(k.serialKod)}</td>
+                    <td>${k.boyi != null && k.eni != null ? (k.boyi + ' × ' + k.eni + ' m') : '<span class="muted">—</span>'}</td>
+                    <td>${k.miqdor != null ? k.miqdor : '<span class="muted">—</span>'}</td>
+                    <td>${sanaFormat(k.yuklanganVaqt)}${k.yuklaganFish ? ' — ' + esc(k.yuklaganFish) : ''}</td>
+                    <td>${k.skanerlandi ? (esc(k.skanerlaganFish || '—') + ' — ' + sanaFormat(k.skanerlanganVaqt)) : '<span class="muted">—</span>'}</td>
+                    <td><button class="del-btn" data-id="${k.id}" data-name="${esc(k.nomi)}">O'chirish</button></td>
+                </tr>
+            `).join('');
+        }
+        belgilanganSoniniYangila();
+    }
+
+    function belgilanganSoniniYangila() {
+        const son = royxat.filter(k => k.skanerlandi).length;
+        document.getElementById('belgilanganSoni').textContent = son;
+        document.getElementById('tasdiqlashBtn').disabled = son === 0;
+    }
+
+    document.getElementById('royxatTbody').addEventListener('change', async e => {
+        const chk = e.target.closest('.ptichka');
+        if (!chk) return;
+        const id = chk.dataset.id;
+        try {
+            const res = await fetch('/admin/kutilayotgan-mahsulot-belgila/' + id, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ holat: chk.checked })
+            });
+            const data = await res.json();
+            if (!data.holat) { toastKorsat(data.message, false); chk.checked = !chk.checked; return; }
+            await yukla();
+        } catch (e2) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+            chk.checked = !chk.checked;
+        }
+    });
+
+    document.getElementById('royxatTbody').addEventListener('click', async e => {
+        const delBtn = e.target.closest('.del-btn');
+        if (!delBtn) return;
+        if (!await tasdiq.ochirish(delBtn.dataset.name, 'qatorini')) return;
+        try {
+            const res = await fetch('/admin/kutilayotgan-mahsulot/' + delBtn.dataset.id, { method: 'DELETE' });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) await yukla();
+        } catch (e2) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+        }
+    });
+
+    // ===== Magazinlar select =====
+    async function magazinSelectYukla() {
+        const select = document.getElementById('tasdiqMagazin');
+        try {
+            const res = await fetch('/admin/get-magazinlar');
+            if (!res.ok) throw new Error();
+            const magazinlar = await res.json();
+            select.innerHTML = '<option value="">— Magazinni tanlang —</option>' +
+                magazinlar.map(m => `<option value="${m.id}">${esc(m.nomi)}</option>`).join('');
+        } catch (e) {
+            select.innerHTML = '<option value="">— Yuklashda xatolik —</option>';
+        }
+    }
+
+    document.getElementById('tasdiqlashBtn').addEventListener('click', async () => {
+        const magazinId = document.getElementById('tasdiqMagazin').value;
+        if (!magazinId) { toastKorsat('Magazinni tanlang', false); return; }
+
+        const btn = document.getElementById('tasdiqlashBtn');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/admin/kutilayotgan-mahsulotlar-tasdiqlash', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ magazinId: Number(magazinId) })
+            });
+            const data = await res.json();
+            toastKorsat(data.message, data.holat);
+            if (data.holat) await yukla();
+        } catch (e) {
+            toastKorsat('Server bilan aloqa yo‘q', false);
+        } finally {
+            belgilanganSoniniYangila();
+        }
+    });
+
+    // ===== Exceldan yuklash =====
+    const dropZone = document.getElementById('dropZone');
+    const importFile = document.getElementById('importFile');
+    const importError = document.getElementById('importError');
+    const importNatija = document.getElementById('importNatija');
+    const importYuklanmoqda = document.getElementById('importYuklanmoqda');
+
+    dropZone.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', () => faylniYukla(importFile.files[0]));
+
+    ['dragenter', 'dragover'].forEach(nom =>
+        dropZone.addEventListener(nom, e => { e.preventDefault(); dropZone.classList.add('ustida'); }));
+    ['dragleave', 'drop'].forEach(nom =>
+        dropZone.addEventListener(nom, e => { e.preventDefault(); dropZone.classList.remove('ustida'); }));
+    dropZone.addEventListener('drop', e => faylniYukla(e.dataTransfer.files[0]));
+
+    function natijaniChiz(data) {
+        let html =
+            `<div class="natija-satr"><span>Fayldan o'qildi</span><b>${data.oqildi}</b></div>` +
+            `<div class="natija-satr ok"><span>Kutilmoqdaga qo'shildi</span><b>${data.qoshildi}</b></div>`;
+        if (data.otkazibYuborildi) {
+            html += `<div class="natija-satr otkaz"><span>O'tkazib yuborildi</span><b>${data.otkazibYuborildi}</b></div>`;
+        }
+        if (data.xatolar && data.xatolar.length) {
+            html += '<div class="natija-royxat">' + data.xatolar.map(x => '<div>— ' + esc(x) + '</div>').join('');
+            if (data.qisqartirilgan) html += '<div class="muted">... va yana bir nechtasi</div>';
+            html += '</div>';
+        }
+        importNatija.innerHTML = html;
+        importNatija.style.display = 'block';
+    }
+
+    async function faylniYukla(file) {
+        importError.style.display = 'none';
+        importNatija.style.display = 'none';
+        if (!file) return;
+        if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            importError.textContent = 'Faqat .xlsx yoki .xls fayl yuklash mumkin';
+            importError.style.display = 'block';
+            return;
+        }
+        if (file.size > 15 * 1024 * 1024) {
+            importError.textContent = 'Fayl hajmi 15 MB dan oshmasligi kerak';
+            importError.style.display = 'block';
+            return;
+        }
+
+        const form = new FormData();
+        form.append('file', file);
+
+        importYuklanmoqda.style.display = 'block';
+        try {
+            const res = await fetch('/admin/kutilayotgan-mahsulot-yukla', { method: 'POST', body: form });
+            const data = await res.json();
+            if (res.ok && data.holat) {
+                natijaniChiz(data);
+                toastKorsat(data.message, true);
+                await yukla();
+            } else {
+                importError.textContent = data.message || 'Xatolik yuz berdi';
+                importError.style.display = 'block';
+            }
+        } catch (e) {
+            importError.textContent = 'Server bilan aloqa yo‘q';
+            importError.style.display = 'block';
+        } finally {
+            importYuklanmoqda.style.display = 'none';
+            importFile.value = '';
+        }
+    }
+
+    // ===== Skaner: fizik mahsulot skanerlanganda seriya raqami keladi =====
+    (function () {
+        const MIN_UZUNLIK = 3;
+        const SKANER_ORTACHA_MS = 50;
+        const BUFER_TUGASH_MS = 400;
+
+        const holatEl = document.getElementById('skanerHolat');
+        const holatMatn = document.getElementById('skanerHolatMatn');
+
+        let buffer = '';
+        let vaqtlar = [];
+        let buferTaymer = null;
+
+        function holatniYangila(matn, faol) {
+            holatMatn.textContent = matn;
+            holatEl.classList.toggle('faol', !!faol);
+        }
+
+        function tayyorgaQaytar() { holatniYangila('Skanerlashga tayyor', false); }
+
+        function bufferniTozala() {
+            buffer = ''; vaqtlar = []; clearTimeout(buferTaymer);
+        }
+
+        function modalOchiqmi() { return !!document.querySelector('.modal-overlay.open'); }
+
+        async function serialniQaytaIshla(serial) {
+            holatniYangila('Qidirilmoqda: ' + serial, true);
+            try {
+                const res = await fetch('/admin/kutilayotgan-mahsulot-skaner', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serialKod: serial })
+                });
+                const data = await res.json();
+                toastKorsat(data.message, data.holat);
+                if (data.holat) await yukla();
+            } catch (e) {
+                toastKorsat('Server bilan aloqa yo‘q', 'err');
+            } finally {
+                tayyorgaQaytar();
+            }
+        }
+
+        function tekshirVaBajar() {
+            const kod = buffer;
+            const oraliqlar = vaqtlar;
+            bufferniTozala();
+            if (kod.length < MIN_UZUNLIK || oraliqlar.length < 2) return;
+
+            let jami = 0;
+            for (let i = 1; i < oraliqlar.length; i++) jami += oraliqlar[i] - oraliqlar[i - 1];
+            const ortacha = jami / (oraliqlar.length - 1);
+            if (ortacha > SKANER_ORTACHA_MS) return; // qo'lda yozilgan
+
+            serialniQaytaIshla(kod);
+        }
+
+        document.addEventListener('keydown', function (e) {
+            const tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if (modalOchiqmi()) return;
+
+            if (e.key === 'Enter') { tekshirVaBajar(); return; }
+            if (e.key.length !== 1) return;
+
+            const hozir = Date.now();
+            if (vaqtlar.length && hozir - vaqtlar[vaqtlar.length - 1] > 300) bufferniTozala();
+            buffer += e.key;
+            vaqtlar.push(hozir);
+
+            clearTimeout(buferTaymer);
+            buferTaymer = setTimeout(bufferniTozala, BUFER_TUGASH_MS);
+        });
+    })();
+
+    yukla();
+    magazinSelectYukla();
+</script>
+
+</body>
+</html>

@@ -20,6 +20,9 @@ public class ValyutaService {
     private static final String CBU_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/";
     private static final long KESH_DAQIQA = 60;
 
+    /** CBU'dan hech qachon kurs olib bo'lmagan holatda ishlatiladigan zaxira kurs */
+    private static final double ZAXIRA_KURS = 12000;
+
     private final RestClient restClient = RestClient.create();
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
@@ -34,7 +37,11 @@ public class ValyutaService {
         if (!keshYangi) {
             yangila();
         }
-        return new UsdKursDto(keshKurs, keshSana);
+        if (keshKurs != null) {
+            return new UsdKursDto(keshKurs, keshSana);
+        }
+        // CBU'ga umuman ulanib bo'lmadi (kesh ham bo'sh) — zaxira kurs bilan davom etamiz
+        return new UsdKursDto(ZAXIRA_KURS, "zaxira kurs (CBU ishlamayapti)");
     }
 
     private void yangila() {
