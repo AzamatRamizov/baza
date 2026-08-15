@@ -9,6 +9,9 @@
     <script src="/tema.js"></script>
     <script src="/skaner.js"></script>
     <script src="/chop.js"></script>
+    <!-- HEIC/HEIF (telefon rasmlari) ni brauzer o'zi o'qiy olmasa ham JPEGga aylantiradi —
+         libheif WASM asosida, brauzerning tabiiy kodek qo'llab-quvvatlashiga bog'liq emas -->
+    <script src="/vendor/heic2any.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -335,7 +338,7 @@
                     <button class="add-btn" id="rasmYuklashBtn" type="button">Rasm yuklash</button>
                     <button class="del-btn" id="rasmOchirishBtn" type="button" style="display:none">O'chirish</button>
                 </div>
-                <input type="file" id="rasmFile" accept="image/png,image/jpeg,image/webp" style="display:none">
+                <input type="file" id="rasmFile" accept="image/*" style="display:none">
             </div>
 
             <div class="maydon-blok">
@@ -370,7 +373,7 @@
                         <div class="qiymat" id="mKv">—</div>
                     </div>
                     <div class="maydon">
-                        <div class="nom">Zavod narxi (qoldiq)</div>
+                        <div class="nom">Zavod narxi (1 dona)</div>
                         <div class="narx-qator">
                             <div class="qiymat narx-yashirin" id="mNarx">—</div>
                             <button class="koz-btn" id="narxKozBtn" type="button" title="Ko'rsatish / yashirish">&#128065;</button>
@@ -389,7 +392,7 @@
                         <div class="qiymat" id="mYaratgan">—</div>
                     </div>
                     <div class="maydon">
-                        <div class="nom">Seriya raqami</div>
+                        <div class="nom">Seriya raqamlari</div>
                         <div class="qiymat" id="mSerial">—</div>
                     </div>
                 </div>
@@ -583,6 +586,13 @@
 
     function sonFormat(n) { return n == null ? '' : Number(n).toLocaleString('ru-RU'); }
 
+    /** Bazada UMUMIY (barcha qoldiq bo'yicha) narx saqlanadi — sahifada 1 DONA uchun ko'rsatamiz */
+    function narxDona(m) {
+        if (m.zavodNarxi == null) return null;
+        if (!m.miqdor || m.miqdor <= 0) return m.zavodNarxi;
+        return Math.round(m.zavodNarxi / m.miqdor);
+    }
+
     function qiymatQoy(elId, matn, mutedIfEmpty) {
         const el = document.getElementById(elId);
         if (matn === null || matn === undefined || matn === '') {
@@ -629,11 +639,11 @@
         qiymatQoy('mBoyi', mahsulot.boyi != null ? (mahsulot.boyi + ' m') : null);
         qiymatQoy('mEni', mahsulot.eni != null ? (mahsulot.eni + ' m') : null);
         qiymatQoy('mKv', mahsulot.kv != null ? (mahsulot.kv + ' kv.m') : null);
-        qiymatQoy('mNarx', mahsulot.zavodNarxi != null ? (sonFormat(mahsulot.zavodNarxi) + ' so‘m') : null);
+        qiymatQoy('mNarx', mahsulot.zavodNarxi != null ? (sonFormat(narxDona(mahsulot)) + ' so‘m') : null);
         qiymatQoy('mSotilgan', mahsulot.sotilganSumma ? (sonFormat(mahsulot.sotilganSumma) + ' so‘m') : null);
         qiymatQoy('mMagazin', mahsulot.magazinNomi);
         qiymatQoy('mYaratgan', mahsulot.yaratganFish);
-        qiymatQoy('mSerial', mahsulot.serialKod);
+        seriyalarniChiz();
 
         rasmniChiz();
 
@@ -669,23 +679,87 @@
         }
     }
 
+    /**
+     * Bitta mahsulot BIR NECHTA seriyaga ega bo'lishi mumkin (kodi/o'lchami bir xil
+     * bo'lgan dona qo'shilganda eskilari o'chmaydi, ro'yxatga qo'shiladi).
+     */
+    async function seriyalarniChiz() {
+        try {
+            const res = await fetch('/admin/mahsulot/' + id + '/seriyalar');
+            if (!res.ok) throw new Error();
+            const seriyalar = await res.json();
+            qiymatQoy('mSerial', seriyalar.length ? seriyalar.map(esc).join(', ') : null);
+        } catch (e) {
+            qiymatQoy('mSerial', null);
+        }
+    }
+
     // ===== Rasm yuklash / o'chirish =====
     document.getElementById('rasmYuklashBtn').addEventListener('click', () => {
         document.getElementById('rasmFile').click();
     });
 
-    document.getElementById('rasmFile').addEventListener('change', async e => {
-        const fayl = e.target.files[0];
-        e.target.value = '';
-        if (!fayl) return;
+    /**
+     * Brauzer &lt;img&gt;da to'g'ridan-to'g'ri ko'rsata oladigan formatlar. Boshqa
+     * formatlar (masalan iPhone'ning standart HEIC/HEIF rasmlari) shu ro'yxatda
+     * yo'q — Chrome/Firefox/Edge ularni ko'rsata olmaydi (yuklanadi-yu, maydonda
+     * ko'rinmay qoladi), shuning uchun yuklashdan OLDIN JPEGga aylantiramiz.
+     */
+    const RASM_XAVFSIZ_TURLAR = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
 
-        if (!/^image\/(png|jpe?g|webp)$/.test(fayl.type)) {
-            toastKorsat('Faqat JPG, PNG yoki WEBP formatdagi rasm yuklash mumkin', false);
+    /**
+     * HEIC/HEIF (yoki brauzer o'zi o'qiy olmagan boshqa format)ni JPEGga aylantiradi:
+     *   1) avval brauzerning TABIIY kodekini sinaydi (tez, lekin faqat Safari/iPhone
+     *      HEIC'ni shu yo'l bilan tushunadi — Chrome/Samsung Internet tushunmaydi),
+     *   2) ishlamasa — heic2any (libheif WASM, HAR QANDAY brauzerda ishlaydi, chunki
+     *      brauzer kodekiga bog'liq emas) bilan qayta urinadi.
+     */
+    async function jpegGaAylantir(fayl) {
+        try {
+            const bitmap = await createImageBitmap(fayl);
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            canvas.getContext('2d').drawImage(bitmap, 0, 0);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+            if (blob) return blob;
+        } catch (e) {
+            // brauzer tabiiy kodeki bu formatni tushunmadi — pastda WASM bilan qayta urinamiz
+        }
+
+        if (typeof heic2any !== 'function') return null;
+        try {
+            const natija = await heic2any({ blob: fayl, toType: 'image/jpeg', quality: 0.9 });
+            return Array.isArray(natija) ? natija[0] : natija;
+        } catch (e) {
+            return null; // bu ham dekodlay olmadi — chindan ham noma'lum/buzilgan format
+        }
+    }
+
+    document.getElementById('rasmFile').addEventListener('change', async e => {
+        const asl = e.target.files[0];
+        e.target.value = '';
+        if (!asl) return;
+
+        if (asl.type && !/^image\//.test(asl.type)) {
+            toastKorsat('Faqat rasm fayli yuklash mumkin', false);
             return;
         }
-        if (fayl.size > 15 * 1024 * 1024) {
+        if (asl.size > 15 * 1024 * 1024) {
             toastKorsat('Rasm hajmi 15 MB dan oshmasligi kerak', false);
             return;
+        }
+
+        let fayl = asl;
+        if (!RASM_XAVFSIZ_TURLAR.includes(asl.type)) {
+            const aylantirilgan = await jpegGaAylantir(asl);
+            if (!aylantirilgan) {
+                toastKorsat('Bu rasm formatini brauzeringiz o‘qiy olmadi — boshqa rasm tanlang ' +
+                    'yoki avval JPG formatiga aylantiring', false);
+                return;
+            }
+            fayl = new File([aylantirilgan], (asl.name || 'rasm').replace(/\.[^.]*$/, '') + '.jpg',
+                { type: 'image/jpeg' });
         }
 
         const form = new FormData();

@@ -225,7 +225,7 @@
                     <th>Eni</th>
                     <th>Kv</th>
                     <th>Miqdor</th>
-                    <th>Zavod narxi (umumiy)</th>
+                    <th>Zavod narxi (1 dona)</th>
                     <th>Magazin</th>
                     <th>Yaratgan</th>
                     <th></th>
@@ -257,8 +257,9 @@
 
         <div class="form-row">
             <div class="form-group">
-                <label for="mh_serial">Seriya raqami (ixtiyoriy)</label>
+                <label for="mh_serial" id="mh_serialLabel">Seriya raqami (ixtiyoriy)</label>
                 <input type="text" id="mh_serial" placeholder="Zavod seriyasi (skanerlanadi)" autocomplete="off">
+                <div class="miqdor-hint" id="mh_seriyalarRoyxati" style="display:none"></div>
             </div>
         </div>
 
@@ -397,6 +398,13 @@
         return n == null ? '' : Number(n).toLocaleString('ru-RU');
     }
 
+    /** Bazada UMUMIY (barcha qoldiq bo'yicha) narx saqlanadi — ro'yxatda 1 DONA uchun ko'rsatamiz */
+    function narxDona(m) {
+        if (m.zavodNarxi == null) return null;
+        if (!m.miqdor || m.miqdor <= 0) return m.zavodNarxi;
+        return Math.round(m.zavodNarxi / m.miqdor);
+    }
+
     // ===== Jadval =====
     function borMi(m) {
         return m.miqdor != null && m.miqdor > 0;
@@ -442,7 +450,7 @@
                 <td>${m.eni ?? '<span class="muted">—</span>'}</td>
                 <td>${m.kv != null ? m.kv : '<span class="muted">—</span>'}</td>
                 <td><b>${m.miqdor != null ? m.miqdor : '—'}</b> <span class="muted">${esc(m.birlik) || ''}</span></td>
-                <td>${m.zavodNarxi != null ? sonFormat(m.zavodNarxi) : '<span class="muted">—</span>'}</td>
+                <td>${m.zavodNarxi != null ? sonFormat(narxDona(m)) : '<span class="muted">—</span>'}</td>
                 <td>${esc(m.magazinNomi) || '<span class="muted">—</span>'}</td>
                 <td>${esc(m.yaratganFish) || '<span class="muted">—</span>'}</td>
                 <td>
@@ -529,6 +537,23 @@
             select.value = tanlanganId != null ? String(tanlanganId) : '';
         } catch (e) {
             select.innerHTML = '<option value="">— Yuklashda xatolik —</option>';
+        }
+    }
+
+    /** Tahrirlashda — shu mahsulotga tegishli barcha (bir nechta bo'lishi mumkin) seriya raqamlari */
+    async function seriyalarRoyxatiniYukla(mahsulotId) {
+        const el = document.getElementById('mh_seriyalarRoyxati');
+        if (!mahsulotId) { el.style.display = 'none'; return; }
+        try {
+            const res = await fetch('/admin/mahsulot/' + mahsulotId + '/seriyalar');
+            if (!res.ok) throw new Error();
+            const seriyalar = await res.json();
+            if (!seriyalar.length) { el.style.display = 'none'; return; }
+            el.innerHTML = 'Mavjud seriyalar (' + seriyalar.length + ' ta): <b>' +
+                seriyalar.map(esc).join(', ') + '</b>';
+            el.style.display = 'block';
+        } catch (e) {
+            el.style.display = 'none';
         }
     }
 
@@ -758,7 +783,12 @@
 
         document.getElementById('mh_nomi').value = mahsulot ? (mahsulot.nomi || '') : '';
         document.getElementById('mh_kod').value = mahsulot ? (mahsulot.kod || '') : '';
-        document.getElementById('mh_serial').value = mahsulot ? (mahsulot.serialKod || '') : '';
+        // Seriya maydoni HAR DOIM bo'sh boshlanadi — tahrirlashda bu "yangi seriya
+        // qo'shish" degani (mavjudlari o'chmaydi, ro'yxatga qo'shiladi, pastda ko'rinadi)
+        document.getElementById('mh_serial').value = '';
+        document.getElementById('mh_serialLabel').textContent =
+            mahsulot ? 'Yangi seriya qo‘shish (ixtiyoriy)' : 'Seriya raqami (ixtiyoriy)';
+        seriyalarRoyxatiniYukla(mahsulot ? mahsulot.id : null);
         document.getElementById('mh_turi').value = mahsulot ? (mahsulot.turi || 'gatoviy') : 'gatoviy';
         // Miqdor: tahrirlashda bazadagi qiymat, yangi mahsulotda avto to'ldiriladi
         const miqdorInput = document.getElementById('mh_miqdor');

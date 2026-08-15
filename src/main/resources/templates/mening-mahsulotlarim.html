@@ -280,7 +280,7 @@
                     <th>Eni</th>
                     <th>Kv</th>
                     <th>Qoldiq</th>
-                    <th>Zavod narxi (umumiy)</th>
+                    <th>Zavod narxi (1 dona)</th>
                     <th>Magazin</th>
                     <th></th>
                 </tr>
@@ -439,6 +439,13 @@
         return n == null ? '' : Number(n).toLocaleString('ru-RU');
     }
 
+    /** Bazada UMUMIY (barcha qoldiq bo'yicha) narx saqlanadi — ro'yxatda 1 DONA uchun ko'rsatamiz */
+    function narxDona(m) {
+        if (m.zavodNarxi == null) return null;
+        if (!m.miqdor || m.miqdor <= 0) return m.zavodNarxi;
+        return Math.round(m.zavodNarxi / m.miqdor);
+    }
+
     // ===== Statistika =====
     function statlarniYangila(list) {
         const kv = list.reduce((s, m) => s + (m.kv || 0), 0);
@@ -492,7 +499,7 @@
                 <td>${m.eni ?? '<span class="muted">—</span>'}</td>
                 <td>${m.kv != null ? m.kv : '<span class="muted">—</span>'}</td>
                 <td><b>${m.miqdor != null ? m.miqdor : '—'}</b> <span class="muted">${esc(m.birlik) || ''}</span></td>
-                <td>${m.zavodNarxi != null ? sonFormat(m.zavodNarxi) : '<span class="muted">—</span>'}</td>
+                <td>${m.zavodNarxi != null ? sonFormat(narxDona(m)) : '<span class="muted">—</span>'}</td>
                 <td>${esc(m.magazinNomi) || '<span class="muted">—</span>'}</td>
                 <td>
                     <a class="amal-btn korish-btn" href="/admin/mahsulot/${m.id}">Ko'rish</a>

@@ -6,12 +6,14 @@ import com.example.baza.Dto.MahsulotQidirDto;
 import com.example.baza.Dto.MahsulotSaveDto;
 import com.example.baza.Dto.UsdKursDto;
 import com.example.baza.Entity.Mahsulot;
+import com.example.baza.Entity.MahsulotSeriya;
 import com.example.baza.Entity.Rol;
 import com.example.baza.Entity.SotuvHolati;
 import com.example.baza.Entity.Users;
 import com.example.baza.Repository.KategoriyaRepository;
 import com.example.baza.Repository.MagazinRepository;
 import com.example.baza.Repository.MahsulotRepository;
+import com.example.baza.Repository.MahsulotSeriyaRepository;
 import com.example.baza.Repository.SotuvRepository;
 import com.example.baza.Repository.UsersRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,13 +41,22 @@ public class MahsulotService {
     private final UsersRepository usersRepository;
     private final KategoriyaRepository kategoriyaRepository;
     private final SotuvRepository sotuvRepository;
+    private final MahsulotSeriyaRepository mahsulotSeriyaRepository;
     private final ValyutaService valyutaService;
     private final TarixService tarixService;
 
     @Value("${app.upload-dir}")
     private String uploadDir;
 
-    private static final Set<String> RUXSAT_ETILGAN_KENGAYTMALAR = Set.of("jpg", "jpeg", "png", "webp");
+    /**
+     * Brauzerlar &lt;img&gt; ichida to'g'ridan-to'g'ri ko'rsata oladigan formatlar.
+     * HEIC/HEIF (iPhone standart formati) ATAYLAB kiritilmagan — Chrome/Firefox/Edge
+     * buni ko'rsata olmaydi (rasm "yuklandi" deydi-yu, maydonda ko'rinmaydi). Frontend
+     * bunday fayllarni yuklashdan OLDIN brauzerning o'zida JPEGga aylantiradi — shu
+     * bilan har doim ko'rinadigan format serverga yetib keladi.
+     */
+    private static final Set<String> RUXSAT_ETILGAN_KENGAYTMALAR =
+            Set.of("jpg", "jpeg", "png", "webp", "gif", "bmp");
 
     /** Zaxiradan haqiqatan chiqib ketgan holatlar — "sotilgan summa" shular bo'yicha hisoblanadi */
     private static final List<SotuvHolati> SOTILGAN_HOLATLAR = List.of(SotuvHolati.SOTILDI, SotuvHolati.KATMDA);
@@ -55,6 +66,7 @@ public class MahsulotService {
                            UsersRepository usersRepository,
                            KategoriyaRepository kategoriyaRepository,
                            SotuvRepository sotuvRepository,
+                           MahsulotSeriyaRepository mahsulotSeriyaRepository,
                            ValyutaService valyutaService,
                            TarixService tarixService) {
         this.mahsulotRepository = mahsulotRepository;
@@ -62,6 +74,7 @@ public class MahsulotService {
         this.usersRepository = usersRepository;
         this.kategoriyaRepository = kategoriyaRepository;
         this.sotuvRepository = sotuvRepository;
+        this.mahsulotSeriyaRepository = mahsulotSeriyaRepository;
         this.valyutaService = valyutaService;
         this.tarixService = tarixService;
     }
@@ -98,7 +111,7 @@ public class MahsulotService {
         // qator sifatida qo'shiladi (tekshir() bunga endi yo'l qo'yadi).
         Mahsulot mosi = birXilOlchamdaginiTop(dto);
         if (mosi != null) {
-            return miqdorgaQoshish(mosi, miqdor, narxSom);
+            return miqdorgaQoshish(mosi, miqdor, narxSom, dto.serialKod());
         }
 
         Mahsulot mahsulot = new Mahsulot();
@@ -109,6 +122,7 @@ public class MahsulotService {
         usersRepository.findByUsername(username).ifPresent(mahsulot::setYaratganUser);
 
         mahsulotRepository.save(mahsulot);
+        seriyaQoshish(mahsulot, dto.serialKod());
 
         tarixService.yoz("Mahsulot", "Qo'shildi", mahsulot.getId(), mahsulot.getNomi(),
                 "Kod: " + mahsulot.getKod() +
@@ -138,6 +152,7 @@ public class MahsulotService {
         String eskiHolat = mahsulotHolati(mahsulot);
         maydonlarniTuldirish(mahsulot, dto, narxSom, miqdor); // yaratganUser o'zgarmaydi
         mahsulotRepository.save(mahsulot);
+        seriyaQoshish(mahsulot, dto.serialKod());
 
         String yangiHolat = mahsulotHolati(mahsulot);
         tarixService.yoz("Mahsulot", "Tahrirlandi", mahsulot.getId(), mahsulot.getNomi(),
@@ -153,6 +168,7 @@ public class MahsulotService {
         }
         String nomi = mahsulot.getNomi();
         String kod = mahsulot.getKod();
+        mahsulotSeriyaRepository.deleteByMahsulot_Id(id);
         mahsulotRepository.delete(mahsulot);
 
         tarixService.yoz("Mahsulot", "O'chirildi", id, nomi, "Kod: " + kod);
@@ -172,9 +188,9 @@ public class MahsulotService {
 
     /**
      * Shtrix-kod/QR skaneri kodni o'qiganda chaqiriladi — universal: avval "kod"
-     * (artikul) bo'yicha qidiradi, topilmasa "seriya raqami" (serialKod, zavod
-     * bergan — Excel orqali import qilingan mahsulotlarda bo'ladi) bo'yicha ham
-     * qidiradi. Shunday qilib skaner ham o'z QR kodimiz (link), ham zavod
+     * (artikul) bo'yicha qidiradi, topilmasa "seriya raqami" (MahsulotSeriya,
+     * zavod bergan — Excel orqali import qilingan mahsulotlarda bo'ladi) bo'yicha
+     * ham qidiradi. Shunday qilib skaner ham o'z QR kodimiz (link), ham zavod
      * shtrix-kodi (raqamli, link emas) bilan ishlaydi.
      * <p>
      * Bitta kod bir necha mahsulotga tegishli bo'lishi mumkin (ommaviy import
@@ -190,7 +206,11 @@ public class MahsulotService {
 
         List<Mahsulot> topilganlar = mahsulotRepository.findByKodIgnoreCase(tozaKod);
         if (topilganlar.isEmpty()) {
-            topilganlar = mahsulotRepository.findBySerialKodIgnoreCase(tozaKod);
+            topilganlar = mahsulotSeriyaRepository.findBySeriyaKodIgnoreCase(tozaKod).stream()
+                    .map(MahsulotSeriya::getMahsulot)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
         }
         if (topilganlar.isEmpty()) return Optional.empty();
         if (topilganlar.size() > 1) {
@@ -231,7 +251,7 @@ public class MahsulotService {
 
         String kengaytma = kengaytmaniOl(file.getOriginalFilename());
         if (kengaytma == null || !RUXSAT_ETILGAN_KENGAYTMALAR.contains(kengaytma)) {
-            return new ApiResponse("Faqat JPG, PNG yoki WEBP formatdagi rasm yuklash mumkin", false);
+            return new ApiResponse("Bu rasm formati qo'llab-quvvatlanmaydi", false);
         }
 
         try {
@@ -323,8 +343,14 @@ public class MahsulotService {
         return a != null && b != null && Math.abs(a - b) < 0.001;
     }
 
-    /** Bir xil kod/o'lchamdagi mavjud mahsulotning qoldig'i va zavod narxiga qo'shadi */
-    private ApiResponse miqdorgaQoshish(Mahsulot mosi, Double qoshiladiganMiqdor, Long qoshiladiganNarx) {
+    /**
+     * Bir xil kod/o'lchamdagi mavjud mahsulotning qoldig'i va zavod narxiga qo'shadi.
+     * Seriya raqami berilgan bo'lsa — mavjud mahsulotning ESKI seriyalari
+     * O'CHMAYDI, yangisi ro'yxatga QO'SHILADI (har bir jismoniy dona o'z
+     * seriyasini saqlab qoladi, garchi kodi/o'lchami bir xil bo'lsa ham).
+     */
+    private ApiResponse miqdorgaQoshish(Mahsulot mosi, Double qoshiladiganMiqdor, Long qoshiladiganNarx,
+                                        String serialKod) {
         double eskiMiqdor = mosi.getMiqdor() == null ? 0 : mosi.getMiqdor();
         double qoshiladigan = qoshiladiganMiqdor == null ? 0 : qoshiladiganMiqdor;
         Double yangiMiqdor = yaxlit(eskiMiqdor + qoshiladigan);
@@ -335,13 +361,39 @@ public class MahsulotService {
             mosi.setZavodNarxi(eskiNarx + qoshiladiganNarx);
         }
         mahsulotRepository.save(mosi);
+        seriyaQoshish(mosi, serialKod);
 
         tarixService.yoz("Mahsulot", "Qoldiqqa qo'shildi (bir xil kod/o'lcham)", mosi.getId(), mosi.getNomi(),
                 "Kod: " + mosi.getKod() + " | Qoldiq: " + yaxlit(eskiMiqdor) + " -> " + yangiMiqdor +
-                        " " + mosi.getBirlik());
+                        " " + mosi.getBirlik() + (serialKod == null || serialKod.isBlank()
+                        ? "" : " | Seriya qo'shildi: " + serialKod.trim()));
 
         return new ApiResponse("\"" + mosi.getKod() + "\" kodli va bir xil o'lchamdagi mahsulot allaqachon bor edi — " +
                 "soni " + yaxlit(eskiMiqdor) + " dan " + yangiMiqdor + " ga oshirildi", true);
+    }
+
+    /**
+     * Mahsulotga yangi seriya raqami qo'shadi (ro'yxatga, ESKILARINI O'CHIRMASDAN) —
+     * bo'sh bo'lsa yoki shu mahsulotda ALLAQACHON bor bo'lsa, jim o'tkazib yuboriladi
+     * (tahrirlash formasi ochilganda maydon bo'sh boshlanadi, shuning uchun odatiy
+     * saqlashda takror qo'shilib ketmaydi).
+     */
+    private void seriyaQoshish(Mahsulot mahsulot, String serialKod) {
+        if (serialKod == null || serialKod.isBlank()) return;
+        String toza = serialKod.trim();
+        if (mahsulotSeriyaRepository.existsByMahsulot_IdAndSeriyaKodIgnoreCase(mahsulot.getId(), toza)) return;
+
+        MahsulotSeriya seriya = new MahsulotSeriya();
+        seriya.setMahsulot(mahsulot);
+        seriya.setSeriyaKod(toza);
+        mahsulotSeriyaRepository.save(seriya);
+    }
+
+    /** Mahsulot sahifasida ko'rsatish uchun — shu mahsulotga tegishli barcha seriya raqamlari */
+    public List<String> seriyalarRoyxati(Long mahsulotId) {
+        return mahsulotSeriyaRepository.findByMahsulot_IdOrderByIdAsc(mahsulotId).stream()
+                .map(MahsulotSeriya::getSeriyaKod)
+                .toList();
     }
 
     /**
@@ -504,8 +556,6 @@ public class MahsulotService {
                                       Long narxSom, Double miqdor) {
         mahsulot.setNomi(dto.nomi().trim());
         mahsulot.setKod(dto.kod().trim());
-        mahsulot.setSerialKod(dto.serialKod() == null || dto.serialKod().isBlank()
-                ? null : dto.serialKod().trim());
         mahsulot.setKategoriya(dto.kategoriyaId() == null
                 ? null
                 : kategoriyaRepository.findById(dto.kategoriyaId()).orElse(null));

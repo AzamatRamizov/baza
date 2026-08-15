@@ -20,14 +20,6 @@ public class Mahsulot extends AbstractLongEntity {
     /** Mahsulot kodi (artikul) — takrorlanmas */
     private String kod;
 
-    /**
-     * Zavod (ishlab chiqaruvchi) tomonidan har bir jismoniy dona uchun berilgan
-     * takrorlanmas seriya raqami — Excel orqali ommaviy import qilinganda kiritiladi.
-     * Skaner bilan o'qilganda (agar QR/shtrix-kod havola emas, oddiy raqam bo'lsa)
-     * shu maydon bo'yicha ham qidiriladi (kod bo'yicha topilmasa).
-     */
-    private String serialKod;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "kategoriya_id")
     private Kategoriya kategoriya;

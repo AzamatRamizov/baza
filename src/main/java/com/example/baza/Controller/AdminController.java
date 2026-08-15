@@ -461,6 +461,16 @@ public class AdminController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /**
+     * Shu mahsulotga tegishli barcha seriya raqamlari (bir nechta bo'lishi mumkin —
+     * kodi/o'lchami bir xil bo'lgan dona qo'shilganda eskilari o'chmasdan to'planadi).
+     */
+    @GetMapping("/mahsulot/{id}/seriyalar")
+    @ResponseBody
+    public ResponseEntity<List<String>> mahsulotSeriyalari(@PathVariable Long id) {
+        return ResponseEntity.ok(mahsulotService.seriyalarRoyxati(id));
+    }
+
     /** Shtrix-kod skaneri o'qigan kod bo'yicha mahsulotni topadi — dashboarddagi skaner shu yerga so'rov yuboradi */
     @GetMapping("/mahsulot-qidir-kod/{kod}")
     @ResponseBody

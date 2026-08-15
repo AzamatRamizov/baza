@@ -18,7 +18,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
      */
     @Query("""
             select new com.example.baza.Dto.MahsulotDto(
-                m.id, m.nomi, m.kod, m.serialKod, k.id, k.nomi, m.birlik, m.zavodNarxi,
+                m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
                 mag.id, mag.nomi, u.fish, m.rasm, true, 0L)
             from Mahsulot m
@@ -32,7 +32,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
     /** Bitta mahsulot — detail sahifasi uchun (o'chirilib bo'lmaydigan lazy bog'lanishlarsiz) */
     @Query("""
             select new com.example.baza.Dto.MahsulotDto(
-                m.id, m.nomi, m.kod, m.serialKod, k.id, k.nomi, m.birlik, m.zavodNarxi,
+                m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
                 mag.id, mag.nomi, u.fish, m.rasm, true, 0L)
             from Mahsulot m
@@ -49,7 +49,7 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
      */
     @Query("""
             select distinct new com.example.baza.Dto.MahsulotDto(
-                m.id, m.nomi, m.kod, m.serialKod, k.id, k.nomi, m.birlik, m.zavodNarxi,
+                m.id, m.nomi, m.kod, k.id, k.nomi, m.birlik, m.zavodNarxi,
                 m.boyi, m.eni, m.kv, m.miqdor, m.turi,
                 mag.id, mag.nomi, u.fish, m.rasm, true, 0L)
             from Mahsulot m
@@ -71,9 +71,6 @@ public interface MahsulotRepository extends JpaRepository<Mahsulot, Long> {
      * Optional/single-result EMAS (aks holda NonUniqueResultException beradi).
      */
     List<Mahsulot> findByKodIgnoreCase(String kod);
-
-    /** Skaner "kod" bo'yicha topilmasa — seriya raqami (zavod berilgan) bo'yicha qidiriladi */
-    List<Mahsulot> findBySerialKodIgnoreCase(String serialKod);
 
     /** Skanerlangan mahsulot shu hodimning magazin(lar)iga tegishlimi — "Mening mahsulotlarim" bilan bir xil scoping */
     boolean existsByIdAndMagazin_Hodimlar_Id(Long mahsulotId, Long userId);

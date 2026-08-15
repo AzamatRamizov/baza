@@ -9,7 +9,7 @@ import com.example.baza.Entity.Magazin;
 import com.example.baza.Entity.Users;
 import com.example.baza.Repository.KutilayotganMahsulotRepository;
 import com.example.baza.Repository.MagazinRepository;
-import com.example.baza.Repository.MahsulotRepository;
+import com.example.baza.Repository.MahsulotSeriyaRepository;
 import com.example.baza.Repository.UsersRepository;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -59,7 +59,7 @@ public class KutilayotganMahsulotService {
     private static final String H_SERIAL = "serial №";
 
     private final KutilayotganMahsulotRepository kutilayotganRepository;
-    private final MahsulotRepository mahsulotRepository;
+    private final MahsulotSeriyaRepository mahsulotSeriyaRepository;
     private final MagazinRepository magazinRepository;
     private final UsersRepository usersRepository;
     private final MahsulotService mahsulotService;
@@ -68,13 +68,13 @@ public class KutilayotganMahsulotService {
     private final DataFormatter formatter = new DataFormatter();
 
     public KutilayotganMahsulotService(KutilayotganMahsulotRepository kutilayotganRepository,
-                                       MahsulotRepository mahsulotRepository,
+                                       MahsulotSeriyaRepository mahsulotSeriyaRepository,
                                        MagazinRepository magazinRepository,
                                        UsersRepository usersRepository,
                                        MahsulotService mahsulotService,
                                        TarixService tarixService) {
         this.kutilayotganRepository = kutilayotganRepository;
-        this.mahsulotRepository = mahsulotRepository;
+        this.mahsulotSeriyaRepository = mahsulotSeriyaRepository;
         this.magazinRepository = magazinRepository;
         this.usersRepository = usersRepository;
         this.mahsulotService = mahsulotService;
@@ -172,7 +172,7 @@ public class KutilayotganMahsulotService {
                         "-qatorda ham bor edi — o'tkazib yuborildi");
                 continue;
             }
-            if (mahsulotRepository.findBySerialKodIgnoreCase(serial).size() > 0) {
+            if (mahsulotSeriyaRepository.existsBySeriyaKodIgnoreCase(serial)) {
                 xatolar.add("Qator " + excelQator + ": seriya raqami \"" + serial +
                         "\" bazada allaqachon mavjud (mahsulotga qo'shilgan)");
                 continue;
